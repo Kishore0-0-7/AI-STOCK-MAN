@@ -60,13 +60,87 @@ const mockForecastData = {
   ]
 };
 
-const mockTopProducts = [
-  { name: "Rice Bags", sales: 45, color: "#3B82F6" },
-  { name: "Cooking Oil", sales: 38, color: "#10B981" },
-  { name: "Wheat Flour", sales: 32, color: "#F59E0B" },
-  { name: "Sugar", sales: 28, color: "#EF4444" },
-  { name: "Pulses", sales: 25, color: "#8B5CF6" },
+// Import/copy mockProducts from Products.tsx
+const mockProducts = [
+  {
+    id: "P001",
+    name: "NVIDIA GTX 1660 Super",
+    category: "Graphics Card",
+    quantity: 10,
+    unit: "pcs",
+    sellingPrice: 18500,
+    purchasePrice: 17000,
+    supplier: "Tech Distributors",
+    lowStock: 3,
+    image: "/placeholder.svg",
+    sold: 120
+  },
+  {
+    id: "P002",
+    name: "Corsair 650W Power Supply",
+    category: "Power Supply",
+    quantity: 18,
+    unit: "pcs",
+    sellingPrice: 5200,
+    purchasePrice: 4800,
+    supplier: "Power Solutions",
+    lowStock: 5,
+    image: "/placeholder.svg",
+    sold: 95
+  },
+  {
+    id: "P003",
+    name: "ASUS B450 Motherboard",
+    category: "Motherboard",
+    quantity: 12,
+    unit: "pcs",
+    sellingPrice: 7800,
+    purchasePrice: 7000,
+    supplier: "Motherboard Mart",
+    lowStock: 4,
+    image: "/placeholder.svg",
+    sold: 80
+  },
+  {
+    id: "P004",
+    name: "1TB Seagate HDD",
+    category: "Storage",
+    quantity: 25,
+    unit: "pcs",
+    sellingPrice: 3200,
+    purchasePrice: 2900,
+    supplier: "Storage House",
+    lowStock: 8,
+    image: "/placeholder.svg",
+    sold: 60
+  },
+  {
+    id: "P005",
+    name: "Cooler Master CPU Cooler",
+    category: "Cooling",
+    quantity: 20,
+    unit: "pcs",
+    sellingPrice: 2100,
+    purchasePrice: 1800,
+    supplier: "Cooler World",
+    lowStock: 6,
+    image: "/placeholder.svg",
+    sold: 45
+  }
 ];
+
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+
+// Top selling products sorted by 'sold'
+const topProducts = [...mockProducts]
+  .sort((a, b) => b.sold - a.sold)
+  .slice(0, 5)
+  .map((p, i) => ({
+    name: p.name,
+    sales: p.sold,
+    color: COLORS[i % COLORS.length],
+    details: p
+  }));
 
 const mockRecentActivity = [
   { action: "Stock Added", item: "Basmati Rice", quantity: 50, time: "2 mins ago" },
@@ -75,8 +149,6 @@ const mockRecentActivity = [
   { action: "Purchase Order", item: "Wheat Flour", quantity: 100, time: "1 hour ago" },
   { action: "Stock Added", item: "Sugar", quantity: 75, time: "2 hours ago" },
 ];
-
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export default function Dashboard() {
   const [forecastPeriod, setForecastPeriod] = useState<"7days" | "30days" | "90days">("7days");
@@ -233,22 +305,43 @@ export default function Dashboard() {
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={mockTopProducts}
+                data={topProducts}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, value }) => `${name}: ${value}%`}
+                label={({ name, sales, x, y, textAnchor }) => (
+                  <text
+                    x={x}
+                    y={y}
+                    textAnchor={textAnchor}
+                    fontSize={12}
+                    fill="#333"
+                    dominantBaseline="central"
+                  >
+                    {`${name}: ${sales}`}
+                  </text>
+                )}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="sales"
               >
-                {mockTopProducts.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {topProducts.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
+          <div className="mt-6 space-y-2">
+            {topProducts.map((product, idx) => (
+              <div key={product.name} className="flex items-center gap-3">
+                <div className="h-3 w-3 rounded-full" style={{ background: product.color }} />
+                <span className="font-medium">{product.name}</span>
+                <span className="text-muted-foreground text-sm">({product.details.category})</span>
+                <span className="ml-auto font-bold">Sold: {product.sales}</span>
+              </div>
+            ))}
+          </div>
         </Card>
       </div>
 

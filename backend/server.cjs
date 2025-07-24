@@ -1,19 +1,14 @@
 const express = require('express');
-const mysql = require('mysql2');
+const db = require('./config/db.cjs');
 const cors = require('cors');
+const customersRouter = require('./routes/customers.cjs');
+const billsRouter = require('./routes/bills.cjs');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // MySQL connection
-const db = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '12345',
-  database: 'Stock'
-});
-
 db.connect(err => {
   if (err) {
     console.error('MySQL connection error:', err);
@@ -57,6 +52,9 @@ app.delete('/api/products/:id', (req, res) => {
     res.json({ success: true });
   });
 });
+
+app.use('/api/customers', customersRouter);
+app.use('/api/bills', billsRouter);
 
 const PORT = 4000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); 

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,25 +26,80 @@ import {
   Package,
   Trash2
 } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 export default function Billing() {
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [searchProduct, setSearchProduct] = useState("");
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [gstEnabled, setGstEnabled] = useState(true);
+  const [billPreviewOpen, setBillPreviewOpen] = useState(false);
+  const billRef = useRef<HTMLDivElement>(null);
 
-  const mockCustomers = [
-    { id: "C001", name: "Raj Grocery Store", phone: "+91 98765 43210" },
-    { id: "C002", name: "Mumbai Mart", phone: "+91 99887 76543" },
-    { id: "C003", name: "Delhi Retail", phone: "+91 97654 32109" }
-  ];
+  const [customers, setCustomers] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerForm, setCustomerForm] = useState({ name: "", phone: "", email: "", address: "" });
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [customerLoading, setCustomerLoading] = useState(true);
+  const [customerError, setCustomerError] = useState(null);
+
+  const { toast } = useToast();
+
+  // Fetch customers from backend
+  useEffect(() => {
+    setCustomerLoading(true);
+    fetch('http://localhost:4000/api/customers')
+      .then(res => res.json())
+      .then(data => {
+        setCustomers(data);
+        setCustomerLoading(false);
+      })
+      .catch(err => {
+        setCustomerError(err.message);
+        setCustomerLoading(false);
+      });
+  }, []);
+
+  // CRUD operations
+  const addCustomer = () => {
+    fetch('http://localhost:4000/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(customerForm)
+    })
+      .then(res => res.json())
+      .then(newCustomer => {
+        setCustomers([...customers, newCustomer]);
+        setCustomerForm({ name: "", phone: "", email: "", address: "" });
+        setEditingCustomer(null);
+        toast({ title: 'Customer added successfully!' });
+      });
+  };
+  const updateCustomer = () => {
+    fetch(`http://localhost:4000/api/customers/${editingCustomer.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(customerForm)
+    })
+      .then(res => res.json())
+      .then(updated => {
+        setCustomers(customers.map(c => c.id === updated.id ? updated : c));
+        setEditingCustomer(null);
+        setCustomerForm({ name: "", phone: "", email: "", address: "" });
+      });
+  };
+  const deleteCustomer = (id) => {
+    fetch(`http://localhost:4000/api/customers/${id}`, { method: 'DELETE' })
+      .then(() => setCustomers(customers.filter(c => c.id !== id)));
+  };
 
   const mockProducts = [
-    { id: "P001", name: "Basmati Rice Premium", price: 120, stock: 150, unit: "kg" },
-    { id: "P002", name: "Sunflower Oil", price: 180, stock: 8, unit: "L" },
-    { id: "P003", name: "Wheat Flour", price: 45, stock: 200, unit: "kg" },
-    { id: "P004", name: "Sugar", price: 42, stock: 75, unit: "kg" },
-    { id: "P005", name: "Toor Dal", price: 160, stock: 5, unit: "kg" }
+    { id: "P001", name: "NVIDIA GTX 1660 Super", price: 18500, stock: 10, unit: "pcs" },
+    { id: "P002", name: "Corsair 650W Power Supply", price: 5200, stock: 18, unit: "pcs" },
+    { id: "P003", name: "ASUS B450 Motherboard", price: 7800, stock: 12, unit: "pcs" },
+    { id: "P004", name: "1TB Seagate HDD", price: 3200, stock: 25, unit: "pcs" },
+    { id: "P005", name: "Cooler Master CPU Cooler", price: 2100, stock: 20, unit: "pcs" }
   ];
 
   const addToCart = (product: any) => {
@@ -82,6 +138,66 @@ export default function Billing() {
     product.name.toLowerCase().includes(searchProduct.toLowerCase())
   );
 
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    (c.phone && c.phone.includes(customerSearch)) ||
+    (c.email && c.email.toLowerCase().includes(customerSearch.toLowerCase()))
+  );
+
+  // Bill preview handler
+  const handleGenerateBill = () => {
+    setBillPreviewOpen(true);
+  };
+
+  // Download as PDF
+  const handleDownloadPDF = async () => {
+    if (!billRef.current) return;
+    const canvas = await html2canvas(billRef.current);
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [canvas.width, canvas.height] });
+    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+    pdf.save("bill.pdf");
+  };
+
+  // Print bill
+  const handlePrint = () => {
+    if (!billRef.current) return;
+    const printContents = billRef.current.innerHTML;
+    const win = window.open("", "Print-Window");
+    if (win) {
+      win.document.open();
+      win.document.write(`<html><body onload='window.print()'>${printContents}</body></html>`);
+      win.document.close();
+      setTimeout(() => win.close(), 10);
+    }
+  };
+
+  // Share bill
+  const handleShare = async () => {
+    if (!billRef.current) return;
+    const canvas = await html2canvas(billRef.current);
+    canvas.toBlob(async (blob) => {
+      if (navigator.share && blob) {
+        const file = new File([blob], "bill.png", { type: "image/png" });
+        try {
+          await navigator.share({
+            files: [file],
+            title: "Bill",
+            text: "Here is your bill."
+          });
+        } catch (e) {
+          alert("Share cancelled or failed.");
+        }
+      } else if (blob) {
+        // Fallback: WhatsApp and Gmail links
+        const url = URL.createObjectURL(blob);
+        window.open(`https://wa.me/?text=See%20your%20bill%20image%3A%20${encodeURIComponent(url)}`);
+        // For Gmail, you can prefill subject/body but not attach files directly
+        window.open(`mailto:?subject=Your%20Bill&body=See%20your%20bill%20image%3A%20${encodeURIComponent(url)}`);
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -106,18 +222,55 @@ export default function Billing() {
               <User className="h-5 w-5 text-primary" />
               <h3 className="text-lg font-semibold">Customer Information</h3>
             </div>
+            <div className="mb-2">
+              <Input
+                placeholder="Search customers..."
+                value={customerSearch}
+                onChange={e => setCustomerSearch(e.target.value)}
+              />
+            </div>
             <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Customer" />
               </SelectTrigger>
               <SelectContent>
-                {mockCustomers.map(customer => (
-                  <SelectItem key={customer.id} value={customer.id}>
+                {filteredCustomers.map(customer => (
+                  <SelectItem key={customer.id} value={customer.id.toString()}>
                     {customer.name} - {customer.phone}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <div className="flex gap-2 mt-2">
+              <Button variant="outline" size="sm" onClick={() => { setEditingCustomer('add'); setCustomerForm({ name: '', phone: '', email: '', address: '' }); }}>Add New</Button>
+              {editingCustomer && (
+                <Button variant="outline" size="sm" onClick={() => setEditingCustomer(null)}>Cancel</Button>
+              )}
+            </div>
+            {(editingCustomer !== null) && (
+              <div className="mt-2 space-y-2">
+                <Input placeholder="Name" value={customerForm.name} onChange={e => setCustomerForm({ ...customerForm, name: e.target.value })} />
+                <Input placeholder="Phone" value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} />
+                <Input placeholder="Email" value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} />
+                <Input placeholder="Address" value={customerForm.address} onChange={e => setCustomerForm({ ...customerForm, address: e.target.value })} />
+                <div className="flex gap-2">
+                  {editingCustomer && editingCustomer !== 'add' ? (
+                    <Button variant="default" size="sm" onClick={updateCustomer}>Update</Button>
+                  ) : (
+                    <Button variant="default" size="sm" onClick={addCustomer}>Add</Button>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="mt-2">
+              {filteredCustomers.map(customer => (
+                <div key={customer.id} className="flex items-center gap-2 border-b py-1">
+                  <span>{customer.name} ({customer.phone})</span>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingCustomer(customer); setCustomerForm(customer); }}>Edit</Button>
+                  <Button variant="destructive" size="sm" onClick={() => deleteCustomer(customer.id)}>Delete</Button>
+                </div>
+              ))}
+            </div>
           </Card>
 
           {/* Product Search */}
@@ -245,18 +398,19 @@ export default function Billing() {
                 size="lg" 
                 className="w-full"
                 disabled={cartItems.length === 0 || !selectedCustomer}
+                onClick={handleGenerateBill}
               >
                 Generate Bill
               </Button>
               
               <div className="grid grid-cols-3 gap-2">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handlePrint}>
                   <Printer className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
                   <Download className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleShare}>
                   <Share className="h-4 w-4" />
                 </Button>
               </div>
@@ -280,6 +434,59 @@ export default function Billing() {
           </Card>
         </div>
       </div>
+
+      {billPreviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-lg w-full relative">
+            <button className="absolute top-2 right-2 text-xl" onClick={() => setBillPreviewOpen(false)}>&times;</button>
+            <div ref={billRef} className="bg-white p-4">
+              <h2 className="text-2xl font-bold mb-2">Bill Preview</h2>
+              <div className="mb-2">Customer: {customers.find(c => c.id.toString() === selectedCustomer)?.name}</div>
+              <div className="mb-2">Phone: {customers.find(c => c.id.toString() === selectedCustomer)?.phone}</div>
+              <div className="mb-2">Date: {new Date().toLocaleString()}</div>
+              <table className="w-full text-sm border mt-2 mb-2">
+                <thead>
+                  <tr>
+                    <th className="border px-2">Product</th>
+                    <th className="border px-2">Qty</th>
+                    <th className="border px-2">Price</th>
+                    <th className="border px-2">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cartItems.map(item => (
+                    <tr key={item.id}>
+                      <td className="border px-2">{item.name}</td>
+                      <td className="border px-2">{item.quantity}</td>
+                      <td className="border px-2">₹{item.price}</td>
+                      <td className="border px-2">₹{(item.price * item.quantity).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="flex justify-between mt-2">
+                <span>Subtotal:</span>
+                <span>₹{subtotal.toFixed(2)}</span>
+              </div>
+              {gstEnabled && (
+                <div className="flex justify-between">
+                  <span>GST (18%):</span>
+                  <span>₹{gstAmount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-lg mt-2">
+                <span>Total:</span>
+                <span>₹{total.toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Button variant="outline" onClick={handlePrint}><Printer className="h-4 w-4" /></Button>
+              <Button variant="outline" onClick={handleDownloadPDF}><Download className="h-4 w-4" /></Button>
+              <Button variant="outline" onClick={handleShare}><Share className="h-4 w-4" /></Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

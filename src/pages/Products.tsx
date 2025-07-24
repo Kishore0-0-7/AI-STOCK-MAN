@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,76 +29,114 @@ import {
   Upload,
   Filter
 } from "lucide-react";
+import { saveAs } from "file-saver";
 
-// Mock product data
-const mockProducts = [
-  {
-    id: "P001",
-    name: "Basmati Rice Premium",
-    category: "Grains",
-    quantity: 150,
-    unit: "kg",
-    sellingPrice: 120,
-    purchasePrice: 100,
-    supplier: "ABC Traders",
-    lowStock: 20,
-    image: "/placeholder.svg"
-  },
-  {
-    id: "P002", 
-    name: "Sunflower Oil",
-    category: "Oil & Ghee",
-    quantity: 8,
-    unit: "L",
-    sellingPrice: 180,
-    purchasePrice: 150,
-    supplier: "Oil Express",
-    lowStock: 10,
-    image: "/placeholder.svg"
-  },
-  {
-    id: "P003",
-    name: "Wheat Flour",
-    category: "Flour",
-    quantity: 200,
-    unit: "kg", 
-    sellingPrice: 45,
-    purchasePrice: 35,
-    supplier: "Grain Mills",
-    lowStock: 30,
-    image: "/placeholder.svg"
-  },
-  {
-    id: "P004",
-    name: "Sugar",
-    category: "Sweeteners", 
-    quantity: 75,
-    unit: "kg",
-    sellingPrice: 42,
-    purchasePrice: 38,
-    supplier: "Sweet Co",
-    lowStock: 25,
-    image: "/placeholder.svg"
-  },
-  {
-    id: "P005",
-    name: "Toor Dal",
-    category: "Pulses",
-    quantity: 5,
-    unit: "kg",
-    sellingPrice: 160,
-    purchasePrice: 140,
-    supplier: "Dal Depot",
-    lowStock: 15,
-    image: "/placeholder.svg"
-  }
-];
+// No more mockProducts; data will be fetched from backend
+
+// CSV export helper
+function exportProductsToCSV(products: any[]) {
+  const headers = [
+    "ID",
+    "Name",
+    "Category",
+    "Quantity",
+    "Unit",
+    "Selling Price",
+    "Purchase Price",
+    "Supplier",
+    "Low Stock"
+  ];
+  const rows = products.map(p => [
+    p.id,
+    p.name,
+    p.category,
+    p.quantity,
+    p.unit,
+    p.sellingPrice,
+    p.purchasePrice,
+    p.supplier,
+    p.lowStock
+  ]);
+  const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "products.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 export default function Products() {
-  const [products, setProducts] = useState(mockProducts);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<any | null>(null);
+  const [deleteProduct, setDeleteProduct] = useState<any | null>(null);
+  const [form, setForm] = useState<any>({});
+
+  useEffect(() => {
+    setLoading(true);
+    fetch('http://localhost:4000/api/products')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch products');
+        return res.json();
+      })
+      .then(data => {
+        setProducts(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  // Handlers for CRUD
+  const handleAddProduct = () => {
+    if (!form.name || !form.id) return;
+    setProducts([
+      ...products,
+      { ...form, unit: "pcs", quantity: Number(form.quantity), sellingPrice: Number(form.sellingPrice), purchasePrice: Number(form.purchasePrice), lowStock: Number(form.lowStock) }
+    ]);
+    setIsAddDialogOpen(false);
+    setForm({});
+  };
+
+  const handleEditProduct = () => {
+    setProducts(products.map(p =>
+      p.id === editProduct.id
+        ? { ...editProduct, ...form, unit: "pcs", quantity: Number(form.quantity), sellingPrice: Number(form.sellingPrice), purchasePrice: Number(form.purchasePrice), lowStock: Number(form.lowStock) }
+        : p
+    ));
+    setIsEditDialogOpen(false);
+    setEditProduct(null);
+    setForm({});
+  };
+
+  const handleDeleteProduct = () => {
+    setProducts(products.filter(p => p.id !== deleteProduct.id));
+    setIsDeleteDialogOpen(false);
+    setDeleteProduct(null);
+  };
+
+  const openEditDialog = (product: any) => {
+    setEditProduct(product);
+    setForm(product);
+    setIsEditDialogOpen(true);
+  };
+
+  const openDeleteDialog = (product: any) => {
+    setDeleteProduct(product);
+    setIsDeleteDialogOpen(true);
+  };
 
   const categories = ["all", ...Array.from(new Set(products.map(p => p.category)))];
 
@@ -130,10 +168,10 @@ export default function Products() {
               </Badge>
             </div>
             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" onClick={() => openEditDialog(product)}>
                 <Edit2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(product)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -171,6 +209,13 @@ export default function Products() {
     </Card>
   );
 
+  if (loading) {
+    return <div className="p-8 text-center">Loading products...</div>;
+  }
+  if (error) {
+    return <div className="p-8 text-center text-destructive">Error: {error}</div>;
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -184,13 +229,16 @@ export default function Products() {
             <ScanLine className="h-4 w-4" />
             Scan Barcode
           </Button>
-          <Button variant="secondary" size="lg">
+          <Button variant="secondary" size="lg" onClick={() => exportProductsToCSV(products)}>
             <Upload className="h-4 w-4" />
-            Import CSV
+            Export CSV
           </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            setIsAddDialogOpen(open);
+            if (open) setForm({});
+          }}>
             <DialogTrigger asChild>
-              <Button variant="action" size="lg">
+              <Button variant="action" size="lg" onClick={() => setForm({})}>
                 <Plus className="h-4 w-4" />
                 Add Product
               </Button>
@@ -200,24 +248,23 @@ export default function Products() {
                 <DialogTitle>Add New Product</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <Input placeholder="Product Name" />
-                <Input placeholder="Product ID" />
-                <Input placeholder="Category" />
+                <Input placeholder="Product Name" value={form.name || ""} onChange={e => setForm({ ...form, name: e.target.value })} />
+                <Input placeholder="Product ID" value={form.id || ""} onChange={e => setForm({ ...form, id: e.target.value })} />
+                <Input placeholder="Category" value={form.category || ""} onChange={e => setForm({ ...form, category: e.target.value })} />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input placeholder="Quantity" type="number" />
-                  <Input placeholder="Unit" />
+                  <Input placeholder="Quantity" type="number" value={form.quantity || ""} onChange={e => setForm({ ...form, quantity: e.target.value })} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input placeholder="Purchase Price" type="number" />
-                  <Input placeholder="Selling Price" type="number" />
+                  <Input placeholder="Purchase Price" type="number" value={form.purchasePrice || ""} onChange={e => setForm({ ...form, purchasePrice: e.target.value })} />
+                  <Input placeholder="Selling Price" type="number" value={form.sellingPrice || ""} onChange={e => setForm({ ...form, sellingPrice: e.target.value })} />
                 </div>
-                <Input placeholder="Supplier" />
-                <Input placeholder="Low Stock Level" type="number" />
+                <Input placeholder="Supplier" value={form.supplier || ""} onChange={e => setForm({ ...form, supplier: e.target.value })} />
+                <Input placeholder="Low Stock Level" type="number" value={form.lowStock || ""} onChange={e => setForm({ ...form, lowStock: e.target.value })} />
                 <div className="flex gap-3 pt-4">
                   <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="flex-1">
                     Cancel
                   </Button>
-                  <Button variant="default" className="flex-1">
+                  <Button variant="default" className="flex-1" onClick={handleAddProduct}>
                     Add Product
                   </Button>
                 </div>
@@ -338,6 +385,55 @@ export default function Products() {
           <Button variant="outline">Clear Filters</Button>
         </Card>
       )}
+
+      {/* Edit Product Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input placeholder="Product Name" value={form.name || ""} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <Input placeholder="Product ID" value={form.id || ""} onChange={e => setForm({ ...form, id: e.target.value })} disabled />
+            <Input placeholder="Category" value={form.category || ""} onChange={e => setForm({ ...form, category: e.target.value })} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input placeholder="Quantity" type="number" value={form.quantity || ""} onChange={e => setForm({ ...form, quantity: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input placeholder="Purchase Price" type="number" value={form.purchasePrice || ""} onChange={e => setForm({ ...form, purchasePrice: e.target.value })} />
+              <Input placeholder="Selling Price" type="number" value={form.sellingPrice || ""} onChange={e => setForm({ ...form, sellingPrice: e.target.value })} />
+            </div>
+            <Input placeholder="Supplier" value={form.supplier || ""} onChange={e => setForm({ ...form, supplier: e.target.value })} />
+            <Input placeholder="Low Stock Level" type="number" value={form.lowStock || ""} onChange={e => setForm({ ...form, lowStock: e.target.value })} />
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="flex-1">
+                Cancel
+              </Button>
+              <Button variant="default" className="flex-1" onClick={handleEditProduct}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Product</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">Are you sure you want to delete <b>{deleteProduct?.name}</b>?</div>
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button variant="destructive" className="flex-1" onClick={handleDeleteProduct}>
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
