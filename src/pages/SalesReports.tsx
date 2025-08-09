@@ -36,19 +36,21 @@ import {
   Bar,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  Area,
+  AreaChart
 } from "recharts";
 
 // Mock sales data
 const mockSalesData = {
   daily: [
-    { name: "Mon", revenue: 25000, orders: 15, profit: 5000 },
-    { name: "Tue", revenue: 32000, orders: 22, profit: 7200 },
-    { name: "Wed", revenue: 28000, orders: 18, profit: 6100 },
-    { name: "Thu", revenue: 45000, orders: 31, profit: 9800 },
-    { name: "Fri", revenue: 52000, orders: 28, profit: 12400 },
-    { name: "Sat", revenue: 38000, orders: 25, profit: 8900 },
-    { name: "Sun", revenue: 29000, orders: 19, profit: 6800 }
+    { name: "Sat", revenue: 25000, orders: 15, profit: 5000 },
+    { name: "Sun", revenue: 32000, orders: 22, profit: 7200 },
+    { name: "Mon", revenue: 28000, orders: 18, profit: 6100 },
+    { name: "Tue", revenue: 45000, orders: 31, profit: 9800 },
+    { name: "Wed", revenue: 52000, orders: 28, profit: 12400 },
+    { name: "Thu", revenue: 38000, orders: 25, profit: 8900 },
+    { name: "Fri", revenue: 29000, orders: 19, profit: 6800 }
   ],
   monthly: [
     { name: "Jan", revenue: 450000, orders: 280, profit: 89000 },
@@ -59,6 +61,25 @@ const mockSalesData = {
     { name: "Jun", revenue: 620000, orders: 385, profit: 128000 }
   ]
 };
+
+const mockRevenueData = [
+  { name: "Sat", revenue: 25000, profit: 5000 },
+  { name: "Sun", revenue: 32000, profit: 7200 },
+  { name: "Mon", revenue: 28000, profit: 6100 },
+  { name: "Tue", revenue: 45000, profit: 9800 },
+  { name: "Wed", revenue: 52000, profit: 12400 },
+  { name: "Thu", revenue: 38000, profit: 8900 },
+  { name: "Fri", revenue: 29000, profit: 6800 }
+];
+
+const mockCategoryData = [
+  { name: "Electronics", value: 35.2, color: "#8B5CF6" },
+  { name: "Accessories", value: 22.8, color: "#3B82F6" },
+  { name: "Storage", value: 18.5, color: "#10B981" },
+  { name: "Cooling", value: 12.3, color: "#F59E0B" },
+  { name: "Power", value: 8.7, color: "#EF4444" },
+  { name: "Motherboard", value: 2.5, color: "#06B6D4" }
+];
 
 const mockTopProducts = [
   { name: "NVIDIA GTX 1660 Super", sales: 45, revenue: 832500, profit: 67500 },
@@ -84,8 +105,6 @@ const mockTransactions = [
   { id: "TXN-005", date: "2024-01-18", customer: "Future Tech", items: 2, amount: 28900, profit: 4800 }
 ];
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-
 export default function SalesReports() {
   const [dateRange, setDateRange] = useState("daily");
   const [searchTerm, setSearchTerm] = useState("");
@@ -93,6 +112,9 @@ export default function SalesReports() {
   const [productFilter, setProductFilter] = useState("all");
 
   const currentData = mockSalesData[dateRange] || mockSalesData.daily;
+  const totalRevenue = currentData.reduce((sum, d) => sum + d.revenue, 0);
+  const totalProfit = currentData.reduce((sum, d) => sum + d.profit, 0);
+  const avgProfit = totalProfit / currentData.length;
 
   const exportToPDF = () => {
     console.log("Exporting sales report to PDF");
@@ -112,274 +134,316 @@ export default function SalesReports() {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Sales Reports</h1>
-          <p className="text-muted-foreground">Analyze sales performance and generate reports</p>
+    <div className="space-y-6 bg-gray-50 min-h-screen p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-gray-900">Stock Management</h1>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" size="lg" onClick={shareReport}>
+          <Button variant="outline" size="sm" onClick={shareReport}>
             <Share className="h-4 w-4" />
             Share
           </Button>
-          <Button variant="secondary" size="lg" onClick={exportToExcel}>
+          <Button variant="outline" size="sm" onClick={exportToExcel}>
             <FileText className="h-4 w-4" />
-            Export Excel
+            Export
           </Button>
-          <Button variant="action" size="lg" onClick={exportToPDF}>
+          <Button variant="default" size="sm" onClick={exportToPDF}>
             <Download className="h-4 w-4" />
-            Export PDF
+            Download
           </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="p-4 shadow-soft">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="text-xl font-bold">₹{currentData.reduce((sum, d) => sum + d.revenue, 0).toLocaleString()}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4 shadow-soft">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-gradient-success rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-success-foreground" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Profit</p>
-              <p className="text-xl font-bold">₹{currentData.reduce((sum, d) => sum + d.profit, 0).toLocaleString()}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 shadow-soft">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-gradient-accent rounded-lg flex items-center justify-center">
-              <Package className="h-5 w-5 text-accent-foreground" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Orders</p>
-              <p className="text-xl font-bold">{currentData.reduce((sum, d) => sum + d.orders, 0)}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 shadow-soft">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-gradient-secondary rounded-lg flex items-center justify-center">
-              <Users className="h-5 w-5 text-secondary-foreground" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Active Customers</p>
-              <p className="text-xl font-bold">{mockTopCustomers.length}</p>
-            </div>
-          </div>
-        </Card>
+      {/* Report Title */}
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">Report</h2>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue & Profit Trend */}
-        <Card className="p-6 shadow-soft">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-semibold">Revenue & Profit Trend</h3>
-              <p className="text-sm text-muted-foreground">Track financial performance over time</p>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* Left Column - Revenue and Metrics */}
+        <div className="col-span-12 lg:col-span-8 space-y-6">
+          {/* Revenue Made Card */}
+          <Card className="p-6 bg-white shadow-sm border-0">
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Revenue Made</h3>
+              <div className="text-3xl font-bold text-gray-900">₹1,80,000</div>
+              <div className="text-sm text-green-600 font-medium">That's ₹50,000 More than Last Month</div>
             </div>
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={currentData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, ""]} />
-              <Line 
-                type="monotone" 
-                dataKey="revenue" 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={3}
-                name="Revenue"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="profit" 
-                stroke="hsl(var(--success))" 
-                strokeWidth={2}
-                name="Profit"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
+            
+            {/* Daily Sales Chart */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-medium text-gray-600">Daily Sales</h4>
+                <Select value={dateRange} onValueChange={setDateRange}>
+                  <SelectTrigger className="w-24 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={currentData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#6B7280' }}
+                  />
+                  <YAxis hide />
+                  <Tooltip 
+                    formatter={(value) => [`₹${value.toLocaleString()}`, "Revenue"]}
+                    labelStyle={{ color: '#374151' }}
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    stroke="#3B82F6" 
+                    strokeWidth={2}
+                    fill="url(#colorRevenue)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
 
-        {/* Top Products */}
-        <Card className="p-6 shadow-soft">
-          <h3 className="text-lg font-semibold mb-6">Top Selling Products</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={mockTopProducts}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, sales, x, y, textAnchor }) => (
-                  <text
-                    x={x}
-                    y={y}
-                    textAnchor={textAnchor}
-                    fontSize={10}
-                    fill="#333"
-                    dominantBaseline="central"
+          {/* Revenue & Profit Trend */}
+          <Card className="p-6 bg-white shadow-sm border-0">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Revenue & Profit Trend</h3>
+                <div className="flex items-center gap-4 mt-2">
+                  <Select value="weekly" onValueChange={() => {}}>
+                    <SelectTrigger className="w-20 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={mockRevenueData}>
+                <defs>
+                  <linearGradient id="colorRevenue2" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#6B7280' }}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#6B7280' }}
+                  tickFormatter={(value) => `₹${(value/1000)}K`}
+                />
+                <Tooltip 
+                  formatter={(value) => [`₹${value.toLocaleString()}`, ""]}
+                  labelStyle={{ color: '#374151' }}
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#F59E0B" 
+                  strokeWidth={2}
+                  fill="url(#colorRevenue2)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+
+        {/* Right Column - Metrics and Category Chart */}
+        <div className="col-span-12 lg:col-span-4 space-y-6">
+          {/* Total Profit Card */}
+          <Card className="p-6 bg-white shadow-sm border-0">
+            <h3 className="text-sm font-medium text-gray-600 mb-2">Total Profit</h3>
+            <div className="text-3xl font-bold text-gray-900 mb-2">₹80,000</div>
+            <div className="text-sm text-green-600 font-medium">That's 20% More than Last Month</div>
+          </Card>
+
+          {/* Average Profit Card */}
+          <Card className="p-6 bg-white shadow-sm border-0">
+            <h3 className="text-sm font-medium text-gray-600 mb-2">Average Profit</h3>
+            <div className="text-3xl font-bold text-gray-900">₹1,00,000</div>
+          </Card>
+
+          {/* Top 7 Category Chart */}
+          <Card className="p-6 bg-white shadow-sm border-0">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Top 7 Category</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">This Month</span>
+                <Select value="month" onValueChange={() => {}}>
+                  <SelectTrigger className="w-16 h-6 text-xs border-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Month</SelectItem>
+                    <SelectItem value="week">Week</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="relative">
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={mockCategoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
                   >
-                    {`${name.split(' ')[0]}: ${sales}`}
-                  </text>
-                )}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="sales"
-              >
-                {mockTopProducts.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {mockCategoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`${value}%`, ""]} />
+                </PieChart>
+              </ResponsiveContainer>
+              
+              {/* Legend */}
+              <div className="mt-4 space-y-2">
+                {mockCategoryData.map((category, index) => (
+                  <div key={category.name} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: category.color }}
+                      />
+                      <span className="text-gray-700">{category.name}</span>
+                    </div>
+                    <span className="font-medium text-gray-900">{category.value}%</span>
+                  </div>
                 ))}
-              </Pie>
-              <Tooltip formatter={(value) => [`${value} units`, "Sales"]} />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
 
       {/* Top Customers & Products Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Customers */}
-        <Card className="p-6 shadow-soft">
-          <h3 className="text-lg font-semibold mb-4">Top Customers</h3>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Orders</TableHead>
-                <TableHead>Revenue</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mockTopCustomers.map((customer, index) => (
-                <TableRow key={index}>
-                  <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.orders}</TableCell>
-                  <TableCell>₹{customer.revenue.toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <Card className="p-6 bg-white shadow-sm border-0">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customers</h3>
+          <div className="space-y-3">
+            {mockTopCustomers.map((customer, index) => (
+              <div key={index} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                <div>
+                  <div className="font-medium text-gray-900">{customer.name}</div>
+                  <div className="text-sm text-gray-500">{customer.orders} orders</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold text-gray-900">₹{customer.revenue.toLocaleString()}</div>
+                  <div className="text-xs text-gray-500">{customer.lastOrder}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
 
         {/* Top Products */}
-        <Card className="p-6 shadow-soft">
-          <h3 className="text-lg font-semibold mb-4">Top Products</h3>
+        <Card className="p-6 bg-white shadow-sm border-0">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Products</h3>
+          <div className="space-y-3">
+            {mockTopProducts.map((product, index) => (
+              <div key={index} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                <div>
+                  <div className="font-medium text-gray-900">{product.name}</div>
+                  <div className="text-sm text-gray-500">{product.sales} units sold</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold text-gray-900">₹{product.revenue.toLocaleString()}</div>
+                  <div className="text-xs text-green-600">+₹{product.profit.toLocaleString()}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Recent Transactions */}
+      <Card className="bg-white shadow-sm border-0">
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">Recent Transactions</h3>
+            <div className="flex gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search transactions..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-64 h-9"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Sales</TableHead>
-                <TableHead>Revenue</TableHead>
+              <TableRow className="border-gray-100">
+                <TableHead className="text-gray-600 font-medium">Transaction ID</TableHead>
+                <TableHead className="text-gray-600 font-medium">Date</TableHead>
+                <TableHead className="text-gray-600 font-medium">Customer</TableHead>
+                <TableHead className="text-gray-600 font-medium">Items</TableHead>
+                <TableHead className="text-gray-600 font-medium">Amount</TableHead>
+                <TableHead className="text-gray-600 font-medium">Profit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockTopProducts.map((product, index) => (
-                <TableRow key={index}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>{product.sales}</TableCell>
-                  <TableCell>₹{product.revenue.toLocaleString()}</TableCell>
+              {filteredTransactions.map(txn => (
+                <TableRow key={txn.id} className="border-gray-100 hover:bg-gray-50">
+                  <TableCell className="font-medium text-gray-900">{txn.id}</TableCell>
+                  <TableCell className="text-gray-700">{new Date(txn.date).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-gray-700">{txn.customer}</TableCell>
+                  <TableCell className="text-gray-700">{txn.items} items</TableCell>
+                  <TableCell className="font-medium text-gray-900">₹{txn.amount.toLocaleString()}</TableCell>
+                  <TableCell className="font-medium text-green-600">₹{txn.profit.toLocaleString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card className="p-4 shadow-soft">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search transactions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={customerFilter} onValueChange={setCustomerFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by customer" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Customers</SelectItem>
-              {mockTopCustomers.map(customer => (
-                <SelectItem key={customer.name} value={customer.name}>{customer.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={productFilter} onValueChange={setProductFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by product" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Products</SelectItem>
-              {mockTopProducts.map(product => (
-                <SelectItem key={product.name} value={product.name}>{product.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
-      </Card>
-
-      {/* Recent Transactions */}
-      <Card className="shadow-soft">
-        <div className="p-6 border-b">
-          <h3 className="text-lg font-semibold">Recent Transactions</h3>
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Transaction ID</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Profit</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTransactions.map(txn => (
-              <TableRow key={txn.id}>
-                <TableCell className="font-medium">{txn.id}</TableCell>
-                <TableCell>{new Date(txn.date).toLocaleDateString()}</TableCell>
-                <TableCell>{txn.customer}</TableCell>
-                <TableCell>{txn.items} items</TableCell>
-                <TableCell className="font-medium">₹{txn.amount.toLocaleString()}</TableCell>
-                <TableCell className="font-medium text-success">₹{txn.profit.toLocaleString()}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
       </Card>
     </div>
   );
