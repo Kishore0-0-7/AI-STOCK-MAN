@@ -25,10 +25,10 @@ import {
 export default function Settings() {
   const [settings, setSettings] = useState({
     // Company Profile
-    companyName: "StockAI Pro Warehouse",
+    companyName: "Stock Management System",
     companyAddress: "123 Business Street, Tech City, TC 12345",
     companyPhone: "+91 98765 43210",
-    companyEmail: "contact@stockaipro.com",
+    companyEmail: "contact@stockmanagement.com",
     companyGST: "22ABCDE1234F1Z5",
     companyLogo: null,
 

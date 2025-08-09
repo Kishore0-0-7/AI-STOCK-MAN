@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,10 +153,25 @@ export default function StockSummary() {
   const [stockFilter, setStockFilter] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showForecast, setShowForecast] = useState(false);
+  const [stockData, setStockData] = useState(mockStockData);
+  const [lowStockCount, setLowStockCount] = useState(0);
 
-  const categories = ["all", ...Array.from(new Set(mockStockData.map(p => p.category)))];
+  // Fetch real low stock count from API
+  useEffect(() => {
+    fetch('http://localhost:4000/api/alerts/low-stock')
+      .then(res => res.json())
+      .then(data => {
+        setLowStockCount(data.length);
+      })
+      .catch(err => {
+        console.error('Failed to fetch low stock alerts:', err);
+        setLowStockCount(0);
+      });
+  }, []);
+
+  const categories = ["all", ...Array.from(new Set(stockData.map(p => p.category)))];
   
-  const filteredStock = mockStockData.filter(product => {
+  const filteredStock = stockData.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
@@ -167,9 +182,9 @@ export default function StockSummary() {
     return matchesSearch && matchesCategory && matchesStockLevel;
   });
 
-  const lowStockItems = mockStockData.filter(p => p.currentStock <= p.reorderLevel);
-  const outOfStockItems = mockStockData.filter(p => p.currentStock === 0);
-  const expiringItems = mockStockData.filter(p => {
+  const lowStockItems = stockData.filter(p => p.currentStock <= p.reorderLevel);
+  const outOfStockItems = stockData.filter(p => p.currentStock === 0);
+  const expiringItems = stockData.filter(p => {
     if (!p.expiryDate) return false;
     const today = new Date();
     const expiry = new Date(p.expiryDate);
@@ -177,7 +192,7 @@ export default function StockSummary() {
     return daysDiff <= 30; // Expiring within 30 days
   });
 
-  const totalStockValue = mockStockData.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0);
+  const totalStockValue = stockData.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0);
 
   const getStockBadge = (product) => {
     if (product.currentStock === 0) {
@@ -242,7 +257,7 @@ export default function StockSummary() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Low Stock</p>
-              <p className="text-xl font-bold text-warning">{lowStockItems.length}</p>
+              <p className="text-xl font-bold text-warning">{lowStockCount}</p>
             </div>
           </div>
         </Card>
@@ -284,16 +299,16 @@ export default function StockSummary() {
         </Card>
       </div>
 
-      {/* AI Demand Forecast */}
+      {/* Demand Forecast */}
       {showForecast && (
         <Card className="p-6 shadow-soft">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-semibold">AI Demand Forecast (Prophet ML)</h3>
+              <h3 className="text-lg font-semibold">Demand Forecast (ML)</h3>
               <p className="text-sm text-muted-foreground">Predicted inventory demand for next 6 weeks</p>
             </div>
             <Badge variant="secondary">
-              Prophet Model v2.1
+              Forecast Model v2.1
             </Badge>
           </div>
           <ResponsiveContainer width="100%" height={300}>

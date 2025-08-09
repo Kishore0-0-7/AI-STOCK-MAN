@@ -29,33 +29,34 @@ import {
   Upload,
   Filter
 } from "lucide-react";
-import { saveAs } from "file-saver";
-
-// No more mockProducts; data will be fetched from backend
+import { useToast } from "@/hooks/use-toast";
+import { productsAPI, suppliersAPI, Product, Supplier } from "@/services/api";
 
 // CSV export helper
-function exportProductsToCSV(products: any[]) {
+function exportProductsToCSV(products: Product[]) {
   const headers = [
     "ID",
     "Name",
     "Category",
-    "Quantity",
+    "Current Stock",
     "Unit",
-    "Selling Price",
-    "Purchase Price",
+    "Price",
+    "Low Stock Threshold",
     "Supplier",
-    "Low Stock"
+    "Stock Status",
+    "QR Code"
   ];
   const rows = products.map(p => [
     p.id,
     p.name,
     p.category,
-    p.quantity,
-    p.unit,
-    p.sellingPrice,
-    p.purchasePrice,
-    p.supplier,
-    p.lowStock
+    p.current_stock,
+    'unit', // Add unit field to Product interface if needed
+    p.price,
+    p.low_stock_threshold,
+    'supplier.name', // Update based on actual supplier data structure
+    'stock_status', // Add stock_status calculation if needed
+    p.barcode || ''
   ]);
   const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -70,70 +71,194 @@ function exportProductsToCSV(products: any[]) {
 }
 
 export default function Products() {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editProduct, setEditProduct] = useState<any | null>(null);
-  const [deleteProduct, setDeleteProduct] = useState<any | null>(null);
-  const [form, setForm] = useState<any>({});
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
+  const [form, setForm] = useState<Partial<Product>>({});
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const { toast } = useToast();
 
+  // Fetch products and suppliers
   useEffect(() => {
-    setLoading(true);
-    fetch('http://localhost:4000/api/products')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch products');
-        return res.json();
-      })
-      .then(data => {
-        setProducts(data);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [productsData, suppliersData] = await Promise.all([
+          productsAPI.getAll(),
+          suppliersAPI.getAll()
+        ]);
+        setProducts(productsData);
+        setSuppliers(suppliersData);
+        
+        // Fetch real low stock count
+        fetch('http://localhost:4000/api/alerts/low-stock')
+          .then(res => res.json())
+          .then(data => {
+            setLowStockCount(data.length);
+          })
+          .catch(err => {
+            console.error('Failed to fetch low stock alerts:', err);
+            setLowStockCount(0);
+          });
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        setError(errorMessage);
+        toast({
+          title: "Error",
+          description: "Failed to fetch data",
+          variant: "destructive",
+        });
+      } finally {
         setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, []);
+      }
+    };
+
+    fetchData();
+  }, [toast]);
 
   // Handlers for CRUD
-  const handleAddProduct = () => {
-    if (!form.name || !form.id) return;
-    setProducts([
-      ...products,
-      { ...form, unit: "pcs", quantity: Number(form.quantity), sellingPrice: Number(form.sellingPrice), purchasePrice: Number(form.purchasePrice), lowStock: Number(form.lowStock) }
-    ]);
-    setIsAddDialogOpen(false);
-    setForm({});
+  const handleAddProduct = async () => {
+    if (!form.name || !form.category || !form.price) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const newProduct = await productsAPI.create({
+        name: form.name,
+        category: form.category,
+        price: parseFloat(form.price),
+        currentStock: parseInt(form.currentStock) || 0,
+        lowStockThreshold: parseInt(form.lowStockThreshold) || 10,
+        maxStockLevel: parseInt(form.maxStockLevel) || 1000,
+        reorderPoint: parseInt(form.reorderPoint) || 0,
+        unit: form.unit || 'piece',
+        qrCode: form.qrCode || null,
+        supplierId: form.supplierId || null,
+      });
+
+      // Refresh products list
+      const updatedProducts = await productsAPI.getAll();
+      setProducts(updatedProducts);
+      
+      setIsAddDialogOpen(false);
+      setForm({});
+      
+      toast({
+        title: "Success",
+        description: "Product added successfully",
+      });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      toast({
+        title: "Error",
+        description: `Failed to add product: ${errorMessage}`,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleEditProduct = () => {
-    setProducts(products.map(p =>
-      p.id === editProduct.id
-        ? { ...editProduct, ...form, unit: "pcs", quantity: Number(form.quantity), sellingPrice: Number(form.sellingPrice), purchasePrice: Number(form.purchasePrice), lowStock: Number(form.lowStock) }
-        : p
-    ));
-    setIsEditDialogOpen(false);
-    setEditProduct(null);
-    setForm({});
+  const handleEditProduct = async () => {
+    if (!form.name || !form.category || !form.price) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await productsAPI.update(editProduct.id, {
+        name: form.name,
+        category: form.category,
+        price: parseFloat(form.price),
+        currentStock: parseInt(form.currentStock),
+        lowStockThreshold: parseInt(form.lowStockThreshold),
+        maxStockLevel: parseInt(form.maxStockLevel),
+        reorderPoint: parseInt(form.reorderPoint),
+        unit: form.unit,
+        qrCode: form.qrCode,
+        supplierId: form.supplierId,
+      });
+
+      // Refresh products list
+      const updatedProducts = await productsAPI.getAll();
+      setProducts(updatedProducts);
+      
+      setIsEditDialogOpen(false);
+      setEditProduct(null);
+      setForm({});
+      
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      toast({
+        title: "Error",
+        description: `Failed to update product: ${errorMessage}`,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteProduct = () => {
-    setProducts(products.filter(p => p.id !== deleteProduct.id));
-    setIsDeleteDialogOpen(false);
-    setDeleteProduct(null);
+  const handleDeleteProduct = async () => {
+    try {
+      await productsAPI.delete(deleteProduct.id);
+      
+      // Refresh products list
+      const updatedProducts = await productsAPI.getAll();
+      setProducts(updatedProducts);
+      
+      setIsDeleteDialogOpen(false);
+      setDeleteProduct(null);
+      
+      toast({
+        title: "Success",
+        description: "Product deleted successfully",
+      });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      toast({
+        title: "Error",
+        description: `Failed to delete product: ${errorMessage}`,
+        variant: "destructive",
+      });
+    }
   };
 
-  const openEditDialog = (product: any) => {
+  const openEditDialog = (product: Product) => {
     setEditProduct(product);
-    setForm(product);
+    setForm({
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      currentStock: product.currentStock,
+      lowStockThreshold: product.lowStockThreshold,
+      maxStockLevel: product.maxStockLevel,
+      reorderPoint: product.reorderPoint,
+      unit: product.unit,
+      qrCode: product.qrCode,
+      supplierId: product.supplier.id,
+    });
     setIsEditDialogOpen(true);
   };
 
-  const openDeleteDialog = (product: any) => {
+  const openDeleteDialog = (product: Product) => {
     setDeleteProduct(product);
     setIsDeleteDialogOpen(true);
   };
@@ -142,15 +267,33 @@ export default function Products() {
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+                         product.id.toString().includes(searchTerm.toLowerCase()) ||
+                         product.supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.qrCode?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all" || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const lowStockProducts = products.filter(p => p.quantity <= p.lowStock);
+  const getStockStatusBadge = (product: Product) => {
+    const currentStock = product.current_stock || product.currentStock || 0;
+    const threshold = product.low_stock_threshold || product.lowStockThreshold || 0;
+    
+    if (currentStock === 0) {
+      return <Badge variant="destructive">Out of Stock</Badge>;
+    } else if (currentStock <= threshold) {
+      return <Badge variant="secondary">Low Stock</Badge>;
+    } else if (currentStock <= threshold * 1.5) {
+      return <Badge variant="outline">Low</Badge>;
+    } else if (currentStock >= threshold * 3) {
+      return <Badge variant="default">High</Badge>;
+    } else {
+      return <Badge variant="outline">Normal</Badge>;
+    }
+  };
 
-  const ProductCard = ({ product }: { product: any }) => (
+  const lowStockProducts = products.filter(p => p.currentStock <= p.lowStockThreshold);
+
+  const ProductCard = ({ product }: { product: Product }) => (
     <Card className="p-4 shadow-soft hover:shadow-primary transition-all duration-300 group">
       <div className="flex items-start gap-4">
         <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
@@ -163,9 +306,12 @@ export default function Products() {
                 {product.name}
               </h3>
               <p className="text-sm text-muted-foreground">ID: {product.id}</p>
-              <Badge variant="outline" className="mt-1">
-                {product.category}
-              </Badge>
+              <div className="flex gap-2 mt-1">
+                <Badge variant="outline" className="capitalize">
+                  {product.category}
+                </Badge>
+                {getStockStatusBadge(product)}
+              </div>
             </div>
             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <Button variant="ghost" size="icon" onClick={() => openEditDialog(product)}>
@@ -181,29 +327,32 @@ export default function Products() {
             <div>
               <span className="text-muted-foreground">Stock:</span>
               <span className={`ml-2 font-medium ${
-                product.quantity <= product.lowStock ? 'text-destructive' : 'text-success'
+                (product.current_stock || product.currentStock || 0) <= (product.low_stock_threshold || product.lowStockThreshold || 0) ? 'text-destructive' : 'text-success'
               }`}>
-                {product.quantity} {product.unit}
-                {product.quantity <= product.lowStock && (
+                {product.current_stock || product.currentStock || 0} {product.unit || 'units'}
+                {((product.current_stock || product.currentStock || 0) <= (product.low_stock_threshold || product.lowStockThreshold || 0)) && (
                   <AlertTriangle className="inline h-4 w-4 ml-1" />
                 )}
               </span>
             </div>
             <div>
-              <span className="text-muted-foreground">Selling Price:</span>
-              <span className="ml-2 font-medium">₹{product.sellingPrice}</span>
+              <span className="text-muted-foreground">Price:</span>
+              <span className="ml-2 font-medium">${product.price}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Supplier:</span>
-              <span className="ml-2 font-medium">{product.supplier}</span>
+              <span className="ml-2 font-medium">{product.supplier?.name || 'N/A'}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">Margin:</span>
-              <span className="ml-2 font-medium text-success">
-                {((product.sellingPrice - product.purchasePrice) / product.purchasePrice * 100).toFixed(1)}%
-              </span>
+              <span className="text-muted-foreground">Threshold:</span>
+              <span className="ml-2 font-medium">{product.low_stock_threshold || product.lowStockThreshold || 0}</span>
             </div>
           </div>
+          {(product.barcode || product.qrCode) && (
+            <div className="mt-2 text-xs text-muted-foreground">
+              QR: {product.barcode || product.qrCode}
+            </div>
+          )}
         </div>
       </div>
     </Card>
@@ -248,18 +397,67 @@ export default function Products() {
                 <DialogTitle>Add New Product</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <Input placeholder="Product Name" value={form.name || ""} onChange={e => setForm({ ...form, name: e.target.value })} />
-                <Input placeholder="Product ID" value={form.id || ""} onChange={e => setForm({ ...form, id: e.target.value })} />
-                <Input placeholder="Category" value={form.category || ""} onChange={e => setForm({ ...form, category: e.target.value })} />
+                <Input 
+                  placeholder="Product Name *" 
+                  value={form.name || ""} 
+                  onChange={e => setForm({ ...form, name: e.target.value })} 
+                />
+                <Input 
+                  placeholder="Category *" 
+                  value={form.category || ""} 
+                  onChange={e => setForm({ ...form, category: e.target.value })} 
+                />
+                <Input 
+                  placeholder="Price *" 
+                  type="number" 
+                  step="0.01"
+                  value={form.price || ""} 
+                  onChange={e => setForm({ ...form, price: e.target.value })} 
+                />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input placeholder="Quantity" type="number" value={form.quantity || ""} onChange={e => setForm({ ...form, quantity: e.target.value })} />
+                  <Input 
+                    placeholder="Current Stock" 
+                    type="number" 
+                    value={form.currentStock || ""} 
+                    onChange={e => setForm({ ...form, currentStock: e.target.value })} 
+                  />
+                  <Input 
+                    placeholder="Unit" 
+                    value={form.unit || "piece"} 
+                    onChange={e => setForm({ ...form, unit: e.target.value })} 
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input placeholder="Purchase Price" type="number" value={form.purchasePrice || ""} onChange={e => setForm({ ...form, purchasePrice: e.target.value })} />
-                  <Input placeholder="Selling Price" type="number" value={form.sellingPrice || ""} onChange={e => setForm({ ...form, sellingPrice: e.target.value })} />
+                  <Input 
+                    placeholder="Low Stock Threshold" 
+                    type="number" 
+                    value={form.lowStockThreshold || ""} 
+                    onChange={e => setForm({ ...form, lowStockThreshold: e.target.value })} 
+                  />
+                  <Input 
+                    placeholder="Max Stock Level" 
+                    type="number" 
+                    value={form.maxStockLevel || ""} 
+                    onChange={e => setForm({ ...form, maxStockLevel: e.target.value })} 
+                  />
                 </div>
-                <Input placeholder="Supplier" value={form.supplier || ""} onChange={e => setForm({ ...form, supplier: e.target.value })} />
-                <Input placeholder="Low Stock Level" type="number" value={form.lowStock || ""} onChange={e => setForm({ ...form, lowStock: e.target.value })} />
+                <select 
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  value={form.supplierId || ""} 
+                  onChange={e => setForm({ ...form, supplierId: e.target.value })}
+                >
+                  <option value="">Select Supplier (Optional)</option>
+                  {suppliers.map(supplier => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+                <Input 
+                  placeholder="QR Code (Optional)" 
+                  value={form.qrCode || ""} 
+                  onChange={e => setForm({ ...form, qrCode: e.target.value })} 
+                />
                 <div className="flex gap-3 pt-4">
                   <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="flex-1">
                     Cancel
@@ -307,7 +505,7 @@ export default function Products() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Low Stock Items</p>
-              <p className="text-xl font-bold text-warning">{lowStockProducts.length}</p>
+              <p className="text-xl font-bold text-warning">{lowStockCount}</p>
             </div>
           </div>
         </Card>
@@ -363,7 +561,7 @@ export default function Products() {
           <div className="flex flex-wrap gap-2">
             {lowStockProducts.map(product => (
               <Badge key={product.id} variant="outline" className="border-warning text-warning">
-                {product.name} ({product.quantity} {product.unit})
+                {product.name} ({product.currentStock} {product.unit})
               </Badge>
             ))}
           </div>
@@ -393,18 +591,67 @@ export default function Products() {
             <DialogTitle>Edit Product</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Input placeholder="Product Name" value={form.name || ""} onChange={e => setForm({ ...form, name: e.target.value })} />
-            <Input placeholder="Product ID" value={form.id || ""} onChange={e => setForm({ ...form, id: e.target.value })} disabled />
-            <Input placeholder="Category" value={form.category || ""} onChange={e => setForm({ ...form, category: e.target.value })} />
+            <Input 
+              placeholder="Product Name *" 
+              value={form.name || ""} 
+              onChange={e => setForm({ ...form, name: e.target.value })} 
+            />
+            <Input 
+              placeholder="Category *" 
+              value={form.category || ""} 
+              onChange={e => setForm({ ...form, category: e.target.value })} 
+            />
+            <Input 
+              placeholder="Price *" 
+              type="number" 
+              step="0.01"
+              value={form.price || ""} 
+              onChange={e => setForm({ ...form, price: e.target.value })} 
+            />
             <div className="grid grid-cols-2 gap-4">
-              <Input placeholder="Quantity" type="number" value={form.quantity || ""} onChange={e => setForm({ ...form, quantity: e.target.value })} />
+              <Input 
+                placeholder="Current Stock" 
+                type="number" 
+                value={form.currentStock || ""} 
+                onChange={e => setForm({ ...form, currentStock: e.target.value })} 
+              />
+              <Input 
+                placeholder="Unit" 
+                value={form.unit || ""} 
+                onChange={e => setForm({ ...form, unit: e.target.value })} 
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Input placeholder="Purchase Price" type="number" value={form.purchasePrice || ""} onChange={e => setForm({ ...form, purchasePrice: e.target.value })} />
-              <Input placeholder="Selling Price" type="number" value={form.sellingPrice || ""} onChange={e => setForm({ ...form, sellingPrice: e.target.value })} />
+              <Input 
+                placeholder="Low Stock Threshold" 
+                type="number" 
+                value={form.lowStockThreshold || ""} 
+                onChange={e => setForm({ ...form, lowStockThreshold: e.target.value })} 
+              />
+              <Input 
+                placeholder="Max Stock Level" 
+                type="number" 
+                value={form.maxStockLevel || ""} 
+                onChange={e => setForm({ ...form, maxStockLevel: e.target.value })} 
+              />
             </div>
-            <Input placeholder="Supplier" value={form.supplier || ""} onChange={e => setForm({ ...form, supplier: e.target.value })} />
-            <Input placeholder="Low Stock Level" type="number" value={form.lowStock || ""} onChange={e => setForm({ ...form, lowStock: e.target.value })} />
+            <select 
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              value={form.supplierId || ""} 
+              onChange={e => setForm({ ...form, supplierId: e.target.value })}
+            >
+              <option value="">Select Supplier (Optional)</option>
+              {suppliers.map(supplier => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </option>
+              ))}
+            </select>
+            <Input 
+              placeholder="QR Code (Optional)" 
+              value={form.qrCode || ""} 
+              onChange={e => setForm({ ...form, qrCode: e.target.value })} 
+            />
             <div className="flex gap-3 pt-4">
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="flex-1">
                 Cancel

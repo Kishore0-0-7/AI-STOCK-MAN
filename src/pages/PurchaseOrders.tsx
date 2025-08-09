@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PurchaseOrder } from "@/services/api";
 import {
   Table,
   TableBody,
@@ -86,11 +87,25 @@ export default function PurchaseOrders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [lowStockCount, setLowStockCount] = useState(0);
   const [newPO, setNewPO] = useState({
     supplier: "",
     items: [{ productId: "", quantity: 0, price: 0 }],
     deliveryDate: ""
   });
+
+  // Fetch real low stock count from API
+  useEffect(() => {
+    fetch('http://localhost:4000/api/alerts/low-stock')
+      .then(res => res.json())
+      .then(data => {
+        setLowStockCount(data.length);
+      })
+      .catch(err => {
+        console.error('Failed to fetch low stock alerts:', err);
+        setLowStockCount(0);
+      });
+  }, []);
 
   const lowStockProducts = mockProducts.filter(p => p.currentStock <= p.lowStock);
 
@@ -138,13 +153,13 @@ export default function PurchaseOrders() {
     });
   };
 
-  const updatePOItem = (index: number, field: string, value: any) => {
+  const updatePOItem = (index: number, field: string, value: string | number) => {
     const updatedItems = [...newPO.items];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     setNewPO({ ...newPO, items: updatedItems });
   };
 
-  const exportToPDF = (order: any) => {
+  const exportToPDF = (order: PurchaseOrder) => {
     // In a real app, this would generate and download a PDF
     console.log("Exporting PO to PDF:", order.id);
   };
@@ -275,7 +290,7 @@ export default function PurchaseOrders() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Low Stock Items</p>
-              <p className="text-xl font-bold text-warning">{lowStockProducts.length}</p>
+              <p className="text-xl font-bold text-warning">{lowStockCount}</p>
             </div>
           </div>
         </Card>

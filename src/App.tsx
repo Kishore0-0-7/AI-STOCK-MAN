@@ -11,6 +11,7 @@ import PurchaseOrders from "./pages/PurchaseOrders";
 import ScanBills from "./pages/ScanBills";
 import SalesReports from "./pages/SalesReports";
 import StockSummary from "./pages/StockSummary";
+import LowStockAlerts from "./pages/LowStockAlerts";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="scan-bills" element={<ScanBills />} />
             <Route path="sales-reports" element={<SalesReports />} />
             <Route path="stock-summary" element={<StockSummary />} />
+            <Route path="low-stock-alerts" element={<LowStockAlerts />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />

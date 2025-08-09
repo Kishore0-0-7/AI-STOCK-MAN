@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,7 +10,8 @@ import {
   DollarSign,
   ShoppingBag,
   Calendar,
-  Users
+  Users,
+  LucideIcon
 } from "lucide-react";
 import { 
   LineChart, 
@@ -26,16 +27,6 @@ import {
   Pie,
   Cell
 } from "recharts";
-
-// Mock data for demo
-const mockMetrics = {
-  totalStock: 1247,
-  todaySales: 15680,
-  monthlySales: 456789,
-  lowStockItems: 23,
-  totalProducts: 342,
-  activeCustomers: 89
-};
 
 const mockForecastData = {
   "7days": [
@@ -129,6 +120,21 @@ const mockProducts = [
   }
 ];
 
+// Calculate low stock items dynamically
+const getLowStockCount = () => {
+  return mockProducts.filter(product => product.quantity <= product.lowStock).length;
+};
+
+// Mock data for demo
+const mockMetrics = {
+  totalStock: 1247,
+  todaySales: 15680,
+  monthlySales: 456789,
+  lowStockItems: 0, // Will be updated from API
+  totalProducts: 342,
+  activeCustomers: 89
+};
+
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 // Top selling products sorted by 'sold'
@@ -152,6 +158,21 @@ const mockRecentActivity = [
 
 export default function Dashboard() {
   const [forecastPeriod, setForecastPeriod] = useState<"7days" | "30days" | "90days">("7days");
+  const [lowStockCount, setLowStockCount] = useState(0);
+
+  // Fetch real low stock count from API
+  useEffect(() => {
+    fetch('http://localhost:4000/api/alerts/low-stock')
+      .then(res => res.json())
+      .then(data => {
+        setLowStockCount(data.length);
+      })
+      .catch(err => {
+        console.error('Failed to fetch low stock alerts:', err);
+        // Fallback to calculating from mock data
+        setLowStockCount(getLowStockCount());
+      });
+  }, []);
 
   const MetricCard = ({ 
     title, 
@@ -163,7 +184,7 @@ export default function Dashboard() {
   }: {
     title: string;
     value: string | number;
-    icon: any;
+    icon: LucideIcon;
     trend?: "up" | "down";
     trendValue?: string;
     variant?: "default" | "success" | "warning" | "danger";
@@ -248,7 +269,7 @@ export default function Dashboard() {
         />
         <MetricCard
           title="Low Stock Alerts"
-          value={mockMetrics.lowStockItems}
+          value={lowStockCount}
           icon={AlertTriangle}
           variant="warning"
         />
@@ -256,14 +277,14 @@ export default function Dashboard() {
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* AI Demand Forecast */}
+        {/* Demand Forecast */}
         <Card className="p-6 shadow-soft">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-semibold">AI Demand Forecast</h3>
+              <h3 className="text-lg font-semibold">Demand Forecast</h3>
               <p className="text-sm text-muted-foreground">Predicted demand based on historical data</p>
             </div>
-            <Select value={forecastPeriod} onValueChange={(value: any) => setForecastPeriod(value)}>
+            <Select value={forecastPeriod} onValueChange={(value: "7days" | "30days" | "90days") => setForecastPeriod(value)}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
   Package,
@@ -9,6 +10,7 @@ import {
   ScanLine,
   TrendingUp,
   Archive,
+  AlertTriangle,
   Settings,
   Menu,
   X,
@@ -16,21 +18,36 @@ import {
   Sun
 } from "lucide-react";
 
-const navigationItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Products", href: "/products", icon: Package },
-  { name: "Billing", href: "/billing", icon: ShoppingCart },
-  { name: "Purchase Orders", href: "/purchase-orders", icon: FileText },
-  { name: "Scan Bills", href: "/scan-bills", icon: ScanLine },
-  { name: "Sales Reports", href: "/sales-reports", icon: TrendingUp },
-  { name: "Stock Summary", href: "/stock-summary", icon: Archive },
-  { name: "Settings", href: "/settings", icon: Settings },
-];
-
 export function Layout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [lowStockCount, setLowStockCount] = useState(0);
   const location = useLocation();
+
+  // Fetch low stock count for the badge
+  useEffect(() => {
+    fetch('http://localhost:4000/api/alerts/low-stock')
+      .then(res => res.json())
+      .then(data => {
+        setLowStockCount(data.length);
+      })
+      .catch(err => {
+        console.error('Failed to fetch low stock alerts for navigation:', err);
+        setLowStockCount(0);
+      });
+  }, []);
+
+  const navigationItems = [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Products", href: "/products", icon: Package },
+    { name: "Billing", href: "/billing", icon: ShoppingCart },
+    { name: "Purchase Orders", href: "/purchase-orders", icon: FileText },
+    { name: "Scan Bills", href: "/scan-bills", icon: ScanLine },
+    { name: "Sales Reports", href: "/sales-reports", icon: TrendingUp },
+    { name: "Stock Summary", href: "/stock-summary", icon: Archive },
+    { name: "Low Stock Alerts", href: "/low-stock-alerts", icon: AlertTriangle, badge: lowStockCount },
+    { name: "Settings", href: "/settings", icon: Settings },
+  ];
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -63,7 +80,7 @@ export function Layout() {
                 <Package className="h-5 w-5 text-primary-foreground" />
               </div>
               <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                StockAI Pro
+                Stock Management System
               </h1>
             </Link>
           </div>
@@ -90,14 +107,24 @@ export function Layout() {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  className={`flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                     isActive(item.href)
                       ? "bg-gradient-primary text-primary-foreground shadow-primary"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   }`}
                 >
-                  <item.icon className="h-5 w-5" />
-                  {item.name}
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-5 w-5" />
+                    {item.name}
+                  </div>
+                  {item.badge && item.badge > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="h-5 min-w-5 text-xs px-1.5 flex items-center justify-center"
+                    >
+                      {item.badge}
+                    </Badge>
+                  )}
                 </Link>
               ))}
             </nav>
@@ -115,14 +142,24 @@ export function Layout() {
                     key={item.name}
                     to={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    className={`flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                       isActive(item.href)
                         ? "bg-gradient-primary text-primary-foreground shadow-primary"
                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
-                    <item.icon className="h-5 w-5" />
-                    {item.name}
+                    <div className="flex items-center gap-3">
+                      <item.icon className="h-5 w-5" />
+                      {item.name}
+                    </div>
+                    {item.badge && item.badge > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="h-5 min-w-5 text-xs px-1.5 flex items-center justify-center"
+                      >
+                        {item.badge}
+                      </Badge>
+                    )}
                   </Link>
                 ))}
               </div>

@@ -24,15 +24,26 @@ import {
   Calculator,
   User,
   Package,
-  Trash2
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { Product, Customer } from "@/services/api";
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  total: number;
+  unit?: string;
+}
 
 export default function Billing() {
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [searchProduct, setSearchProduct] = useState("");
-  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [gstEnabled, setGstEnabled] = useState(true);
   const [billPreviewOpen, setBillPreviewOpen] = useState(false);
   const billRef = useRef<HTMLDivElement>(null);
@@ -74,6 +85,13 @@ export default function Billing() {
         setCustomerForm({ name: "", phone: "", email: "", address: "" });
         setEditingCustomer(null);
         toast({ title: 'Customer added successfully!' });
+      })
+      .catch(err => {
+        toast({ 
+          title: 'Error', 
+          description: 'Failed to add customer', 
+          variant: 'destructive' 
+        });
       });
   };
   const updateCustomer = () => {
@@ -87,31 +105,57 @@ export default function Billing() {
         setCustomers(customers.map(c => c.id === updated.id ? updated : c));
         setEditingCustomer(null);
         setCustomerForm({ name: "", phone: "", email: "", address: "" });
+        toast({ title: 'Customer updated successfully!' });
+      })
+      .catch(err => {
+        toast({ 
+          title: 'Error', 
+          description: 'Failed to update customer', 
+          variant: 'destructive' 
+        });
       });
   };
   const deleteCustomer = (id) => {
     fetch(`http://localhost:4000/api/customers/${id}`, { method: 'DELETE' })
-      .then(() => setCustomers(customers.filter(c => c.id !== id)));
+      .then(() => {
+        setCustomers(customers.filter(c => c.id !== id));
+        toast({ title: 'Customer deleted successfully!' });
+      })
+      .catch(err => {
+        toast({ 
+          title: 'Error', 
+          description: 'Failed to delete customer', 
+          variant: 'destructive' 
+        });
+      });
   };
 
-  const mockProducts = [
-    { id: "P001", name: "NVIDIA GTX 1660 Super", price: 18500, stock: 10, unit: "pcs" },
-    { id: "P002", name: "Corsair 650W Power Supply", price: 5200, stock: 18, unit: "pcs" },
-    { id: "P003", name: "ASUS B450 Motherboard", price: 7800, stock: 12, unit: "pcs" },
-    { id: "P004", name: "1TB Seagate HDD", price: 3200, stock: 25, unit: "pcs" },
-    { id: "P005", name: "Cooler Master CPU Cooler", price: 2100, stock: 20, unit: "pcs" }
+  const mockProducts: Product[] = [
+    { id: "P001", name: "NVIDIA GTX 1660 Super", price: 18500, current_stock: 10, unit: "pcs", category: "GPU", low_stock_threshold: 5, supplier_id: "S001" },
+    { id: "P002", name: "Corsair 650W Power Supply", price: 5200, current_stock: 18, unit: "pcs", category: "PSU", low_stock_threshold: 5, supplier_id: "S002" },
+    { id: "P003", name: "ASUS B450 Motherboard", price: 7800, current_stock: 12, unit: "pcs", category: "Motherboard", low_stock_threshold: 3, supplier_id: "S003" },
+    { id: "P004", name: "1TB Seagate HDD", price: 3200, current_stock: 25, unit: "pcs", category: "Storage", low_stock_threshold: 8, supplier_id: "S004" },
+    { id: "P005", name: "Cooler Master CPU Cooler", price: 2100, current_stock: 20, unit: "pcs", category: "Cooling", low_stock_threshold: 5, supplier_id: "S005" }
   ];
 
-  const addToCart = (product: any) => {
+  const addToCart = (product: Product) => {
     const existingItem = cartItems.find(item => item.id === product.id);
     if (existingItem) {
       setCartItems(cartItems.map(item => 
         item.id === product.id 
-          ? { ...item, quantity: item.quantity + 1 }
+          ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price }
           : item
       ));
     } else {
-      setCartItems([...cartItems, { ...product, quantity: 1 }]);
+      const newCartItem: CartItem = {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        total: product.price,
+        unit: product.unit
+      };
+      setCartItems([...cartItems, newCartItem]);
     }
     setSearchProduct("");
   };
@@ -200,18 +244,47 @@ export default function Billing() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Billing</h1>
-          <p className="text-muted-foreground">Create bills and manage sales</p>
+      {/* Show loading state */}
+      {customerLoading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading billing page...</p>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" size="lg" onClick={() => setGstEnabled(!gstEnabled)}>
-            {gstEnabled ? "GST: ON" : "GST: OFF"}
-          </Button>
-        </div>
-      </div>
+      )}
+
+      {/* Show error state */}
+      {customerError && (
+        <Card className="p-6">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Connection Error</h3>
+            <p className="text-muted-foreground mb-4">
+              Unable to connect to the backend server. Please ensure the server is running on port 4000.
+            </p>
+            <Button onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Main content - only show when not loading and no error */}
+      {!customerLoading && !customerError && (
+        <>
+          {/* Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold">Billing</h1>
+              <p className="text-muted-foreground">Create bills and manage sales</p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" size="lg" onClick={() => setGstEnabled(!gstEnabled)}>
+                {gstEnabled ? "GST: ON" : "GST: OFF"}
+              </Button>
+            </div>
+          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Product Selection & Cart */}
@@ -300,7 +373,7 @@ export default function Billing() {
                     <div>
                       <p className="font-medium">{product.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        ₹{product.price}/{product.unit} • Stock: {product.stock}
+                        ₹{product.price}/{product.unit} • Stock: {product.current_stock}
                       </p>
                     </div>
                     <Plus className="h-4 w-4 text-primary" />
@@ -486,6 +559,8 @@ export default function Billing() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
