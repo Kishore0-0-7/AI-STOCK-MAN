@@ -10,6 +10,7 @@ const alertsController = require("./controllers/alerts");
 const customersController = require("./controllers/customers");
 const billsController = require("./controllers/bills");
 const purchaseOrdersController = require("./controllers/purchaseOrders");
+const reportsController = require("./controllers/reports");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -126,6 +127,21 @@ app.put(
 );
 app.delete("/api/purchase-orders/:id", purchaseOrdersController.delete);
 
+// Reports routes
+app.get("/api/reports/sales/overview", reportsController.getSalesOverview);
+app.get("/api/reports/sales/trends", reportsController.getSalesTrends);
+app.get(
+  "/api/reports/sales/categories",
+  reportsController.getCategoryBreakdown
+);
+app.get("/api/reports/sales/customers", reportsController.getTopCustomers);
+app.get("/api/reports/sales/products", reportsController.getTopProducts);
+app.get(
+  "/api/reports/sales/transactions",
+  reportsController.getRecentTransactions
+);
+app.get("/api/reports/sales/export", reportsController.exportSalesReport);
+
 // Legacy routes for backward compatibility (redirect to new routes)
 app.get("/dashboard/stats", (req, res) =>
   res.redirect(301, "/api/dashboard/stats")
@@ -177,6 +193,7 @@ const startServer = async () => {
       console.log(`   • Customers: GET /api/customers`);
       console.log(`   • Bills: GET /api/bills`);
       console.log(`   • Purchase Orders: GET /api/purchase-orders`);
+      console.log(`   • Sales Reports: GET /api/reports/sales/overview`);
       console.log(`   • Health Check: GET /health`);
       console.log("✅ All systems ready!");
     });

@@ -454,43 +454,73 @@ export const purchaseOrdersAPI = {
 
 // Reports API
 export const reportsAPI = {
-  getSales: (params?: {
-    startDate?: string;
-    endDate?: string;
-    groupBy?: string;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params?.startDate) queryParams.append("startDate", params.startDate);
-    if (params?.endDate) queryParams.append("endDate", params.endDate);
-    if (params?.groupBy) queryParams.append("groupBy", params.groupBy);
-
-    const query = queryParams.toString();
-    return apiCall<any>(`/reports/sales${query ? `?${query}` : ""}`);
-  },
-
-  getTrends: (params?: { period?: string; metric?: string }) => {
+  // Sales Reports API
+  getSalesOverview: (params?: { period?: string; days?: string }) => {
     const queryParams = new URLSearchParams();
     if (params?.period) queryParams.append("period", params.period);
-    if (params?.metric) queryParams.append("metric", params.metric);
+    if (params?.days) queryParams.append("days", params.days);
 
     const query = queryParams.toString();
-    return apiCall<any>(`/reports/trends${query ? `?${query}` : ""}`);
+    return apiCall<any>(`/reports/sales/overview${query ? `?${query}` : ""}`);
   },
 
-  getCategories: () => apiCall<any>("/reports/categories"),
-
-  getSuppliers: () => apiCall<any>("/reports/suppliers"),
-
-  export: (type: string, params?: any) => {
+  getSalesTrends: (params?: { period?: string; days?: string }) => {
     const queryParams = new URLSearchParams();
-    queryParams.append("type", type);
-    if (params) {
-      Object.keys(params).forEach((key) => {
-        queryParams.append(key, params[key]);
-      });
-    }
+    if (params?.period) queryParams.append("period", params.period);
+    if (params?.days) queryParams.append("days", params.days);
 
-    return apiCall<any>(`/reports/export?${queryParams.toString()}`);
+    const query = queryParams.toString();
+    return apiCall<any>(`/reports/sales/trends${query ? `?${query}` : ""}`);
+  },
+
+  getCategoryBreakdown: (params?: { days?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.days) queryParams.append("days", params.days);
+
+    const query = queryParams.toString();
+    return apiCall<any>(`/reports/sales/categories${query ? `?${query}` : ""}`);
+  },
+
+  getTopCustomers: (params?: { days?: string; limit?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.days) queryParams.append("days", params.days);
+    if (params?.limit) queryParams.append("limit", params.limit);
+
+    const query = queryParams.toString();
+    return apiCall<any>(`/reports/sales/customers${query ? `?${query}` : ""}`);
+  },
+
+  getTopProducts: (params?: { days?: string; limit?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.days) queryParams.append("days", params.days);
+    if (params?.limit) queryParams.append("limit", params.limit);
+
+    const query = queryParams.toString();
+    return apiCall<any>(`/reports/sales/products${query ? `?${query}` : ""}`);
+  },
+
+  getRecentTransactions: (params?: { limit?: string; search?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append("limit", params.limit);
+    if (params?.search) queryParams.append("search", params.search);
+
+    const query = queryParams.toString();
+    return apiCall<any>(
+      `/reports/sales/transactions${query ? `?${query}` : ""}`
+    );
+  },
+
+  exportSalesReport: (params?: {
+    format?: string;
+    period?: string;
+    days?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.format) queryParams.append("format", params.format);
+    if (params?.period) queryParams.append("period", params.period);
+    if (params?.days) queryParams.append("days", params.days);
+
+    return apiCall<any>(`/reports/sales/export?${queryParams.toString()}`);
   },
 };
 
