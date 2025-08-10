@@ -78,8 +78,10 @@ const PurchaseOrders = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(
     null
   );
@@ -122,7 +124,15 @@ const PurchaseOrders = () => {
       setSuppliers(
         (suppliersResponse as any)?.suppliers || suppliersResponse || []
       );
+      console.log(
+        "Loaded suppliers:",
+        (suppliersResponse as any)?.suppliers || suppliersResponse || []
+      );
       setProducts(
+        (productsResponse as any)?.products || productsResponse || []
+      );
+      console.log(
+        "Loaded products:",
         (productsResponse as any)?.products || productsResponse || []
       );
     } catch (error) {
@@ -188,18 +198,45 @@ const PurchaseOrders = () => {
       return;
     }
 
+    // Check if all items have valid product_id and quantities
+    const invalidItems = formData.items.some(
+      (item) =>
+        !item.product_id ||
+        !item.quantity ||
+        item.quantity <= 0 ||
+        !item.unit_price ||
+        item.unit_price <= 0
+    );
+
+    if (invalidItems) {
+      toast({
+        title: "Error",
+        description:
+          "Please ensure all items have valid products, quantities, and prices",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const total_amount = formData.items.reduce(
         (sum, item) => sum + item.quantity * item.unit_price,
         0
       );
 
-      // Create order without items first, as the API expects items to be added separately
+      // Format data according to backend API expectations
       const orderData = {
-        supplier_id: formData.supplier_id,
-        status: formData.status,
-        totalAmount: total_amount,
+        supplierId: formData.supplier_id,
+        expectedDate: null, // Optional field
+        notes: null, // Optional field
+        items: formData.items.map((item) => ({
+          productId: item.product_id,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+        })),
       };
+
+      console.log("Sending order data:", orderData);
 
       await purchaseOrdersAPI.create(orderData);
 
@@ -209,6 +246,7 @@ const PurchaseOrders = () => {
       });
 
       setIsCreateDialogOpen(false);
+      setIsCreateSheetOpen(false);
       resetForm();
       fetchData();
     } catch (error) {
@@ -266,7 +304,12 @@ const PurchaseOrders = () => {
       const orderDetails = await purchaseOrdersAPI.getById(order.id);
       setSelectedOrder(orderDetails);
       setOrderItems(orderDetails.items || []);
-      setIsViewDialogOpen(true);
+      // Use CSS classes to determine which interface to open
+      if (window.innerWidth >= 640) {
+        setIsViewDialogOpen(true);
+      } else {
+        setIsViewSheetOpen(true);
+      }
     } catch (error) {
       console.error("Error fetching order details:", error);
       toast({
@@ -370,12 +413,20 @@ const PurchaseOrders = () => {
                           <SelectValue placeholder="Select supplier" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Array.isArray(suppliers) &&
+                          {suppliers && suppliers.length > 0 ? (
                             suppliers.map((supplier) => (
-                              <SelectItem key={supplier.id} value={supplier.id}>
+                              <SelectItem
+                                key={supplier.id}
+                                value={String(supplier.id)}
+                              >
                                 {supplier.name}
                               </SelectItem>
-                            ))}
+                            ))
+                          ) : (
+                            <SelectItem value="" disabled>
+                              No suppliers available
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -441,14 +492,20 @@ const PurchaseOrders = () => {
                                 <SelectValue placeholder="Select product" />
                               </SelectTrigger>
                               <SelectContent>
-                                {products.map((product) => (
-                                  <SelectItem
-                                    key={product.id}
-                                    value={product.id}
-                                  >
-                                    {product.name}
+                                {products && products.length > 0 ? (
+                                  products.map((product) => (
+                                    <SelectItem
+                                      key={product.id}
+                                      value={String(product.id)}
+                                    >
+                                      {product.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="" disabled>
+                                    No products available
                                   </SelectItem>
-                                ))}
+                                )}
                               </SelectContent>
                             </Select>
                           </div>
@@ -504,7 +561,7 @@ const PurchaseOrders = () => {
                     {formData.items.length > 0 && (
                       <div className="mt-2 p-3 bg-gray-50 rounded">
                         <strong className="text-lg">
-                          Total: $
+                          Total: ₹
                           {formData.items
                             .reduce(
                               (sum, item) =>
@@ -540,10 +597,7 @@ const PurchaseOrders = () => {
 
           {/* Mobile Sheet */}
           <div className="sm:hidden">
-            <Sheet
-              open={isCreateDialogOpen}
-              onOpenChange={setIsCreateDialogOpen}
-            >
+            <Sheet open={isCreateSheetOpen} onOpenChange={setIsCreateSheetOpen}>
               <SheetTrigger asChild>
                 <Button className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
@@ -576,12 +630,20 @@ const PurchaseOrders = () => {
                           <SelectValue placeholder="Select supplier" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Array.isArray(suppliers) &&
+                          {suppliers && suppliers.length > 0 ? (
                             suppliers.map((supplier) => (
-                              <SelectItem key={supplier.id} value={supplier.id}>
+                              <SelectItem
+                                key={supplier.id}
+                                value={String(supplier.id)}
+                              >
                                 {supplier.name}
                               </SelectItem>
-                            ))}
+                            ))
+                          ) : (
+                            <SelectItem value="" disabled>
+                              No suppliers available
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -647,14 +709,20 @@ const PurchaseOrders = () => {
                                 <SelectValue placeholder="Select product" />
                               </SelectTrigger>
                               <SelectContent>
-                                {products.map((product) => (
-                                  <SelectItem
-                                    key={product.id}
-                                    value={product.id}
-                                  >
-                                    {product.name}
+                                {products && products.length > 0 ? (
+                                  products.map((product) => (
+                                    <SelectItem
+                                      key={product.id}
+                                      value={String(product.id)}
+                                    >
+                                      {product.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="" disabled>
+                                    No products available
                                   </SelectItem>
-                                ))}
+                                )}
                               </SelectContent>
                             </Select>
                           </div>
@@ -712,7 +780,7 @@ const PurchaseOrders = () => {
                     {formData.items.length > 0 && (
                       <div className="mt-3 p-3 bg-gray-50 rounded">
                         <strong className="text-lg">
-                          Total: $
+                          Total: ₹
                           {formData.items
                             .reduce(
                               (sum, item) =>
@@ -733,7 +801,7 @@ const PurchaseOrders = () => {
                       type="button"
                       variant="outline"
                       onClick={() => {
-                        setIsCreateDialogOpen(false);
+                        setIsCreateSheetOpen(false);
                         resetForm();
                       }}
                       className="w-full"
@@ -824,7 +892,7 @@ const PurchaseOrders = () => {
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
-                          <DollarSign className="h-4 w-4 mr-1" />
+                          <span className="mr-1">₹</span>
                           {(order.totalAmount || 0).toFixed(2)}
                         </div>
                       </TableCell>
@@ -941,9 +1009,9 @@ const PurchaseOrders = () => {
                 {/* Details */}
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center">
-                    <DollarSign className="h-4 w-4 mr-1 text-gray-400" />
+                    <span className="mr-1 text-gray-400">₹</span>
                     <span className="font-medium">
-                      ${(order.totalAmount || 0).toFixed(2)}
+                      {(order.totalAmount || 0).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex items-center">
@@ -1021,7 +1089,7 @@ const PurchaseOrders = () => {
                     <h4 className="font-semibold mb-2">Financial Summary</h4>
                     <div className="space-y-1 text-sm">
                       <p>
-                        <strong>Total Amount:</strong> $
+                        <strong>Total Amount:</strong> ₹
                         {(selectedOrder.totalAmount || 0).toFixed(2)}
                       </p>
                       <p>
@@ -1052,9 +1120,9 @@ const PurchaseOrders = () => {
                               </TableCell>
                               <TableCell>{item.quantity}</TableCell>
                               <TableCell>
-                                ${item.unit_price.toFixed(2)}
+                                ₹{item.unit_price.toFixed(2)}
                               </TableCell>
-                              <TableCell>${item.subtotal.toFixed(2)}</TableCell>
+                              <TableCell>₹{item.subtotal.toFixed(2)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -1111,7 +1179,7 @@ const PurchaseOrders = () => {
 
       {/* View Order Sheet - Mobile */}
       <div className="sm:hidden">
-        <Sheet open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <Sheet open={isViewSheetOpen} onOpenChange={setIsViewSheetOpen}>
           <SheetContent side="bottom" className="h-[90vh] overflow-y-auto">
             <SheetHeader>
               <SheetTitle>Purchase Order Details</SheetTitle>
@@ -1156,7 +1224,7 @@ const PurchaseOrders = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total Amount:</span>
                         <span className="font-semibold text-lg">
-                          ${(selectedOrder.totalAmount || 0).toFixed(2)}
+                          ₹{(selectedOrder.totalAmount || 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -1184,13 +1252,13 @@ const PurchaseOrders = () => {
                             <div>
                               <div className="text-gray-600">Unit Price</div>
                               <div className="font-medium">
-                                ${item.unit_price.toFixed(2)}
+                                ₹{item.unit_price.toFixed(2)}
                               </div>
                             </div>
                             <div>
                               <div className="text-gray-600">Subtotal</div>
                               <div className="font-medium">
-                                ${item.subtotal.toFixed(2)}
+                                ₹{item.subtotal.toFixed(2)}
                               </div>
                             </div>
                           </div>
@@ -1205,7 +1273,7 @@ const PurchaseOrders = () => {
                     <Button
                       onClick={() => {
                         handleUpdateStatus(selectedOrder.id, "approved");
-                        setIsViewDialogOpen(false);
+                        setIsViewSheetOpen(false);
                       }}
                       className="w-full"
                     >
@@ -1216,7 +1284,7 @@ const PurchaseOrders = () => {
                     <Button
                       onClick={() => {
                         handleUpdateStatus(selectedOrder.id, "shipped");
-                        setIsViewDialogOpen(false);
+                        setIsViewSheetOpen(false);
                       }}
                       className="w-full"
                     >
@@ -1227,7 +1295,7 @@ const PurchaseOrders = () => {
                     <Button
                       onClick={() => {
                         handleUpdateStatus(selectedOrder.id, "received");
-                        setIsViewDialogOpen(false);
+                        setIsViewSheetOpen(false);
                       }}
                       className="w-full"
                     >
@@ -1236,7 +1304,7 @@ const PurchaseOrders = () => {
                   )}
                   <Button
                     variant="outline"
-                    onClick={() => setIsViewDialogOpen(false)}
+                    onClick={() => setIsViewSheetOpen(false)}
                     className="w-full"
                   >
                     Close

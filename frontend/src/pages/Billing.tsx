@@ -491,7 +491,7 @@ export default function Billing() {
                     </p>
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-green-600 text-sm md:text-base">
-                        ${product.price.toFixed(2)}
+                        ₹{product.price.toFixed(2)}
                       </span>
                       <Button
                         size="sm"
@@ -531,7 +531,7 @@ export default function Billing() {
                           {item.name}
                         </p>
                         <p className="text-xs text-gray-500">
-                          ${item.price.toFixed(2)} each
+                          ₹{item.price.toFixed(2)} each
                         </p>
                       </div>
                       <div className="flex items-center gap-2 justify-between sm:justify-end">
@@ -561,7 +561,7 @@ export default function Billing() {
                           </Button>
                         </div>
                         <span className="text-sm font-semibold text-green-600 min-w-[4rem] text-right">
-                          ${item.total.toFixed(2)}
+                          ₹{item.total.toFixed(2)}
                         </span>
                         <Button
                           size="sm"
@@ -582,7 +582,7 @@ export default function Billing() {
                   <div className="flex justify-between text-sm md:text-base">
                     <span>Subtotal:</span>
                     <span className="font-semibold">
-                      ${subtotal.toFixed(2)}
+                      ₹{subtotal.toFixed(2)}
                     </span>
                   </div>
 
@@ -604,7 +604,7 @@ export default function Billing() {
                     <div className="flex justify-between text-sm md:text-base text-red-600">
                       <span>Discount:</span>
                       <span className="font-semibold">
-                        -${discountAmount.toFixed(2)}
+                        -₹{discountAmount.toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -625,7 +625,7 @@ export default function Billing() {
                     <div className="flex justify-between text-sm md:text-base">
                       <span>Tax:</span>
                       <span className="font-semibold">
-                        ${taxAmount.toFixed(2)}
+                        ₹{taxAmount.toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -635,7 +635,7 @@ export default function Billing() {
                   <div className="flex justify-between text-lg md:text-xl font-bold bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg">
                     <span>Total:</span>
                     <span className="text-green-600">
-                      ${totalAmount.toFixed(2)}
+                      ₹{totalAmount.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -765,8 +765,8 @@ export default function Billing() {
                         <TableRow key={index}>
                           <TableCell>{item.name}</TableCell>
                           <TableCell>{item.quantity}</TableCell>
-                          <TableCell>${item.price.toFixed(2)}</TableCell>
-                          <TableCell>${item.total.toFixed(2)}</TableCell>
+                          <TableCell>₹{item.price.toFixed(2)}</TableCell>
+                          <TableCell>₹{item.total.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -783,12 +783,12 @@ export default function Billing() {
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-medium text-sm">{item.name}</h4>
                         <span className="font-bold text-green-600">
-                          ${item.total.toFixed(2)}
+                          ₹{item.total.toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-600">
                         <span>Qty: {item.quantity}</span>
-                        <span>Price: ${item.price.toFixed(2)}</span>
+                        <span>Price: ₹{item.price.toFixed(2)}</span>
                       </div>
                     </div>
                   ))}
@@ -798,28 +798,28 @@ export default function Billing() {
                   <div className="space-y-2 bg-gray-50 p-4 rounded-lg">
                     <div className="flex justify-between text-sm sm:text-base">
                       <span>Subtotal:</span>
-                      <span>${subtotal.toFixed(2)}</span>
+                      <span>₹{subtotal.toFixed(2)}</span>
                     </div>
                     {currentBill.discount_amount &&
                       currentBill.discount_amount > 0 && (
                         <div className="flex justify-between text-red-600 text-sm sm:text-base">
                           <span>Discount:</span>
                           <span>
-                            -${currentBill.discount_amount.toFixed(2)}
+                            -₹{currentBill.discount_amount.toFixed(2)}
                           </span>
                         </div>
                       )}
                     {currentBill.tax_amount && currentBill.tax_amount > 0 && (
                       <div className="flex justify-between text-sm sm:text-base">
                         <span>Tax (18%):</span>
-                        <span>${currentBill.tax_amount.toFixed(2)}</span>
+                        <span>₹{currentBill.tax_amount.toFixed(2)}</span>
                       </div>
                     )}
                     <div className="border-t pt-2">
                       <div className="flex justify-between text-base sm:text-lg font-bold">
                         <span>Total Amount:</span>
                         <span className="text-green-600">
-                          ${currentBill.total_amount.toFixed(2)}
+                          ₹{currentBill.total_amount.toFixed(2)}
                         </span>
                       </div>
                     </div>

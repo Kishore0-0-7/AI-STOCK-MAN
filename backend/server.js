@@ -1,13 +1,18 @@
 const express = require("express");
 const cors = require("cors");
-const fs = require("fs");
-const path = require("path");
+const { testConnection, healthCheck } = require("./config/db");
 
-const { testConnection, initializeTables } = require("./config/database");
-const apiRoutes = require("./routes/api");
+// Import clean controllers
+const dashboardController = require("./controllers/dashboard");
+const productsController = require("./controllers/products");
+const suppliersController = require("./controllers/suppliers");
+const alertsController = require("./controllers/alerts");
+const customersController = require("./controllers/customers");
+const billsController = require("./controllers/bills");
+const purchaseOrdersController = require("./controllers/purchaseOrders");
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
 // Middleware
 app.use(
@@ -15,8 +20,6 @@ app.use(
     origin: [
       "http://localhost:3000",
       "http://localhost:5173",
-      "http://127.0.0.1:3000",
-      "http://127.0.0.1:5173",
       "http://localhost:8080",
     ],
     credentials: true,
@@ -26,229 +29,172 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, "uploads");
-const billsUploadsDir = path.join(uploadsDir, "bills");
-
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-if (!fs.existsSync(billsUploadsDir)) {
-  fs.mkdirSync(billsUploadsDir, { recursive: true });
-}
-
-// Serve static files from uploads directory
-app.use("/uploads", express.static(uploadsDir));
-
-// Root endpoint with API documentation
-app.get("/", (req, res) => {
-  res.json({
-    message: "AI Stock Management System API",
-    version: "2.0.0",
-    status: "Active",
-    architecture: "MVC Pattern with Separate Controllers",
-    database: "MySQL with Connection Pooling",
-    endpoints: {
-      health: "/api/health",
-      dashboard: "/api/dashboard/*",
-      products: "/api/products/*",
-      suppliers: "/api/suppliers/*",
-      customers: "/api/customers/*",
-      bills: "/api/bills/*",
-      reports: "/api/reports/*",
-      purchaseOrders: "/api/purchase-orders/*",
-      alerts: "/api/alerts/*",
-    },
-    features: [
-      "RESTful API Design",
-      "Database Connection Pooling",
-      "File Upload Support",
-      "OCR Bill Processing Simulation",
-      "Comprehensive Reporting",
-      "Real-time Dashboard Analytics",
-      "Stock Movement Tracking",
-      "Automated Alert Generation",
-      "CSV Export Functionality",
-      "Advanced Filtering & Pagination",
-    ],
-    documentation: {
-      dashboard: {
-        overview: "GET /api/dashboard/overview - Dashboard statistics",
-        activity: "GET /api/dashboard/activity - Recent activities",
-        trends: "GET /api/dashboard/trends - Stock trends data",
-        alerts: "GET /api/dashboard/alerts - Active alerts",
-        forecast: "GET /api/dashboard/forecast - Demand forecasting",
-      },
-      products: {
-        list: "GET /api/products - List products with pagination",
-        details: "GET /api/products/:id - Product details",
-        create: "POST /api/products - Create product",
-        update: "PUT /api/products/:id - Update product",
-        delete: "DELETE /api/products/:id - Delete product",
-        stockMovement:
-          "POST /api/products/:id/stock-movement - Add stock movement",
-        stats: "GET /api/products/stats/* - Product statistics",
-        lowStock: "GET /api/products/low-stock - Low stock products",
-      },
-      suppliers: {
-        list: "GET /api/suppliers - List suppliers",
-        details: "GET /api/suppliers/:id - Supplier details",
-        create: "POST /api/suppliers - Create supplier",
-        update: "PUT /api/suppliers/:id - Update supplier",
-        delete: "DELETE /api/suppliers/:id - Delete supplier",
-        performance: "GET /api/suppliers/:id/performance - Performance metrics",
-        stats: "GET /api/suppliers/stats/* - Supplier statistics",
-      },
-      customers: {
-        list: "GET /api/customers - List customers",
-        details: "GET /api/customers/:id - Customer details",
-        create: "POST /api/customers - Create customer",
-        update: "PUT /api/customers/:id - Update customer",
-        delete: "DELETE /api/customers/:id - Delete customer",
-        search: "GET /api/customers/search - Search customers",
-        stats: "GET /api/customers/stats/* - Customer statistics",
-      },
-      bills: {
-        list: "GET /api/bills - List bills",
-        details: "GET /api/bills/:id - Bill details",
-        upload: "POST /api/bills/upload - Upload bill for OCR",
-        process: "POST /api/bills/process-extracted - Process OCR data",
-        updateStatus: "PATCH /api/bills/:id/status - Update status",
-        delete: "DELETE /api/bills/:id - Delete bill",
-        stats: "GET /api/bills/stats/summary - Bills statistics",
-      },
-      reports: {
-        sales: "GET /api/reports/sales - Sales reports",
-        trends: "GET /api/reports/trends - Sales trends",
-        categories: "GET /api/reports/categories - Category analysis",
-        suppliers: "GET /api/reports/suppliers - Supplier reports",
-        export: "GET /api/reports/export - Export as CSV",
-      },
-    },
-  });
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
 });
 
-// Use API routes
-app.use("/api", apiRoutes);
+// Health check endpoints
+app.get("/health", async (req, res) => {
+  const health = await healthCheck();
+  res.json(health);
+});
+
+app.get("/test-db", async (req, res) => {
+  try {
+    const isConnected = await testConnection();
+    res.json({
+      connected: isConnected,
+      message: isConnected
+        ? "Database connection successful"
+        : "Database connection failed",
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Dashboard routes
+app.get("/api/dashboard/stats", dashboardController.getStats);
+app.get("/api/dashboard/overview", dashboardController.getStats); // Alias for frontend compatibility
+app.get("/api/dashboard/activities", dashboardController.getRecentActivities);
+app.get("/api/dashboard/activity", dashboardController.getRecentActivities); // Alias for frontend compatibility
+app.get("/api/dashboard/alerts", dashboardController.getLowStockAlerts);
+app.get("/api/dashboard/sales", dashboardController.getSalesSummary);
+app.get("/api/dashboard/trends", dashboardController.getSalesSummary); // Alias for trends data
+
+// Products routes
+app.get("/api/products/categories", productsController.getCategories);
+app.get("/api/products/low-stock", productsController.getAll); // Filter low stock products via query params
+app.get("/api/products/:id", productsController.getById);
+app.get("/api/products", productsController.getAll);
+app.post("/api/products", productsController.create);
+app.post("/api/products/bulk", productsController.bulkCreate);
+app.put("/api/products/:id", productsController.update);
+app.patch("/api/products/:id/stock", productsController.updateStock);
+app.delete("/api/products/:id", productsController.delete);
+
+// Suppliers routes
+app.get("/api/suppliers", suppliersController.getAll);
+app.get("/api/suppliers/:id", suppliersController.getById);
+app.get("/api/suppliers/:id/products", suppliersController.getProducts);
+app.post("/api/suppliers", suppliersController.create);
+app.put("/api/suppliers/:id", suppliersController.update);
+app.delete("/api/suppliers/:id", suppliersController.delete);
+
+// Alerts routes
+app.get("/api/alerts", alertsController.getAll);
+app.get("/api/alerts/summary", alertsController.getSummary);
+app.get("/api/alerts/low-stock", alertsController.getAll); // Alias for low stock alerts
+app.get("/api/alerts/category/:category", alertsController.getByCategory);
+app.get(
+  "/api/alerts/reorder-suggestions",
+  alertsController.getReorderSuggestions
+);
+app.put("/api/alerts/threshold", alertsController.updateThreshold);
+app.post("/api/alerts/:productId/acknowledge", alertsController.acknowledge);
+
+// Customers routes
+app.get("/api/customers", customersController.getAll);
+app.get("/api/customers/stats", customersController.getStats);
+app.get("/api/customers/:id", customersController.getById);
+app.post("/api/customers", customersController.create);
+app.put("/api/customers/:id", customersController.update);
+app.delete("/api/customers/:id", customersController.delete);
+
+// Bills routes
+app.get("/api/bills", billsController.getAll);
+app.get("/api/bills/stats", billsController.getStats);
+app.get("/api/bills/:id", billsController.getById);
+app.post("/api/bills", billsController.create);
+app.put("/api/bills/:id/status", billsController.updateStatus);
+app.delete("/api/bills/:id", billsController.delete);
+
+// Purchase Orders routes
+app.get("/api/purchase-orders", purchaseOrdersController.getAll);
+app.get("/api/purchase-orders/stats", purchaseOrdersController.getStats);
+app.get("/api/purchase-orders/:id", purchaseOrdersController.getById);
+app.post("/api/purchase-orders", purchaseOrdersController.create);
+app.put(
+  "/api/purchase-orders/:id/status",
+  purchaseOrdersController.updateStatus
+);
+app.put(
+  "/api/purchase-orders/:id/receive",
+  purchaseOrdersController.receiveItems
+);
+app.delete("/api/purchase-orders/:id", purchaseOrdersController.delete);
+
+// Legacy routes for backward compatibility (redirect to new routes)
+app.get("/dashboard/stats", (req, res) =>
+  res.redirect(301, "/api/dashboard/stats")
+);
+app.get("/products", (req, res) => res.redirect(301, "/api/products"));
+app.get("/suppliers", (req, res) => res.redirect(301, "/api/suppliers"));
+app.get("/alerts", (req, res) => res.redirect(301, "/api/alerts"));
+app.get("/customers", (req, res) => res.redirect(301, "/api/customers"));
+app.get("/bills", (req, res) => res.redirect(301, "/api/bills"));
+app.get("/purchase-orders", (req, res) =>
+  res.redirect(301, "/api/purchase-orders")
+);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error("Error:", err);
-
-  // Handle specific error types
-  if (err.name === "ValidationError") {
-    return res
-      .status(400)
-      .json({ error: "Validation Error", details: err.message });
-  }
-
-  if (err.name === "CastError") {
-    return res.status(400).json({ error: "Invalid ID format" });
-  }
-
-  // Default error response
-  const status = err.status || err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
-
-  res.status(status).json({
-    error: message,
-    stack: err.stack, // Show stack trace for debugging
+  console.error("Server error:", err);
+  res.status(500).json({
+    error: "Internal server error",
+    message: err.message,
   });
 });
 
-// 404 handler for undefined routes
-app.use("*", (req, res) => {
-  res.status(404).json({
-    error: "API endpoint not found",
-    path: req.originalUrl,
-    method: req.method,
-    availableRoutes: {
-      root: "GET /",
-      health: "GET /api/health",
-      dashboard: "GET /api/dashboard/*",
-      products: "GET /api/products",
-      suppliers: "GET /api/suppliers",
-      customers: "GET /api/customers",
-      bills: "GET /api/bills",
-      reports: "GET /api/reports/*",
-      purchaseOrders: "GET /api/purchase-orders",
-      alerts: "GET /api/alerts",
-    },
-    message:
-      "Check the API documentation at the root endpoint for complete details",
-  });
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
 });
 
-// Graceful shutdown handlers
-process.on("SIGTERM", () => {
-  console.log("🛑 SIGTERM received. Shutting down gracefully...");
-  process.exit(0);
-});
-
-process.on("SIGINT", () => {
-  console.log("🛑 SIGINT received. Shutting down gracefully...");
-  process.exit(0);
-});
-
-// Database initialization and server startup
+// Start server
 const startServer = async () => {
   try {
-    console.log("🔌 Testing database connection...");
+    // Test database connection
     const isConnected = await testConnection();
-
     if (!isConnected) {
       console.error(
-        "❌ Failed to connect to database. Please check your database configuration."
+        "❌ Database connection failed. Please check your database configuration."
       );
       process.exit(1);
     }
 
-    console.log("📋 Initializing database tables...");
-    await initializeTables();
-
     app.listen(PORT, () => {
-      console.log("\n🚀 AI Stock Management API Server Started Successfully!");
-      console.log("=".repeat(60));
-      console.log(`🌐 Server URL: http://localhost:${PORT}`);
-      console.log(`📊 API Documentation: http://localhost:${PORT}/`);
-      console.log(`🔍 Health Check: http://localhost:${PORT}/api/health`);
-      console.log("=".repeat(60));
-      console.log("\n📡 API Endpoints Available:");
-      console.log(
-        `   Dashboard Analytics: http://localhost:${PORT}/api/dashboard/overview`
-      );
-      console.log(
-        `   Products Management: http://localhost:${PORT}/api/products`
-      );
-      console.log(
-        `   Suppliers Management: http://localhost:${PORT}/api/suppliers`
-      );
-      console.log(
-        `   Customers Management: http://localhost:${PORT}/api/customers`
-      );
-      console.log(`   Bills Processing: http://localhost:${PORT}/api/bills`);
-      console.log(
-        `   Reports & Analytics: http://localhost:${PORT}/api/reports/sales`
-      );
-      console.log(
-        `   Purchase Orders: http://localhost:${PORT}/api/purchase-orders`
-      );
-      console.log(`   Alerts System: http://localhost:${PORT}/api/alerts`);
-      console.log(`   File Uploads: http://localhost:${PORT}/uploads/`);
-      console.log("\n💡 Environment: development");
-      console.log("🗄️  Database: MySQL with Connection Pooling");
-      console.log("🏗️  Architecture: MVC Pattern with Separate Controllers");
-      console.log("📁 File Storage: Local filesystem with upload support");
-      console.log("\n✅ Server is ready to handle requests!");
+      console.log("🚀 AI Stock Management Server Started");
+      console.log(`📡 Server running on http://localhost:${PORT}`);
+      console.log(`�️  Database: Connected to ai_stock_management (localhost)`);
+      console.log(`📋 Available endpoints:`);
+      console.log(`   • Dashboard: GET /api/dashboard/stats`);
+      console.log(`   • Products: GET /api/products`);
+      console.log(`   • Suppliers: GET /api/suppliers`);
+      console.log(`   • Alerts: GET /api/alerts`);
+      console.log(`   • Customers: GET /api/customers`);
+      console.log(`   • Bills: GET /api/bills`);
+      console.log(`   • Purchase Orders: GET /api/purchase-orders`);
+      console.log(`   • Health Check: GET /health`);
+      console.log("✅ All systems ready!");
     });
   } catch (error) {
-    console.error("❌ Failed to start server:", error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 };
 
-// Start the server
-startServer();
+// Handle graceful shutdown
+process.on("SIGINT", () => {
+  console.log("\n🛑 Shutting down server gracefully...");
+  process.exit(0);
+});
 
-module.exports = app;
+process.on("SIGTERM", () => {
+  console.log("\n🛑 Shutting down server gracefully...");
+  process.exit(0);
+});
+
+startServer();

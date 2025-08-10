@@ -2,19 +2,15 @@ const mysql = require("mysql2");
 const fs = require("fs");
 const path = require("path");
 
-// Database configuration
+// Database configuration - simplified without problematic options
 const dbConfig = {
-  host: "13.127.244.139",
-  user: "admin",
-  password: "Hackathonintern",
+  host: "localhost",
+  user: "root",
+  password: "",
   database: "ai_stock_management",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  // Remove invalid configuration options
-  // acquireTimeout: 60000,
-  // timeout: 60000,
-  // reconnect: true,
 };
 
 // Create connection pool
@@ -38,40 +34,11 @@ const testConnection = async () => {
 
 // Initialize database tables
 const initializeTables = async () => {
-  const schemaPath = path.join(__dirname, "../schema");
-
   try {
-    // Check if schema directory exists
-    if (!fs.existsSync(schemaPath)) {
-      console.log("📝 Creating database schema...");
-      await createTables();
-      return;
-    }
-
-    // Read and execute SQL files
-    const sqlFiles = fs
-      .readdirSync(schemaPath)
-      .filter((file) => file.endsWith(".sql"));
-
-    for (const file of sqlFiles) {
-      const filePath = path.join(schemaPath, file);
-      const sql = fs.readFileSync(filePath, "utf8");
-
-      // Split SQL statements and execute them
-      const statements = sql.split(";").filter((stmt) => stmt.trim());
-
-      for (const statement of statements) {
-        if (statement.trim()) {
-          await promisePool.execute(statement);
-        }
-      }
-
-      console.log(`✅ Executed ${file}`);
-    }
+    console.log("📝 Creating database schema...");
+    await createTables();
   } catch (error) {
     console.error("❌ Error initializing database tables:", error.message);
-    // Fallback to creating tables programmatically
-    await createTables();
   }
 };
 
@@ -250,7 +217,7 @@ const createTables = async () => {
 
   try {
     for (const tableSQL of tables) {
-      await promisePool.execute(tableSQL);
+      await promisePool.query(tableSQL);
     }
     console.log("✅ All database tables created successfully");
   } catch (error) {
@@ -258,12 +225,17 @@ const createTables = async () => {
   }
 };
 
-// Execute query with error handling and proper parameter binding
+// Execute query with error handling - using query instead of execute to avoid parameter issues
 const executeQuery = async (query, params = []) => {
   try {
-    console.log("Executing query:", query);
+    console.log(
+      "Executing query:",
+      query.substring(0, 200) + (query.length > 200 ? "..." : "")
+    );
     console.log("With parameters:", params);
-    const [results] = await promisePool.execute(query, params);
+
+    // Use query instead of execute to avoid parameter binding issues
+    const [results] = await promisePool.query(query, params);
     return results;
   } catch (error) {
     console.error("Database query error:", error.message);
@@ -273,48 +245,17 @@ const executeQuery = async (query, params = []) => {
   }
 };
 
-// Helper function to build safe queries with WHERE clauses
-const buildQuery = (
-  baseQuery,
-  whereConditions = [],
-  orderBy = "",
-  limitOffset = ""
-) => {
-  let query = baseQuery;
-  const params = [];
-
-  if (whereConditions.length > 0) {
-    const whereClauses = whereConditions.map((condition) => {
-      params.push(...condition.params);
-      return condition.clause;
-    });
-    query += ` WHERE ${whereClauses.join(" AND ")}`;
-  }
-
-  if (orderBy) {
-    query += ` ORDER BY ${orderBy}`;
-  }
-
-  if (limitOffset) {
-    query += ` ${limitOffset}`;
-  }
-
-  return { query, params };
-};
-
 // Get database statistics
 const getStats = async () => {
   try {
-    const [results] = await promisePool.execute(
-      `
-      SELECT 
+    const [results] = await promisePool.query(
+      `SELECT 
         TABLE_NAME as tableName,
         TABLE_ROWS as rowCount,
         DATA_LENGTH as dataSize,
         INDEX_LENGTH as indexSize
       FROM information_schema.TABLES 
-      WHERE TABLE_SCHEMA = ?
-    `,
+      WHERE TABLE_SCHEMA = ?`,
       [dbConfig.database]
     );
 
@@ -330,6 +271,5 @@ module.exports = {
   testConnection,
   initializeTables,
   executeQuery,
-  buildQuery,
   getStats,
 };

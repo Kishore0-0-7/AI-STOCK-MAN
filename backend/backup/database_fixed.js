@@ -4,16 +4,17 @@ const path = require("path");
 
 // Database configuration
 const dbConfig = {
-  host: "13.127.244.139",
-  user: "admin",
-  password: "Hackathonintern",
+  host: "localhost",
+  user: "root",
+  password: "",
   database: "ai_stock_management",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true,
+  // Remove invalid configuration options
+  // acquireTimeout: 60000,
+  // timeout: 60000,
+  // reconnect: true,
 };
 
 // Create connection pool
@@ -257,15 +258,48 @@ const createTables = async () => {
   }
 };
 
-// Execute query with error handling
+// Execute query with error handling and proper parameter binding
 const executeQuery = async (query, params = []) => {
   try {
+    console.log("Executing query:", query);
+    console.log("With parameters:", params);
     const [results] = await promisePool.execute(query, params);
     return results;
   } catch (error) {
     console.error("Database query error:", error.message);
+    console.error("Query:", query);
+    console.error("Parameters:", params);
     throw error;
   }
+};
+
+// Helper function to build safe queries with WHERE clauses
+const buildQuery = (
+  baseQuery,
+  whereConditions = [],
+  orderBy = "",
+  limitOffset = ""
+) => {
+  let query = baseQuery;
+  const params = [];
+
+  if (whereConditions.length > 0) {
+    const whereClauses = whereConditions.map((condition) => {
+      params.push(...condition.params);
+      return condition.clause;
+    });
+    query += ` WHERE ${whereClauses.join(" AND ")}`;
+  }
+
+  if (orderBy) {
+    query += ` ORDER BY ${orderBy}`;
+  }
+
+  if (limitOffset) {
+    query += ` ${limitOffset}`;
+  }
+
+  return { query, params };
 };
 
 // Get database statistics
@@ -296,5 +330,6 @@ module.exports = {
   testConnection,
   initializeTables,
   executeQuery,
+  buildQuery,
   getStats,
 };

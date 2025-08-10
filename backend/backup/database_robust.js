@@ -4,9 +4,9 @@ const path = require("path");
 
 // Database configuration with robust connection handling
 const dbConfig = {
-  host: "13.127.244.139",
-  user: "admin",
-  password: "Hackathonintern",
+  host: "localhost",
+  user: "root",
+  password: "",
   database: "ai_stock_management",
   waitForConnections: true,
   connectionLimit: 5,

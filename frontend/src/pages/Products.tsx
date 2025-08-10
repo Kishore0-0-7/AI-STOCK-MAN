@@ -26,6 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Plus,
   Search,
   Edit2,
@@ -33,9 +39,14 @@ import {
   Package,
   AlertTriangle,
   Download,
+  Upload,
+  FileSpreadsheet,
+  FileText,
   Grid3x3,
   DollarSign,
   RefreshCw,
+  ChevronDown,
+  FileImage,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { productsAPI, suppliersAPI } from "@/services/api";
@@ -44,13 +55,27 @@ interface Product {
   id: string;
   name: string;
   category: string;
-  current_stock: number;
-  low_stock_threshold: number;
+  current_stock?: number; // Frontend form field
+  stock?: number; // Backend response field
+  low_stock_threshold?: number;
+  minStock?: number; // Backend response field
   price: number;
-  supplier_id: string;
+  supplier_id?: string;
+  supplier?: {
+    // Backend nested supplier object
+    id: string;
+    name: string;
+    email?: string;
+  };
   barcode?: string;
-  created_at: string;
-  updated_at: string;
+  sku?: string; // Backend field
+  description?: string; // Backend field
+  cost?: number; // Backend field
+  status?: string; // Backend field
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string; // Backend field
+  updatedAt?: string; // Backend field
 }
 
 interface Supplier {
@@ -65,41 +90,361 @@ interface ProductWithSupplier extends Product {
   supplier_name?: string;
 }
 
+// Export functions
 function exportProductsToCSV(products: ProductWithSupplier[]) {
   const headers = [
     "ID",
+    "SKU",
     "Name",
     "Category",
     "Current Stock",
     "Price",
+    "Cost",
     "Low Stock Threshold",
     "Supplier",
     "Stock Status",
-    "Barcode",
+    "Created Date",
   ];
 
   const rows = products.map((p) => [
     p.id,
+    p.sku || "",
     `"${p.name}"`,
     `"${p.category}"`,
-    p.current_stock,
-    p.price,
-    p.low_stock_threshold,
-    `"${p.supplier_name || "N/A"}"`,
-    p.current_stock <= p.low_stock_threshold ? "Low Stock" : "In Stock",
-    p.barcode || "",
+    p.stock || p.current_stock || 0,
+    p.price || 0,
+    p.cost || 0,
+    p.minStock || p.low_stock_threshold || 0,
+    `"${p.supplier?.name || p.supplier_name || "N/A"}"`,
+    (p.stock || p.current_stock || 0) <=
+    (p.minStock || p.low_stock_threshold || 0)
+      ? "Low Stock"
+      : "In Stock",
+    p.createdAt || p.created_at || "",
   ]);
 
   const csvContent = [headers, ...rows].map((e) => e.join(",")).join("\n");
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.csv`);
+}
+
+function exportProductsToJSON(products: ProductWithSupplier[]) {
+  const exportData = products.map((p) => ({
+    id: p.id,
+    sku: p.sku,
+    name: p.name,
+    category: p.category,
+    stock: p.stock || p.current_stock || 0,
+    price: p.price || 0,
+    cost: p.cost || 0,
+    minStock: p.minStock || p.low_stock_threshold || 0,
+    supplier: p.supplier?.name || p.supplier_name,
+    status:
+      (p.stock || p.current_stock || 0) <=
+      (p.minStock || p.low_stock_threshold || 0)
+        ? "Low Stock"
+        : "In Stock",
+    createdAt: p.createdAt || p.created_at,
+  }));
+
+  const jsonContent = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([jsonContent], {
+    type: "application/json;charset=utf-8;",
+  });
+  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.json`);
+}
+
+function exportProductsToExcel(products: ProductWithSupplier[]) {
+  const headers = [
+    "ID",
+    "SKU",
+    "Name",
+    "Category",
+    "Stock",
+    "Price",
+    "Cost",
+    "Min Stock",
+    "Supplier",
+    "Status",
+  ];
+  const rows = products.map((p) => [
+    p.id,
+    p.sku || "",
+    p.name,
+    p.category,
+    p.stock || p.current_stock || 0,
+    p.price || 0,
+    p.cost || 0,
+    p.minStock || p.low_stock_threshold || 0,
+    p.supplier?.name || p.supplier_name || "N/A",
+    (p.stock || p.current_stock || 0) <=
+    (p.minStock || p.low_stock_threshold || 0)
+      ? "Low Stock"
+      : "In Stock",
+  ]);
+
+  // Simple Excel format (tab-separated values)
+  const excelContent = [headers, ...rows]
+    .map((row) => row.join("\t"))
+    .join("\n");
+  const blob = new Blob([excelContent], {
+    type: "application/vnd.ms-excel;charset=utf-8;",
+  });
+  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.xls`);
+}
+
+function downloadFile(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `products-${new Date().toISOString().split("T")[0]}.csv`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// PDF Export function
+function exportProductsToPDF(products: ProductWithSupplier[]) {
+  // Create PDF content as HTML string
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #2563eb; margin-bottom: 5px; }
+        .header p { color: #64748b; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+        th { background-color: #f8fafc; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        .status-low { color: #dc2626; font-weight: bold; }
+        .status-ok { color: #16a34a; font-weight: bold; }
+        .footer { margin-top: 30px; text-align: center; color: #64748b; font-size: 10px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>Products Inventory Report</h1>
+        <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+        <p>Total Products: ${products.length}</p>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Stock</th>
+            <th>Price</th>
+            <th>Cost</th>
+            <th>Supplier</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${products
+            .map(
+              (p) => `
+            <tr>
+              <td>${p.sku || "N/A"}</td>
+              <td>${p.name}</td>
+              <td>${p.category}</td>
+              <td>${p.stock || p.current_stock || 0}</td>
+              <td>₹${(p.price || 0).toFixed(2)}</td>
+              <td>₹${(p.cost || 0).toFixed(2)}</td>
+              <td>${p.supplier?.name || p.supplier_name || "N/A"}</td>
+              <td class="${
+                (p.stock || p.current_stock || 0) <=
+                (p.minStock || p.low_stock_threshold || 0)
+                  ? "status-low"
+                  : "status-ok"
+              }">
+                ${
+                  (p.stock || p.current_stock || 0) <=
+                  (p.minStock || p.low_stock_threshold || 0)
+                    ? "Low Stock"
+                    : "In Stock"
+                }
+              </td>
+            </tr>
+          `
+            )
+            .join("")}
+        </tbody>
+      </table>
+      
+      <div class="footer">
+        <p>AI Stock Management System - Products Report</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Convert HTML to PDF using window.print
+  const printWindow = window.open("", "_blank");
+  if (printWindow) {
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+
+    // Set up print styles
+    const style = printWindow.document.createElement("style");
+    style.textContent = `
+      @media print {
+        @page { margin: 0.5in; }
+        body { -webkit-print-color-adjust: exact; }
+      }
+    `;
+    printWindow.document.head.appendChild(style);
+
+    // Trigger print dialog
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  }
+}
+
+// Import function with proper API integration
+async function importProductsFromCSV(
+  file: File,
+  onSuccess: () => void,
+  onError: (error: string) => void
+) {
+  const fileExtension = file.name.split(".").pop()?.toLowerCase();
+
+  if (!["csv", "json", "xls", "xlsx"].includes(fileExtension || "")) {
+    onError("Unsupported file format. Please use CSV, Excel, or JSON files.");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const text = e.target?.result as string;
+      let products: any[] = [];
+
+      if (fileExtension === "json") {
+        // Handle JSON import
+        const jsonData = JSON.parse(text);
+        products = Array.isArray(jsonData) ? jsonData : [jsonData];
+      } else {
+        // Handle CSV/Excel import
+        const lines = text.split("\n");
+        const headers = lines[0]
+          .split(",")
+          .map((h) => h.trim().replace(/"/g, "").toLowerCase());
+
+        products = lines
+          .slice(1)
+          .filter((line) => line.trim())
+          .map((line) => {
+            const values = line
+              .split(",")
+              .map((v) => v.trim().replace(/"/g, ""));
+            const product: any = {};
+
+            headers.forEach((header, index) => {
+              const value = values[index] || "";
+              switch (header) {
+                case "name":
+                case "product name":
+                  product.name = value;
+                  break;
+                case "category":
+                  product.category = value;
+                  break;
+                case "price":
+                  product.price = parseFloat(value) || 0;
+                  break;
+                case "cost":
+                  product.cost = parseFloat(value) || 0;
+                  break;
+                case "current stock":
+                case "stock":
+                case "stock quantity":
+                  product.stock = parseInt(value) || 0;
+                  break;
+                case "low stock threshold":
+                case "min stock":
+                case "minstock":
+                case "minimum stock":
+                  product.minStock = parseInt(value) || 10;
+                  break;
+                case "sku":
+                case "barcode":
+                  product.sku = value;
+                  break;
+                case "supplier":
+                case "supplier_name":
+                case "supplier name":
+                  product.supplier_name = value;
+                  break;
+              }
+            });
+
+            return product;
+          });
+      }
+
+      // Filter and validate products
+      const validProducts = products.filter(
+        (p) => p.name && p.category && p.price != null
+      );
+
+      if (validProducts.length === 0) {
+        onError(
+          "No valid products found. Make sure your file has Name, Category, and Price columns."
+        );
+        return;
+      }
+
+      // Use the bulk create API
+      try {
+        const response = await productsAPI.bulkCreate(validProducts);
+
+        if (response.results) {
+          const { success, failed, errors } = response.results;
+
+          if (success > 0) {
+            onSuccess();
+            // Show detailed success message
+            const message =
+              failed > 0
+                ? `${success} products imported successfully, ${failed} failed.`
+                : `All ${success} products imported successfully!`;
+
+            console.log(message);
+            if (errors && errors.length > 0) {
+              console.log("Import errors:", errors);
+            }
+          } else {
+            onError(
+              "Failed to import any products. Please check your file format and data."
+            );
+          }
+        }
+      } catch (apiError: any) {
+        console.error("API Error:", apiError);
+        onError(
+          `Failed to import products: ${
+            apiError.message || "Unknown API error"
+          }`
+        );
+      }
+    } catch (error) {
+      console.error("Import error:", error);
+      onError(
+        "Failed to parse file. Please check the file format and try again."
+      );
+    }
+  };
+
+  reader.readAsText(file);
 }
 
 export default function Products() {
@@ -113,6 +458,8 @@ export default function Products() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
   const [form, setForm] = useState<Partial<Product>>({
     name: "",
     category: "",
@@ -174,10 +521,11 @@ export default function Products() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.name || !form.category || !form.supplier_id) {
+    if (!form.name || !form.category || !form.price) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields",
+        description:
+          "Please fill in all required fields (name, category, price)",
         variant: "destructive",
       });
       return;
@@ -192,7 +540,20 @@ export default function Products() {
         });
         setIsEditDialogOpen(false);
       } else {
-        await productsAPI.create(form as any);
+        // Map frontend form fields to backend expected fields
+        const productData = {
+          sku: form.barcode || `SKU-${Date.now()}`, // Generate SKU if barcode not provided
+          name: form.name,
+          category: form.category,
+          price: form.price,
+          cost: form.price * 0.7, // Assume 30% margin if cost not provided
+          stock: form.current_stock || 0,
+          minStock: form.low_stock_threshold || 10,
+          supplierId: form.supplier_id || null,
+          description: `${form.name} - ${form.category}`,
+        };
+
+        await productsAPI.create(productData as any);
         toast({
           title: "Success",
           description: "Product created successfully",
@@ -322,14 +683,56 @@ export default function Products() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={() => exportProductsToCSV(filteredProducts)}
-            variant="outline"
-            className="flex items-center gap-2"
+          {/* Export Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Export
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem
+                onClick={() => exportProductsToCSV(filteredProducts)}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => exportProductsToExcel(filteredProducts)}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Export as Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => exportProductsToJSON(filteredProducts)}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Export as JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => exportProductsToPDF(filteredProducts)}
+              >
+                <FileImage className="mr-2 h-4 w-4" />
+                Export as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Import Button */}
+          <Dialog
+            open={isImportDialogOpen}
+            onOpenChange={setIsImportDialogOpen}
           >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Import
+              </Button>
+            </DialogTrigger>
+          </Dialog>
+
           <Button
             onClick={fetchData}
             variant="outline"
@@ -408,14 +811,16 @@ export default function Products() {
                 Total Value
               </p>
               <p className="text-3xl font-bold text-foreground">
-                $
+                ₹
                 {products
                   .reduce(
                     (sum, product) =>
-                      sum + product.price * product.current_stock,
+                      sum +
+                      (product.price || 0) *
+                        (product.stock || product.current_stock || 0),
                     0
                   )
-                  .toFixed(0)}
+                  .toLocaleString("en-IN", { maximumFractionDigits: 0 })}
               </p>
             </div>
             <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg">
@@ -507,7 +912,7 @@ export default function Products() {
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-xl">
-                      ${product.price?.toFixed(2)}
+                      ₹{product.price?.toFixed(2)}
                     </p>
                     <Badge
                       variant={
@@ -650,7 +1055,7 @@ export default function Products() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">
-                      ${product.price.toFixed(2)}
+                      ₹{product.price.toFixed(2)}
                     </TableCell>
                     <TableCell>{product.supplier_name}</TableCell>
                     <TableCell>
@@ -889,6 +1294,93 @@ export default function Products() {
             >
               Delete Product
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="max-w-md shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Import Products
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">
+                Supported Formats
+              </h4>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• CSV files (.csv)</li>
+                <li>• Excel files (.xlsx, .xls)</li>
+                <li>• JSON files (.json)</li>
+              </ul>
+            </div>
+
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <h4 className="font-medium text-yellow-900 mb-2">
+                Required Columns
+              </h4>
+              <p className="text-sm text-yellow-800">
+                Name, Category, Price (required)
+                <br />
+                Stock, Min Stock, SKU (optional)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Select File
+              </label>
+              <Input
+                type="file"
+                accept=".csv,.xlsx,.xls,.json"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                className="cursor-pointer"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsImportDialogOpen(false);
+                  setImportFile(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (importFile) {
+                    importProductsFromCSV(
+                      importFile,
+                      () => {
+                        toast({
+                          title: "Success",
+                          description: "Products imported successfully",
+                        });
+                        setIsImportDialogOpen(false);
+                        setImportFile(null);
+                        fetchData();
+                      },
+                      (error) => {
+                        toast({
+                          title: "Import Error",
+                          description: error,
+                          variant: "destructive",
+                        });
+                      }
+                    );
+                  }
+                }}
+                disabled={!importFile}
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import Products
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -2,15 +2,18 @@ const mysql = require("mysql2");
 const fs = require("fs");
 const path = require("path");
 
-// Database configuration - simplified without problematic options
+// Database configuration
 const dbConfig = {
-  host: "13.127.244.139",
-  user: "admin",
-  password: "Hackathonintern",
+  host: "localhost",
+  user: "root",
+  password: "",
   database: "ai_stock_management",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  acquireTimeout: 60000,
+  timeout: 60000,
+  reconnect: true,
 };
 
 // Create connection pool
@@ -34,11 +37,40 @@ const testConnection = async () => {
 
 // Initialize database tables
 const initializeTables = async () => {
+  const schemaPath = path.join(__dirname, "../schema");
+
   try {
-    console.log("📝 Creating database schema...");
-    await createTables();
+    // Check if schema directory exists
+    if (!fs.existsSync(schemaPath)) {
+      console.log("📝 Creating database schema...");
+      await createTables();
+      return;
+    }
+
+    // Read and execute SQL files
+    const sqlFiles = fs
+      .readdirSync(schemaPath)
+      .filter((file) => file.endsWith(".sql"));
+
+    for (const file of sqlFiles) {
+      const filePath = path.join(schemaPath, file);
+      const sql = fs.readFileSync(filePath, "utf8");
+
+      // Split SQL statements and execute them
+      const statements = sql.split(";").filter((stmt) => stmt.trim());
+
+      for (const statement of statements) {
+        if (statement.trim()) {
+          await promisePool.execute(statement);
+        }
+      }
+
+      console.log(`✅ Executed ${file}`);
+    }
   } catch (error) {
     console.error("❌ Error initializing database tables:", error.message);
+    // Fallback to creating tables programmatically
+    await createTables();
   }
 };
 
@@ -217,7 +249,7 @@ const createTables = async () => {
 
   try {
     for (const tableSQL of tables) {
-      await promisePool.query(tableSQL);
+      await promisePool.execute(tableSQL);
     }
     console.log("✅ All database tables created successfully");
   } catch (error) {
@@ -225,22 +257,13 @@ const createTables = async () => {
   }
 };
 
-// Execute query with error handling - using query instead of execute to avoid parameter issues
+// Execute query with error handling
 const executeQuery = async (query, params = []) => {
   try {
-    console.log(
-      "Executing query:",
-      query.substring(0, 200) + (query.length > 200 ? "..." : "")
-    );
-    console.log("With parameters:", params);
-
-    // Use query instead of execute to avoid parameter binding issues
-    const [results] = await promisePool.query(query, params);
+    const [results] = await promisePool.execute(query, params);
     return results;
   } catch (error) {
     console.error("Database query error:", error.message);
-    console.error("Query:", query);
-    console.error("Parameters:", params);
     throw error;
   }
 };
@@ -248,14 +271,16 @@ const executeQuery = async (query, params = []) => {
 // Get database statistics
 const getStats = async () => {
   try {
-    const [results] = await promisePool.query(
-      `SELECT 
+    const [results] = await promisePool.execute(
+      `
+      SELECT 
         TABLE_NAME as tableName,
         TABLE_ROWS as rowCount,
         DATA_LENGTH as dataSize,
         INDEX_LENGTH as indexSize
       FROM information_schema.TABLES 
-      WHERE TABLE_SCHEMA = ?`,
+      WHERE TABLE_SCHEMA = ?
+    `,
       [dbConfig.database]
     );
 

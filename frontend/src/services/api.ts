@@ -130,6 +130,18 @@ export interface PurchaseOrderItem {
   product_name?: string;
 }
 
+export interface CreatePurchaseOrderRequest {
+  supplierId: string;
+  expectedDate?: string | null;
+  notes?: string | null;
+  items: Array<{
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+    notes?: string | null;
+  }>;
+}
+
 // Generic API call function with error handling
 async function apiCall<T>(
   endpoint: string,
@@ -197,6 +209,15 @@ export const productsAPI = {
     apiCall<Product>("/products", {
       method: "POST",
       body: JSON.stringify(product),
+    }),
+
+  bulkCreate: (products: any[]) =>
+    apiCall<{
+      message: string;
+      results: { success: number; failed: number; errors: any[] };
+    }>("/products/bulk", {
+      method: "POST",
+      body: JSON.stringify({ products }),
     }),
 
   update: (id: string, product: Partial<Product>) =>
@@ -405,7 +426,7 @@ export const purchaseOrdersAPI = {
 
   getById: (id: string) => apiCall<PurchaseOrder>(`/purchase-orders/${id}`),
 
-  create: (order: Omit<PurchaseOrder, "id" | "created_at">) =>
+  create: (order: CreatePurchaseOrderRequest) =>
     apiCall<PurchaseOrder>("/purchase-orders", {
       method: "POST",
       body: JSON.stringify(order),
