@@ -100,11 +100,23 @@ export interface Alert {
 
 export interface PurchaseOrder {
   id: string;
-  supplier_id: string;
-  total_amount: number;
-  status: "pending" | "approved" | "shipped" | "received" | "cancelled";
-  created_at: string;
+  orderNumber?: string;
+  supplier_id?: string;
+  supplier?: {
+    id: string;
+    name: string;
+    email?: string;
+  };
   supplier_name?: string;
+  totalAmount: number;
+  total_amount?: number; // Legacy support
+  orderDate?: string;
+  expectedDeliveryDate?: string;
+  status: "pending" | "approved" | "shipped" | "received" | "cancelled";
+  notes?: string;
+  created_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
   items?: PurchaseOrderItem[];
 }
 

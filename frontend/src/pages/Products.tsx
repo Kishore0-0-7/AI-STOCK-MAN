@@ -137,9 +137,13 @@ export default function Products() {
       ]);
 
       const products =
-        productsData.status === "fulfilled" ? productsData.value : [];
+        productsData.status === "fulfilled"
+          ? (productsData.value as any)?.products || productsData.value || []
+          : [];
       const suppliers =
-        suppliersData.status === "fulfilled" ? suppliersData.value : [];
+        suppliersData.status === "fulfilled"
+          ? (suppliersData.value as any)?.suppliers || suppliersData.value || []
+          : [];
 
       const productsWithSuppliers = (products || []).map((product: any) => {
         const supplier = (suppliers || []).find(

@@ -115,14 +115,18 @@ export default function Billing() {
       ]);
 
       if (productsRes.status === "fulfilled") {
-        setProducts(productsRes.value || []);
+        setProducts(
+          (productsRes.value as any)?.products || productsRes.value || []
+        );
       } else {
         console.error("Failed to load products:", productsRes.reason);
         setProducts([]);
       }
 
       if (customersRes.status === "fulfilled") {
-        setCustomers(customersRes.value || []);
+        setCustomers(
+          (customersRes.value as any)?.customers || customersRes.value || []
+        );
       } else {
         console.error("Failed to load customers:", customersRes.reason);
         setCustomers([]);
@@ -355,11 +359,13 @@ export default function Billing() {
     window.location.reload();
   };
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchProduct.toLowerCase())
-  );
+  const filteredProducts = Array.isArray(products)
+    ? products.filter(
+        (product) =>
+          product.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
+          product.category.toLowerCase().includes(searchProduct.toLowerCase())
+      )
+    : [];
 
   if (loading) {
     return (

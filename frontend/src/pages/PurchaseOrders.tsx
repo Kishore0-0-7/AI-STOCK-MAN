@@ -116,9 +116,15 @@ const PurchaseOrders = () => {
           productsAPI.getAll(),
         ]);
 
-      setPurchaseOrders(ordersResponse || []);
-      setSuppliers(suppliersResponse || []);
-      setProducts(productsResponse || []);
+      setPurchaseOrders(
+        (ordersResponse as any)?.orders || ordersResponse || []
+      );
+      setSuppliers(
+        (suppliersResponse as any)?.suppliers || suppliersResponse || []
+      );
+      setProducts(
+        (productsResponse as any)?.products || productsResponse || []
+      );
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({
@@ -137,7 +143,7 @@ const PurchaseOrders = () => {
     if (searchTerm) {
       filtered = filtered.filter(
         (order) =>
-          order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          String(order.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
           order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -192,7 +198,7 @@ const PurchaseOrders = () => {
       const orderData = {
         supplier_id: formData.supplier_id,
         status: formData.status,
-        total_amount,
+        totalAmount: total_amount,
       };
 
       await purchaseOrdersAPI.create(orderData);
@@ -364,11 +370,12 @@ const PurchaseOrders = () => {
                           <SelectValue placeholder="Select supplier" />
                         </SelectTrigger>
                         <SelectContent>
-                          {suppliers.map((supplier) => (
-                            <SelectItem key={supplier.id} value={supplier.id}>
-                              {supplier.name}
-                            </SelectItem>
-                          ))}
+                          {Array.isArray(suppliers) &&
+                            suppliers.map((supplier) => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                {supplier.name}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -569,11 +576,12 @@ const PurchaseOrders = () => {
                           <SelectValue placeholder="Select supplier" />
                         </SelectTrigger>
                         <SelectContent>
-                          {suppliers.map((supplier) => (
-                            <SelectItem key={supplier.id} value={supplier.id}>
-                              {supplier.name}
-                            </SelectItem>
-                          ))}
+                          {Array.isArray(suppliers) &&
+                            suppliers.map((supplier) => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                {supplier.name}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -808,7 +816,7 @@ const PurchaseOrders = () => {
                   filteredOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">
-                        #{order.id.slice(-8)}
+                        #{String(order.id).slice(-8)}
                       </TableCell>
                       <TableCell>
                         {order.supplier_name || "Unknown Supplier"}
@@ -817,7 +825,7 @@ const PurchaseOrders = () => {
                       <TableCell>
                         <div className="flex items-center">
                           <DollarSign className="h-4 w-4 mr-1" />
-                          {order.total_amount.toFixed(2)}
+                          {(order.totalAmount || 0).toFixed(2)}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -884,7 +892,7 @@ const PurchaseOrders = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="font-medium text-lg">
-                      #{order.id.slice(-8)}
+                      #{String(order.id).slice(-8)}
                     </div>
                     <div className="text-sm text-gray-500">
                       {order.supplier_name || "Unknown Supplier"}
@@ -935,7 +943,7 @@ const PurchaseOrders = () => {
                   <div className="flex items-center">
                     <DollarSign className="h-4 w-4 mr-1 text-gray-400" />
                     <span className="font-medium">
-                      ${order.total_amount.toFixed(2)}
+                      ${(order.totalAmount || 0).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex items-center">
@@ -1014,7 +1022,7 @@ const PurchaseOrders = () => {
                     <div className="space-y-1 text-sm">
                       <p>
                         <strong>Total Amount:</strong> $
-                        {selectedOrder.total_amount.toFixed(2)}
+                        {(selectedOrder.totalAmount || 0).toFixed(2)}
                       </p>
                       <p>
                         <strong>Items Count:</strong> {orderItems.length}
@@ -1148,7 +1156,7 @@ const PurchaseOrders = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total Amount:</span>
                         <span className="font-semibold text-lg">
-                          ${selectedOrder.total_amount.toFixed(2)}
+                          ${(selectedOrder.totalAmount || 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between">
