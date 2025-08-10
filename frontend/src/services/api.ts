@@ -440,7 +440,7 @@ export const purchaseOrdersAPI = {
 
   updateStatus: (id: string, status: string) =>
     apiCall<PurchaseOrder>(`/purchase-orders/${id}/status`, {
-      method: "PATCH",
+      method: "PUT",
       body: JSON.stringify({ status }),
     }),
 

@@ -188,11 +188,9 @@ const purchaseOrdersController = {
 
       for (const item of items) {
         if (!item.productId || !item.quantity || !item.unitPrice) {
-          return res
-            .status(400)
-            .json({
-              error: "Each item must have productId, quantity, and unitPrice",
-            });
+          return res.status(400).json({
+            error: "Each item must have productId, quantity, and unitPrice",
+          });
         }
 
         // Validate product exists
@@ -330,10 +328,11 @@ const purchaseOrdersController = {
       const { status, deliveryDate, notes } = req.body;
 
       const validStatuses = [
+        "draft",
         "pending",
-        "confirmed",
+        "approved",
         "shipped",
-        "delivered",
+        "received",
         "completed",
         "cancelled",
       ];

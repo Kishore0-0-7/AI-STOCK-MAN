@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -57,6 +58,9 @@ import {
   AlertCircle,
   Filter,
   MoreVertical,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -77,10 +81,20 @@ const PurchaseOrders = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<string>("total_amount");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{
+    orderId: string;
+    newStatus: string;
+    oldStatus: string;
+  } | null>(null);
+  const [isStatusChangeDialogOpen, setIsStatusChangeDialogOpen] =
+    useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(
     null
@@ -105,8 +119,8 @@ const PurchaseOrders = () => {
   }, []);
 
   useEffect(() => {
-    filterOrders();
-  }, [purchaseOrders, searchTerm, statusFilter]);
+    filterAndSortOrders();
+  }, [purchaseOrders, searchTerm, selectedStatuses, sortBy, sortOrder]);
 
   const fetchData = async () => {
     try {
@@ -147,30 +161,86 @@ const PurchaseOrders = () => {
     }
   };
 
-  const filterOrders = () => {
+  const filterAndSortOrders = () => {
     let filtered = purchaseOrders;
 
+    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(
         (order) =>
           String(order.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.supplier?.name
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
           order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((order) => order.status === statusFilter);
+    // Apply status filter
+    if (selectedStatuses.length > 0) {
+      filtered = filtered.filter((order) =>
+        selectedStatuses.includes(order.status)
+      );
     }
 
-    setFilteredOrders(filtered);
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortBy) {
+        case "supplier":
+          aValue = (a.supplier?.name || a.supplier_name || "").toLowerCase();
+          bValue = (b.supplier?.name || b.supplier_name || "").toLowerCase();
+          break;
+        case "total_amount":
+          aValue = a.totalAmount || a.total_amount || 0;
+          bValue = b.totalAmount || b.total_amount || 0;
+          break;
+        case "id":
+          aValue = Number(a.id) || 0;
+          bValue = Number(b.id) || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    setFilteredOrders(sorted);
+  };
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const getSortIcon = (field: string) => {
+    if (sortBy !== field) {
+      return <ArrowUpDown className="h-4 w-4" />;
+    }
+    return sortOrder === "asc" ? (
+      <ArrowUp className="h-4 w-4" />
+    ) : (
+      <ArrowDown className="h-4 w-4" />
+    );
   };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
+      draft: { color: "bg-gray-100 text-gray-800", icon: Clock },
       pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
       approved: { color: "bg-blue-100 text-blue-800", icon: Check },
       shipped: { color: "bg-purple-100 text-purple-800", icon: Truck },
       received: { color: "bg-green-100 text-green-800", icon: Package },
+      completed: { color: "bg-green-100 text-green-800", icon: Check },
       cancelled: { color: "bg-red-100 text-red-800", icon: X },
     };
 
@@ -184,6 +254,21 @@ const PurchaseOrders = () => {
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
+  };
+
+  const getNextStatus = (
+    currentStatus: string
+  ): { nextStatus: string; buttonText: string } | null => {
+    const statusFlow = {
+      pending: { nextStatus: "approved", buttonText: "Approve" },
+      approved: { nextStatus: "shipped", buttonText: "Mark as Shipped" },
+      shipped: { nextStatus: "received", buttonText: "Mark as Received" },
+      received: { nextStatus: "completed", buttonText: "Mark as Completed" },
+      completed: null,
+      cancelled: null,
+    };
+
+    return statusFlow[currentStatus as keyof typeof statusFlow] || null;
   };
 
   const handleCreateOrder = async (e: React.FormEvent) => {
@@ -254,6 +339,43 @@ const PurchaseOrders = () => {
       toast({
         title: "Error",
         description: "Failed to create purchase order",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleStatusChangeRequest = (orderId: string, newStatus: string) => {
+    const order = purchaseOrders.find((o) => o.id === orderId);
+    if (order) {
+      setPendingStatusChange({
+        orderId,
+        newStatus,
+        oldStatus: order.status,
+      });
+      setIsStatusChangeDialogOpen(true);
+    }
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!pendingStatusChange) return;
+
+    try {
+      await purchaseOrdersAPI.updateStatus(
+        pendingStatusChange.orderId,
+        pendingStatusChange.newStatus
+      );
+      toast({
+        title: "Success",
+        description: `Order status updated to ${pendingStatusChange.newStatus}`,
+      });
+      fetchData();
+      setIsStatusChangeDialogOpen(false);
+      setPendingStatusChange(null);
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update order status",
         variant: "destructive",
       });
     }
@@ -447,10 +569,12 @@ const PurchaseOrders = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="approved">Approved</SelectItem>
                           <SelectItem value="shipped">Shipped</SelectItem>
                           <SelectItem value="received">Received</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -664,10 +788,12 @@ const PurchaseOrders = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="approved">Approved</SelectItem>
                           <SelectItem value="shipped">Shipped</SelectItem>
                           <SelectItem value="received">Received</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -831,20 +957,137 @@ const PurchaseOrders = () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="shipped">Shipped</SelectItem>
-                <SelectItem value="received">Received</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  {selectedStatuses.length === 0
+                    ? "All Statuses"
+                    : selectedStatuses.length === 1
+                    ? `${
+                        selectedStatuses[0].charAt(0).toUpperCase() +
+                        selectedStatuses[0].slice(1)
+                      }`
+                    : `${selectedStatuses.length} selected`}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                {[
+                  { value: "draft", label: "Draft" },
+                  { value: "pending", label: "Pending" },
+                  { value: "approved", label: "Approved" },
+                  { value: "shipped", label: "Shipped" },
+                  { value: "received", label: "Received" },
+                  { value: "completed", label: "Completed" },
+                  { value: "cancelled", label: "Cancelled" },
+                ].map((status) => (
+                  <DropdownMenuItem
+                    key={status.value}
+                    className="flex items-center space-x-2 cursor-pointer"
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <Checkbox
+                      checked={selectedStatuses.includes(status.value)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedStatuses([
+                            ...selectedStatuses,
+                            status.value,
+                          ]);
+                        } else {
+                          setSelectedStatuses(
+                            selectedStatuses.filter((s) => s !== status.value)
+                          );
+                        }
+                      }}
+                    />
+                    <span>{status.label}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-[200px]">
+                  <ArrowUpDown className="h-4 w-4 mr-2" />
+                  {(() => {
+                    const currentValue = `${sortBy}_${sortOrder}`;
+                    switch (currentValue) {
+                      case "supplier_asc":
+                        return "Supplier: A-Z";
+                      case "supplier_desc":
+                        return "Supplier: Z-A";
+                      case "id_asc":
+                        return "Order ID: Low to High";
+                      case "id_desc":
+                        return "Order ID: High to Low";
+                      case "total_amount_asc":
+                        return "Amount: Low to High";
+                      case "total_amount_desc":
+                        return "Amount: High to Low";
+                      default:
+                        return "Sort by";
+                    }
+                  })()}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSortBy("total_amount");
+                    setSortOrder("asc");
+                  }}
+                  className="cursor-pointer"
+                >
+                  Amount: Low to High
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSortBy("total_amount");
+                    setSortOrder("desc");
+                  }}
+                  className="cursor-pointer"
+                >
+                  Amount: High to Low
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSortBy("supplier");
+                    setSortOrder("asc");
+                  }}
+                  className="cursor-pointer"
+                >
+                  Supplier: A-Z
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSortBy("supplier");
+                    setSortOrder("desc");
+                  }}
+                  className="cursor-pointer"
+                >
+                  Supplier: Z-A
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSortBy("id");
+                    setSortOrder("asc");
+                  }}
+                  className="cursor-pointer"
+                >
+                  Order ID: Low to High
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSortBy("id");
+                    setSortOrder("desc");
+                  }}
+                  className="cursor-pointer"
+                >
+                  Order ID: High to Low
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="outline"
               onClick={fetchData}
@@ -864,10 +1107,34 @@ const PurchaseOrders = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Supplier</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-gray-50 select-none"
+                    onClick={() => handleSort("id")}
+                  >
+                    <div className="flex items-center justify-between">
+                      Order ID
+                      {getSortIcon("id")}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-gray-50 select-none"
+                    onClick={() => handleSort("supplier")}
+                  >
+                    <div className="flex items-center justify-between">
+                      Supplier
+                      {getSortIcon("supplier")}
+                    </div>
+                  </TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Total Amount</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-gray-50 select-none"
+                    onClick={() => handleSort("total_amount")}
+                  >
+                    <div className="flex items-center justify-between">
+                      Total Amount
+                      {getSortIcon("total_amount")}
+                    </div>
+                  </TableHead>
                   <TableHead>Created At</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -887,19 +1154,107 @@ const PurchaseOrders = () => {
                         #{String(order.id).slice(-8)}
                       </TableCell>
                       <TableCell>
-                        {order.supplier_name || "Unknown Supplier"}
+                        {order.supplier?.name ||
+                          order.supplier_name ||
+                          "Unknown Supplier"}
                       </TableCell>
-                      <TableCell>{getStatusBadge(order.status)}</TableCell>
+                      <TableCell>
+                        <Select
+                          value={order.status}
+                          onValueChange={(newStatus) =>
+                            handleStatusChangeRequest(order.id, newStatus)
+                          }
+                        >
+                          <SelectTrigger className="w-[140px] h-9 border-2">
+                            <SelectValue>
+                              <div className="flex items-center">
+                                {getStatusBadge(order.status)}
+                              </div>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem
+                              value="draft"
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2">
+                                {getStatusBadge("draft")}
+                                <span className="text-sm">Draft</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem
+                              value="pending"
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2">
+                                {getStatusBadge("pending")}
+                                <span className="text-sm">Pending</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem
+                              value="approved"
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2">
+                                {getStatusBadge("approved")}
+                                <span className="text-sm">Approved</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem
+                              value="shipped"
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2">
+                                {getStatusBadge("shipped")}
+                                <span className="text-sm">Shipped</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem
+                              value="received"
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2">
+                                {getStatusBadge("received")}
+                                <span className="text-sm">Received</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem
+                              value="completed"
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2">
+                                {getStatusBadge("completed")}
+                                <span className="text-sm">Completed</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem
+                              value="cancelled"
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2">
+                                {getStatusBadge("cancelled")}
+                                <span className="text-sm">Cancelled</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center">
                           <span className="mr-1">₹</span>
-                          {(order.totalAmount || 0).toFixed(2)}
+                          {(
+                            order.totalAmount ||
+                            order.total_amount ||
+                            0
+                          ).toFixed(2)}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="h-4 w-4 mr-1" />
-                          {new Date(order.created_at).toLocaleDateString()}
+                          {new Date(
+                            order.created_at || order.createdAt
+                          ).toLocaleDateString()}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -912,17 +1267,27 @@ const PurchaseOrders = () => {
                             <Eye className="h-4 w-4" />
                           </Button>
 
-                          {order.status === "pending" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                handleUpdateStatus(order.id, "approved")
-                              }
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                          )}
+                          {(() => {
+                            const nextStatus = getNextStatus(order.status);
+                            if (nextStatus) {
+                              return (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleUpdateStatus(
+                                      order.id,
+                                      nextStatus.nextStatus
+                                    )
+                                  }
+                                  title={nextStatus.buttonText}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                              );
+                            }
+                            return null;
+                          })()}
 
                           {(order.status === "pending" ||
                             order.status === "approved") && (
@@ -963,11 +1328,76 @@ const PurchaseOrders = () => {
                       #{String(order.id).slice(-8)}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {order.supplier_name || "Unknown Supplier"}
+                      {order.supplier?.name ||
+                        order.supplier_name ||
+                        "Unknown Supplier"}
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    {getStatusBadge(order.status)}
+                    <Select
+                      value={order.status}
+                      onValueChange={(newStatus) =>
+                        handleStatusChangeRequest(order.id, newStatus)
+                      }
+                    >
+                      <SelectTrigger className="w-[140px] h-9 border-2">
+                        <SelectValue>
+                          <div className="flex items-center">
+                            {getStatusBadge(order.status)}
+                          </div>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft" className="cursor-pointer">
+                          <div className="flex items-center space-x-2">
+                            {getStatusBadge("draft")}
+                            <span className="text-sm">Draft</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="pending" className="cursor-pointer">
+                          <div className="flex items-center space-x-2">
+                            {getStatusBadge("pending")}
+                            <span className="text-sm">Pending</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="approved" className="cursor-pointer">
+                          <div className="flex items-center space-x-2">
+                            {getStatusBadge("approved")}
+                            <span className="text-sm">Approved</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="shipped" className="cursor-pointer">
+                          <div className="flex items-center space-x-2">
+                            {getStatusBadge("shipped")}
+                            <span className="text-sm">Shipped</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="received" className="cursor-pointer">
+                          <div className="flex items-center space-x-2">
+                            {getStatusBadge("received")}
+                            <span className="text-sm">Received</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem
+                          value="completed"
+                          className="cursor-pointer"
+                        >
+                          <div className="flex items-center space-x-2">
+                            {getStatusBadge("completed")}
+                            <span className="text-sm">Completed</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem
+                          value="cancelled"
+                          className="cursor-pointer"
+                        >
+                          <div className="flex items-center space-x-2">
+                            {getStatusBadge("cancelled")}
+                            <span className="text-sm">Cancelled</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm">
@@ -981,16 +1411,25 @@ const PurchaseOrders = () => {
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </DropdownMenuItem>
-                        {order.status === "pending" && (
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleUpdateStatus(order.id, "approved")
-                            }
-                          >
-                            <Check className="h-4 w-4 mr-2" />
-                            Approve Order
-                          </DropdownMenuItem>
-                        )}
+                        {(() => {
+                          const nextStatus = getNextStatus(order.status);
+                          if (nextStatus) {
+                            return (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleUpdateStatus(
+                                    order.id,
+                                    nextStatus.nextStatus
+                                  )
+                                }
+                              >
+                                <Check className="h-4 w-4 mr-2" />
+                                {nextStatus.buttonText}
+                              </DropdownMenuItem>
+                            );
+                          }
+                          return null;
+                        })()}
                         {(order.status === "pending" ||
                           order.status === "approved") && (
                           <DropdownMenuItem
@@ -1011,13 +1450,17 @@ const PurchaseOrders = () => {
                   <div className="flex items-center">
                     <span className="mr-1 text-gray-400">₹</span>
                     <span className="font-medium">
-                      {(order.totalAmount || 0).toFixed(2)}
+                      {(order.totalAmount || order.total_amount || 0).toFixed(
+                        2
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-1 text-gray-400" />
                     <span>
-                      {new Date(order.created_at).toLocaleDateString()}
+                      {new Date(
+                        order.created_at || order.createdAt
+                      ).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
@@ -1033,17 +1476,25 @@ const PurchaseOrders = () => {
                     <Eye className="h-4 w-4 mr-1" />
                     View Details
                   </Button>
-                  {order.status === "pending" && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => handleUpdateStatus(order.id, "approved")}
-                      className="flex-1"
-                    >
-                      <Check className="h-4 w-4 mr-1" />
-                      Approve
-                    </Button>
-                  )}
+                  {(() => {
+                    const nextStatus = getNextStatus(order.status);
+                    if (nextStatus) {
+                      return (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() =>
+                            handleUpdateStatus(order.id, nextStatus.nextStatus)
+                          }
+                          className="flex-1"
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          {nextStatus.buttonText.replace("Mark as ", "")}
+                        </Button>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
             </Card>
@@ -1058,8 +1509,10 @@ const PurchaseOrders = () => {
             <DialogHeader>
               <DialogTitle>Purchase Order Details</DialogTitle>
               <DialogDescription>
-                Order #{selectedOrder?.id.slice(-8)} -{" "}
-                {selectedOrder?.supplier_name}
+                Order #{String(selectedOrder?.id || "").slice(-8)} -{" "}
+                {selectedOrder?.supplier?.name ||
+                  selectedOrder?.supplier_name ||
+                  "Unknown Supplier"}
               </DialogDescription>
             </DialogHeader>
 
@@ -1073,7 +1526,10 @@ const PurchaseOrders = () => {
                         <strong>ID:</strong> {selectedOrder.id}
                       </p>
                       <p>
-                        <strong>Supplier:</strong> {selectedOrder.supplier_name}
+                        <strong>Supplier:</strong>{" "}
+                        {selectedOrder.supplier?.name ||
+                          selectedOrder.supplier_name ||
+                          "Unknown Supplier"}
                       </p>
                       <p>
                         <strong>Status:</strong>{" "}
@@ -1081,7 +1537,9 @@ const PurchaseOrders = () => {
                       </p>
                       <p>
                         <strong>Created:</strong>{" "}
-                        {new Date(selectedOrder.created_at).toLocaleString()}
+                        {new Date(
+                          selectedOrder.created_at || selectedOrder.createdAt
+                        ).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -1090,7 +1548,11 @@ const PurchaseOrders = () => {
                     <div className="space-y-1 text-sm">
                       <p>
                         <strong>Total Amount:</strong> ₹
-                        {(selectedOrder.totalAmount || 0).toFixed(2)}
+                        {(
+                          selectedOrder.totalAmount ||
+                          selectedOrder.total_amount ||
+                          0
+                        ).toFixed(2)}
                       </p>
                       <p>
                         <strong>Items Count:</strong> {orderItems.length}
@@ -1133,36 +1595,25 @@ const PurchaseOrders = () => {
 
                 <div className="flex flex-col sm:flex-row justify-between gap-3">
                   <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                    {selectedOrder.status === "pending" && (
-                      <Button
-                        onClick={() => {
-                          handleUpdateStatus(selectedOrder.id, "approved");
-                          setIsViewDialogOpen(false);
-                        }}
-                      >
-                        Approve Order
-                      </Button>
-                    )}
-                    {selectedOrder.status === "approved" && (
-                      <Button
-                        onClick={() => {
-                          handleUpdateStatus(selectedOrder.id, "shipped");
-                          setIsViewDialogOpen(false);
-                        }}
-                      >
-                        Mark as Shipped
-                      </Button>
-                    )}
-                    {selectedOrder.status === "shipped" && (
-                      <Button
-                        onClick={() => {
-                          handleUpdateStatus(selectedOrder.id, "received");
-                          setIsViewDialogOpen(false);
-                        }}
-                      >
-                        Mark as Received
-                      </Button>
-                    )}
+                    {(() => {
+                      const nextStatus = getNextStatus(selectedOrder.status);
+                      if (nextStatus) {
+                        return (
+                          <Button
+                            onClick={() => {
+                              handleUpdateStatus(
+                                selectedOrder.id,
+                                nextStatus.nextStatus
+                              );
+                              setIsViewDialogOpen(false);
+                            }}
+                          >
+                            {nextStatus.buttonText}
+                          </Button>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                   <Button
                     variant="outline"
@@ -1184,8 +1635,10 @@ const PurchaseOrders = () => {
             <SheetHeader>
               <SheetTitle>Purchase Order Details</SheetTitle>
               <SheetDescription>
-                Order #{selectedOrder?.id.slice(-8)} -{" "}
-                {selectedOrder?.supplier_name}
+                Order #{String(selectedOrder?.id || "").slice(-8)} -{" "}
+                {selectedOrder?.supplier?.name ||
+                  selectedOrder?.supplier_name ||
+                  "Unknown Supplier"}
               </SheetDescription>
             </SheetHeader>
 
@@ -1201,7 +1654,11 @@ const PurchaseOrders = () => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Supplier:</span>
-                        <span>{selectedOrder.supplier_name}</span>
+                        <span>
+                          {selectedOrder.supplier?.name ||
+                            selectedOrder.supplier_name ||
+                            "Unknown Supplier"}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Status:</span>
@@ -1211,7 +1668,7 @@ const PurchaseOrders = () => {
                         <span className="text-gray-600">Created:</span>
                         <span>
                           {new Date(
-                            selectedOrder.created_at
+                            selectedOrder.created_at || selectedOrder.createdAt
                           ).toLocaleDateString()}
                         </span>
                       </div>
@@ -1224,7 +1681,12 @@ const PurchaseOrders = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total Amount:</span>
                         <span className="font-semibold text-lg">
-                          ₹{(selectedOrder.totalAmount || 0).toFixed(2)}
+                          ₹
+                          {(
+                            selectedOrder.totalAmount ||
+                            selectedOrder.total_amount ||
+                            0
+                          ).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -1269,39 +1731,26 @@ const PurchaseOrders = () => {
                 )}
 
                 <div className="flex flex-col space-y-2 pt-4">
-                  {selectedOrder.status === "pending" && (
-                    <Button
-                      onClick={() => {
-                        handleUpdateStatus(selectedOrder.id, "approved");
-                        setIsViewSheetOpen(false);
-                      }}
-                      className="w-full"
-                    >
-                      Approve Order
-                    </Button>
-                  )}
-                  {selectedOrder.status === "approved" && (
-                    <Button
-                      onClick={() => {
-                        handleUpdateStatus(selectedOrder.id, "shipped");
-                        setIsViewSheetOpen(false);
-                      }}
-                      className="w-full"
-                    >
-                      Mark as Shipped
-                    </Button>
-                  )}
-                  {selectedOrder.status === "shipped" && (
-                    <Button
-                      onClick={() => {
-                        handleUpdateStatus(selectedOrder.id, "received");
-                        setIsViewSheetOpen(false);
-                      }}
-                      className="w-full"
-                    >
-                      Mark as Received
-                    </Button>
-                  )}
+                  {(() => {
+                    const nextStatus = getNextStatus(selectedOrder.status);
+                    if (nextStatus) {
+                      return (
+                        <Button
+                          onClick={() => {
+                            handleUpdateStatus(
+                              selectedOrder.id,
+                              nextStatus.nextStatus
+                            );
+                            setIsViewSheetOpen(false);
+                          }}
+                          className="w-full"
+                        >
+                          {nextStatus.buttonText}
+                        </Button>
+                      );
+                    }
+                    return null;
+                  })()}
                   <Button
                     variant="outline"
                     onClick={() => setIsViewSheetOpen(false)}
@@ -1315,6 +1764,62 @@ const PurchaseOrders = () => {
           </SheetContent>
         </Sheet>
       </div>
+
+      {/* Status Change Confirmation Dialog */}
+      <Dialog
+        open={isStatusChangeDialogOpen}
+        onOpenChange={setIsStatusChangeDialogOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Status Change</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to change the order status from{" "}
+              <span className="font-semibold">
+                {pendingStatusChange?.oldStatus}
+              </span>{" "}
+              to{" "}
+              <span className="font-semibold">
+                {pendingStatusChange?.newStatus}
+              </span>
+              ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-between items-center mt-6">
+            <div className="flex items-center space-x-4">
+              <div className="text-sm">
+                <span className="text-gray-500">From:</span>{" "}
+                {pendingStatusChange &&
+                  getStatusBadge(pendingStatusChange.oldStatus)}
+              </div>
+              <ArrowUp className="h-4 w-4 text-gray-400" />
+              <div className="text-sm">
+                <span className="text-gray-500">To:</span>{" "}
+                {pendingStatusChange &&
+                  getStatusBadge(pendingStatusChange.newStatus)}
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsStatusChangeDialogOpen(false);
+                setPendingStatusChange(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmStatusChange}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Check className="h-4 w-4 mr-2" />
+              Confirm Change
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

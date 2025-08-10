@@ -53,7 +53,7 @@ interface ActivityItem {
   activity_type: string;
   description: string;
   user_name: string;
-  created_at: string;
+  created_at?: string | null;
 }
 
 interface TrendData {
@@ -359,8 +359,26 @@ const Dashboard = () => {
     }).format(amount || 0);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "Date not available";
+
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return "Date not available";
+      }
+
+      return date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch (error) {
+      return "Date not available";
+    }
   };
 
   if (loading) {

@@ -16,6 +16,8 @@ import {
   X,
   Moon,
   Sun,
+  Truck,
+  Users,
 } from "lucide-react";
 
 export function Layout() {
@@ -40,6 +42,8 @@ export function Layout() {
   const navigationItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Products", href: "/products", icon: Package },
+    { name: "Suppliers", href: "/suppliers", icon: Truck },
+    { name: "Customers", href: "/customers", icon: Users },
     { name: "Billing", href: "/billing", icon: ShoppingCart },
     { name: "Purchase Orders", href: "/purchase-orders", icon: FileText },
     { name: "Scan Bills", href: "/scan-bills", icon: ScanLine },

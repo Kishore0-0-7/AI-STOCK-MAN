@@ -68,11 +68,12 @@ const dashboardController = {
       res.json(
         activities.map((activity) => ({
           id: activity.id,
-          type: activity.type,
+          activity_type: activity.type,
           description: activity.description,
           status: activity.status,
           amount: parseFloat(activity.amount || 0),
-          timestamp: activity.created_at,
+          created_at: activity.created_at,
+          user_name: "System", // Default user name
         }))
       );
     } catch (error) {

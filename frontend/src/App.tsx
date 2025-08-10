@@ -13,6 +13,8 @@ import SalesReports from "./pages/SalesReports";
 import StockSummary from "./pages/StockSummary";
 import LowStockAlerts from "./pages/LowStockAlerts";
 import Settings from "./pages/Settings";
+import Suppliers from "./pages/Suppliers";
+import Customers from "./pages/Customers";
 import NotFound from "./pages/NotFound";
 import ApiTestComponent from "./components/ApiTestComponent";
 
@@ -34,6 +36,8 @@ const App = () => (
             <Route path="sales-reports" element={<SalesReports />} />
             <Route path="stock-summary" element={<StockSummary />} />
             <Route path="low-stock-alerts" element={<LowStockAlerts />} />
+            <Route path="suppliers" element={<Suppliers />} />
+            <Route path="customers" element={<Customers />} />
             <Route path="settings" element={<Settings />} />
             <Route path="api-test" element={<ApiTestComponent />} />
           </Route>

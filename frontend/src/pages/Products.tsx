@@ -494,12 +494,36 @@ export default function Products() {
 
       const productsWithSuppliers = (products || []).map((product: any) => {
         const supplier = (suppliers || []).find(
-          (s: any) => s.id === product.supplier_id
+          (s: any) =>
+            s.id === product.supplier_id || s.id === product.supplier?.id
         );
-        return {
+
+        const mappedProduct = {
           ...product,
-          supplier_name: supplier?.name || "Unknown",
+          // Map backend fields to frontend fields for consistency
+          current_stock: product.stock || product.current_stock || 0,
+          low_stock_threshold:
+            product.minStock || product.low_stock_threshold || 10,
+          supplier_name:
+            supplier?.name ||
+            product.supplier?.name ||
+            product.supplier_name ||
+            "N/A",
         };
+
+        // Debug logging for first few products
+        if (products.indexOf(product) < 3) {
+          console.log(`Product ${product.name}:`, {
+            originalStock: product.stock,
+            originalCurrentStock: product.current_stock,
+            mappedCurrentStock: mappedProduct.current_stock,
+            originalSupplier: product.supplier,
+            supplierFromList: supplier,
+            mappedSupplierName: mappedProduct.supplier_name,
+          });
+        }
+
+        return mappedProduct;
       });
 
       setProducts(productsWithSuppliers);
@@ -990,117 +1014,136 @@ export default function Products() {
         </div>
 
         {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Category</TableHead>
-                <TableHead className="font-semibold">Stock</TableHead>
-                <TableHead className="font-semibold">Price</TableHead>
-                <TableHead className="font-semibold">Supplier</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold text-right">
-                  Actions
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProducts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
-                    <div className="flex flex-col items-center">
-                      <Package className="h-16 w-16 text-muted-foreground/60 mb-4" />
-                      <p className="text-lg font-medium text-muted-foreground mb-1">
-                        No products found
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Try adjusting your search filters
-                      </p>
-                    </div>
-                  </TableCell>
+        <div className="hidden md:block">
+          <div className="rounded-lg border border-border/50 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 border-b hover:bg-muted/50">
+                  <TableHead className="font-semibold w-[200px] px-6 py-4 text-left">
+                    Name
+                  </TableHead>
+                  <TableHead className="font-semibold w-[120px] px-6 py-4 text-left">
+                    Category
+                  </TableHead>
+                  <TableHead className="font-semibold w-[80px] px-6 py-4 text-center">
+                    Stock
+                  </TableHead>
+                  <TableHead className="font-semibold w-[100px] px-6 py-4 text-right">
+                    Price
+                  </TableHead>
+                  <TableHead className="font-semibold w-[150px] px-6 py-4 text-left">
+                    Supplier
+                  </TableHead>
+                  <TableHead className="font-semibold w-[100px] px-6 py-4 text-center">
+                    Status
+                  </TableHead>
+                  <TableHead className="font-semibold w-[100px] px-6 py-4 text-right">
+                    Actions
+                  </TableHead>
                 </TableRow>
-              ) : (
-                filteredProducts.map((product) => (
-                  <TableRow
-                    key={product.id}
-                    className="hover:bg-muted/30 transition-colors"
-                  >
-                    <TableCell className="font-medium">
-                      {product.name}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className="bg-blue-50 text-blue-700 border-blue-200"
-                      >
-                        {product.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`font-medium ${
-                            product.current_stock <= product.low_stock_threshold
-                              ? "text-red-600"
-                              : "text-green-600"
-                          }`}
-                        >
-                          {product.current_stock}
-                        </span>
-                        {product.current_stock <=
-                          product.low_stock_threshold && (
-                          <AlertTriangle className="h-4 w-4 text-red-500" />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      ₹{product.price.toFixed(2)}
-                    </TableCell>
-                    <TableCell>{product.supplier_name}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          product.current_stock <= product.low_stock_threshold
-                            ? "destructive"
-                            : "secondary"
-                        }
-                        className={
-                          product.current_stock <= product.low_stock_threshold
-                            ? "bg-red-100 text-red-800 hover:bg-red-200"
-                            : "bg-green-100 text-green-800 hover:bg-green-200"
-                        }
-                      >
-                        {product.current_stock <= product.low_stock_threshold
-                          ? "Low Stock"
-                          : "In Stock"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openEditDialog(product)}
-                          className="hover:bg-blue-50 hover:text-blue-600"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openDeleteDialog(product)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <div className="flex flex-col items-center">
+                        <Package className="h-16 w-16 text-muted-foreground/60 mb-4" />
+                        <p className="text-lg font-medium text-muted-foreground mb-1">
+                          No products found
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Try adjusting your search filters
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <TableRow
+                      key={product.id}
+                      className="hover:bg-muted/30 transition-colors border-b last:border-b-0"
+                    >
+                      <TableCell className="font-medium px-6 py-4">
+                        {product.name}
+                      </TableCell>
+                      <TableCell className="px-6 py-4">
+                        <Badge
+                          variant="outline"
+                          className="bg-blue-50 text-blue-700 border-blue-200"
+                        >
+                          {product.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center px-6 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <span
+                            className={`font-medium ${
+                              product.current_stock <=
+                              product.low_stock_threshold
+                                ? "text-red-600"
+                                : "text-green-600"
+                            }`}
+                          >
+                            {product.current_stock}
+                          </span>
+                          {product.current_stock <=
+                            product.low_stock_threshold && (
+                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium text-right px-6 py-4">
+                        ₹{product.price.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="truncate px-6 py-4">
+                        {product.supplier_name}
+                      </TableCell>
+                      <TableCell className="text-center px-6 py-4">
+                        <Badge
+                          variant={
+                            product.current_stock <= product.low_stock_threshold
+                              ? "destructive"
+                              : "secondary"
+                          }
+                          className={
+                            product.current_stock <= product.low_stock_threshold
+                              ? "bg-red-100 text-red-800 hover:bg-red-200"
+                              : "bg-green-100 text-green-800 hover:bg-green-200"
+                          }
+                        >
+                          {product.current_stock <= product.low_stock_threshold
+                            ? "Low Stock"
+                            : "In Stock"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right px-6 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openEditDialog(product)}
+                            className="hover:bg-blue-50 hover:text-blue-600 h-8 w-8 p-0"
+                            title="Edit product"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openDeleteDialog(product)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                            title="Delete product"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </Card>{" "}
       {/* Add/Edit Product Dialog */}
