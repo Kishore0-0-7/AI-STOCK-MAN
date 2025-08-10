@@ -59,7 +59,15 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { purchaseOrdersAPI, suppliersAPI, productsAPI, PurchaseOrder, PurchaseOrderItem, Supplier, Product } from "@/services/api";
+import {
+  purchaseOrdersAPI,
+  suppliersAPI,
+  productsAPI,
+  PurchaseOrder,
+  PurchaseOrderItem,
+  Supplier,
+  Product,
+} from "@/services/api";
 
 const PurchaseOrders = () => {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -72,9 +80,11 @@ const PurchaseOrders = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(
+    null
+  );
   const [orderItems, setOrderItems] = useState<PurchaseOrderItem[]>([]);
-  
+
   // Form states
   const [formData, setFormData] = useState({
     supplier_id: "",
@@ -83,7 +93,7 @@ const PurchaseOrders = () => {
       product_id: string;
       quantity: number;
       unit_price: number;
-    }>
+    }>,
   });
 
   const { toast } = useToast();
@@ -99,12 +109,13 @@ const PurchaseOrders = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [ordersResponse, suppliersResponse, productsResponse] = await Promise.all([
-        purchaseOrdersAPI.getAll(),
-        suppliersAPI.getAll(),
-        productsAPI.getAll()
-      ]);
-      
+      const [ordersResponse, suppliersResponse, productsResponse] =
+        await Promise.all([
+          purchaseOrdersAPI.getAll(),
+          suppliersAPI.getAll(),
+          productsAPI.getAll(),
+        ]);
+
       setPurchaseOrders(ordersResponse || []);
       setSuppliers(suppliersResponse || []);
       setProducts(productsResponse || []);
@@ -144,10 +155,11 @@ const PurchaseOrders = () => {
       approved: { color: "bg-blue-100 text-blue-800", icon: Check },
       shipped: { color: "bg-purple-100 text-purple-800", icon: Truck },
       received: { color: "bg-green-100 text-green-800", icon: Package },
-      cancelled: { color: "bg-red-100 text-red-800", icon: X }
+      cancelled: { color: "bg-red-100 text-red-800", icon: X },
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const config =
+      statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
     const Icon = config.icon;
 
     return (
@@ -160,7 +172,7 @@ const PurchaseOrders = () => {
 
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.supplier_id || formData.items.length === 0) {
       toast({
         title: "Error",
@@ -172,7 +184,7 @@ const PurchaseOrders = () => {
 
     try {
       const total_amount = formData.items.reduce(
-        (sum, item) => sum + (item.quantity * item.unit_price),
+        (sum, item) => sum + item.quantity * item.unit_price,
         0
       );
 
@@ -260,25 +272,25 @@ const PurchaseOrders = () => {
   };
 
   const addOrderItem = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      items: [...prev.items, { product_id: "", quantity: 1, unit_price: 0 }]
+      items: [...prev.items, { product_id: "", quantity: 1, unit_price: 0 }],
     }));
   };
 
   const removeOrderItem = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      items: prev.items.filter((_, i) => i !== index)
+      items: prev.items.filter((_, i) => i !== index),
     }));
   };
 
   const updateOrderItem = (index: number, field: string, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      items: prev.items.map((item, i) => 
+      items: prev.items.map((item, i) =>
         i === index ? { ...item, [field]: value } : item
-      )
+      ),
     }));
   };
 
@@ -286,7 +298,7 @@ const PurchaseOrders = () => {
     setFormData({
       supplier_id: "",
       status: "pending",
-      items: []
+      items: [],
     });
   };
 
@@ -304,17 +316,22 @@ const PurchaseOrders = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Purchase Orders</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Purchase Orders
+          </h1>
           <p className="text-muted-foreground text-sm sm:text-base">
             Manage supplier orders and procurement
           </p>
         </div>
-        
+
         {/* Mobile and Desktop Create Button */}
         <div className="w-full sm:w-auto">
           {/* Desktop Dialog */}
           <div className="hidden sm:block">
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+            >
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -337,7 +354,10 @@ const PurchaseOrders = () => {
                       <Select
                         value={formData.supplier_id}
                         onValueChange={(value) =>
-                          setFormData(prev => ({ ...prev, supplier_id: value }))
+                          setFormData((prev) => ({
+                            ...prev,
+                            supplier_id: value,
+                          }))
                         }
                       >
                         <SelectTrigger>
@@ -359,7 +379,10 @@ const PurchaseOrders = () => {
                       <Select
                         value={formData.status}
                         onValueChange={(value) =>
-                          setFormData(prev => ({ ...prev, status: value as any }))
+                          setFormData((prev) => ({
+                            ...prev,
+                            status: value as any,
+                          }))
                         }
                       >
                         <SelectTrigger>
@@ -390,12 +413,17 @@ const PurchaseOrders = () => {
                         Add Item
                       </Button>
                     </div>
-                    
+
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       {formData.items.map((item, index) => (
-                        <div key={index} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end p-3 border rounded">
+                        <div
+                          key={index}
+                          className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end p-3 border rounded"
+                        >
                           <div>
-                            <label className="block text-xs font-medium mb-1">Product</label>
+                            <label className="block text-xs font-medium mb-1">
+                              Product
+                            </label>
                             <Select
                               value={item.product_id}
                               onValueChange={(value) =>
@@ -407,7 +435,10 @@ const PurchaseOrders = () => {
                               </SelectTrigger>
                               <SelectContent>
                                 {products.map((product) => (
-                                  <SelectItem key={product.id} value={product.id}>
+                                  <SelectItem
+                                    key={product.id}
+                                    value={product.id}
+                                  >
                                     {product.name}
                                   </SelectItem>
                                 ))}
@@ -415,24 +446,36 @@ const PurchaseOrders = () => {
                             </Select>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium mb-1">Quantity</label>
+                            <label className="block text-xs font-medium mb-1">
+                              Quantity
+                            </label>
                             <Input
                               type="number"
                               value={item.quantity}
                               onChange={(e) =>
-                                updateOrderItem(index, "quantity", parseInt(e.target.value) || 0)
+                                updateOrderItem(
+                                  index,
+                                  "quantity",
+                                  parseInt(e.target.value) || 0
+                                )
                               }
                               min="1"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium mb-1">Unit Price</label>
+                            <label className="block text-xs font-medium mb-1">
+                              Unit Price
+                            </label>
                             <Input
                               type="number"
                               step="0.01"
                               value={item.unit_price}
                               onChange={(e) =>
-                                updateOrderItem(index, "unit_price", parseFloat(e.target.value) || 0)
+                                updateOrderItem(
+                                  index,
+                                  "unit_price",
+                                  parseFloat(e.target.value) || 0
+                                )
                               }
                               min="0"
                             />
@@ -454,10 +497,14 @@ const PurchaseOrders = () => {
                     {formData.items.length > 0 && (
                       <div className="mt-2 p-3 bg-gray-50 rounded">
                         <strong className="text-lg">
-                          Total: ${formData.items.reduce(
-                            (sum, item) => sum + (item.quantity * item.unit_price),
-                            0
-                          ).toFixed(2)}
+                          Total: $
+                          {formData.items
+                            .reduce(
+                              (sum, item) =>
+                                sum + item.quantity * item.unit_price,
+                              0
+                            )
+                            .toFixed(2)}
                         </strong>
                       </div>
                     )}
@@ -475,7 +522,9 @@ const PurchaseOrders = () => {
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" className="w-full sm:w-auto">Create Order</Button>
+                    <Button type="submit" className="w-full sm:w-auto">
+                      Create Order
+                    </Button>
                   </div>
                 </form>
               </DialogContent>
@@ -484,7 +533,10 @@ const PurchaseOrders = () => {
 
           {/* Mobile Sheet */}
           <div className="sm:hidden">
-            <Sheet open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <Sheet
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+            >
               <SheetTrigger asChild>
                 <Button className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
@@ -507,7 +559,10 @@ const PurchaseOrders = () => {
                       <Select
                         value={formData.supplier_id}
                         onValueChange={(value) =>
-                          setFormData(prev => ({ ...prev, supplier_id: value }))
+                          setFormData((prev) => ({
+                            ...prev,
+                            supplier_id: value,
+                          }))
                         }
                       >
                         <SelectTrigger>
@@ -529,7 +584,10 @@ const PurchaseOrders = () => {
                       <Select
                         value={formData.status}
                         onValueChange={(value) =>
-                          setFormData(prev => ({ ...prev, status: value as any }))
+                          setFormData((prev) => ({
+                            ...prev,
+                            status: value as any,
+                          }))
                         }
                       >
                         <SelectTrigger>
@@ -560,12 +618,17 @@ const PurchaseOrders = () => {
                         Add Item
                       </Button>
                     </div>
-                    
+
                     <div className="space-y-3 max-h-64 overflow-y-auto">
                       {formData.items.map((item, index) => (
-                        <div key={index} className="space-y-2 p-3 border rounded">
+                        <div
+                          key={index}
+                          className="space-y-2 p-3 border rounded"
+                        >
                           <div>
-                            <label className="block text-xs font-medium mb-1">Product</label>
+                            <label className="block text-xs font-medium mb-1">
+                              Product
+                            </label>
                             <Select
                               value={item.product_id}
                               onValueChange={(value) =>
@@ -577,7 +640,10 @@ const PurchaseOrders = () => {
                               </SelectTrigger>
                               <SelectContent>
                                 {products.map((product) => (
-                                  <SelectItem key={product.id} value={product.id}>
+                                  <SelectItem
+                                    key={product.id}
+                                    value={product.id}
+                                  >
                                     {product.name}
                                   </SelectItem>
                                 ))}
@@ -586,24 +652,36 @@ const PurchaseOrders = () => {
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-xs font-medium mb-1">Quantity</label>
+                              <label className="block text-xs font-medium mb-1">
+                                Quantity
+                              </label>
                               <Input
                                 type="number"
                                 value={item.quantity}
                                 onChange={(e) =>
-                                  updateOrderItem(index, "quantity", parseInt(e.target.value) || 0)
+                                  updateOrderItem(
+                                    index,
+                                    "quantity",
+                                    parseInt(e.target.value) || 0
+                                  )
                                 }
                                 min="1"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium mb-1">Unit Price</label>
+                              <label className="block text-xs font-medium mb-1">
+                                Unit Price
+                              </label>
                               <Input
                                 type="number"
                                 step="0.01"
                                 value={item.unit_price}
                                 onChange={(e) =>
-                                  updateOrderItem(index, "unit_price", parseFloat(e.target.value) || 0)
+                                  updateOrderItem(
+                                    index,
+                                    "unit_price",
+                                    parseFloat(e.target.value) || 0
+                                  )
                                 }
                                 min="0"
                               />
@@ -626,17 +704,23 @@ const PurchaseOrders = () => {
                     {formData.items.length > 0 && (
                       <div className="mt-3 p-3 bg-gray-50 rounded">
                         <strong className="text-lg">
-                          Total: ${formData.items.reduce(
-                            (sum, item) => sum + (item.quantity * item.unit_price),
-                            0
-                          ).toFixed(2)}
+                          Total: $
+                          {formData.items
+                            .reduce(
+                              (sum, item) =>
+                                sum + item.quantity * item.unit_price,
+                              0
+                            )
+                            .toFixed(2)}
                         </strong>
                       </div>
                     )}
                   </div>
 
                   <div className="flex flex-col space-y-2 pt-4">
-                    <Button type="submit" className="w-full">Create Order</Button>
+                    <Button type="submit" className="w-full">
+                      Create Order
+                    </Button>
                     <Button
                       type="button"
                       variant="outline"
@@ -685,7 +769,11 @@ const PurchaseOrders = () => {
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={fetchData} className="whitespace-nowrap">
+            <Button
+              variant="outline"
+              onClick={fetchData}
+              className="whitespace-nowrap"
+            >
               <RefreshCw className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
@@ -722,7 +810,9 @@ const PurchaseOrders = () => {
                       <TableCell className="font-medium">
                         #{order.id.slice(-8)}
                       </TableCell>
-                      <TableCell>{order.supplier_name || "Unknown Supplier"}</TableCell>
+                      <TableCell>
+                        {order.supplier_name || "Unknown Supplier"}
+                      </TableCell>
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
@@ -745,18 +835,21 @@ const PurchaseOrders = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          
+
                           {order.status === "pending" && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleUpdateStatus(order.id, "approved")}
+                              onClick={() =>
+                                handleUpdateStatus(order.id, "approved")
+                              }
                             >
                               <Check className="h-4 w-4" />
                             </Button>
                           )}
-                          
-                          {(order.status === "pending" || order.status === "approved") && (
+
+                          {(order.status === "pending" ||
+                            order.status === "approved") && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -790,8 +883,12 @@ const PurchaseOrders = () => {
                 {/* Header */}
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="font-medium text-lg">#{order.id.slice(-8)}</div>
-                    <div className="text-sm text-gray-500">{order.supplier_name || "Unknown Supplier"}</div>
+                    <div className="font-medium text-lg">
+                      #{order.id.slice(-8)}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {order.supplier_name || "Unknown Supplier"}
+                    </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     {getStatusBadge(order.status)}
@@ -802,18 +899,25 @@ const PurchaseOrders = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewOrder(order)}>
+                        <DropdownMenuItem
+                          onClick={() => handleViewOrder(order)}
+                        >
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </DropdownMenuItem>
                         {order.status === "pending" && (
-                          <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, "approved")}>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleUpdateStatus(order.id, "approved")
+                            }
+                          >
                             <Check className="h-4 w-4 mr-2" />
                             Approve Order
                           </DropdownMenuItem>
                         )}
-                        {(order.status === "pending" || order.status === "approved") && (
-                          <DropdownMenuItem 
+                        {(order.status === "pending" ||
+                          order.status === "approved") && (
+                          <DropdownMenuItem
                             onClick={() => handleDeleteOrder(order.id)}
                             className="text-red-600"
                           >
@@ -830,11 +934,15 @@ const PurchaseOrders = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center">
                     <DollarSign className="h-4 w-4 mr-1 text-gray-400" />
-                    <span className="font-medium">${order.total_amount.toFixed(2)}</span>
+                    <span className="font-medium">
+                      ${order.total_amount.toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-1 text-gray-400" />
-                    <span>{new Date(order.created_at).toLocaleDateString()}</span>
+                    <span>
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
 
@@ -874,27 +982,43 @@ const PurchaseOrders = () => {
             <DialogHeader>
               <DialogTitle>Purchase Order Details</DialogTitle>
               <DialogDescription>
-                Order #{selectedOrder?.id.slice(-8)} - {selectedOrder?.supplier_name}
+                Order #{selectedOrder?.id.slice(-8)} -{" "}
+                {selectedOrder?.supplier_name}
               </DialogDescription>
             </DialogHeader>
-            
+
             {selectedOrder && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-semibold mb-2">Order Information</h4>
                     <div className="space-y-1 text-sm">
-                      <p><strong>ID:</strong> {selectedOrder.id}</p>
-                      <p><strong>Supplier:</strong> {selectedOrder.supplier_name}</p>
-                      <p><strong>Status:</strong> {getStatusBadge(selectedOrder.status)}</p>
-                      <p><strong>Created:</strong> {new Date(selectedOrder.created_at).toLocaleString()}</p>
+                      <p>
+                        <strong>ID:</strong> {selectedOrder.id}
+                      </p>
+                      <p>
+                        <strong>Supplier:</strong> {selectedOrder.supplier_name}
+                      </p>
+                      <p>
+                        <strong>Status:</strong>{" "}
+                        {getStatusBadge(selectedOrder.status)}
+                      </p>
+                      <p>
+                        <strong>Created:</strong>{" "}
+                        {new Date(selectedOrder.created_at).toLocaleString()}
+                      </p>
                     </div>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Financial Summary</h4>
                     <div className="space-y-1 text-sm">
-                      <p><strong>Total Amount:</strong> ${selectedOrder.total_amount.toFixed(2)}</p>
-                      <p><strong>Items Count:</strong> {orderItems.length}</p>
+                      <p>
+                        <strong>Total Amount:</strong> $
+                        {selectedOrder.total_amount.toFixed(2)}
+                      </p>
+                      <p>
+                        <strong>Items Count:</strong> {orderItems.length}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -915,9 +1039,13 @@ const PurchaseOrders = () => {
                         <TableBody>
                           {orderItems.map((item) => (
                             <TableRow key={item.id}>
-                              <TableCell>{item.product_name || "Unknown Product"}</TableCell>
+                              <TableCell>
+                                {item.product_name || "Unknown Product"}
+                              </TableCell>
                               <TableCell>{item.quantity}</TableCell>
-                              <TableCell>${item.unit_price.toFixed(2)}</TableCell>
+                              <TableCell>
+                                ${item.unit_price.toFixed(2)}
+                              </TableCell>
                               <TableCell>${item.subtotal.toFixed(2)}</TableCell>
                             </TableRow>
                           ))}
@@ -980,10 +1108,11 @@ const PurchaseOrders = () => {
             <SheetHeader>
               <SheetTitle>Purchase Order Details</SheetTitle>
               <SheetDescription>
-                Order #{selectedOrder?.id.slice(-8)} - {selectedOrder?.supplier_name}
+                Order #{selectedOrder?.id.slice(-8)} -{" "}
+                {selectedOrder?.supplier_name}
               </SheetDescription>
             </SheetHeader>
-            
+
             {selectedOrder && (
               <div className="space-y-4 mt-4">
                 <div className="space-y-4">
@@ -1004,17 +1133,23 @@ const PurchaseOrders = () => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Created:</span>
-                        <span>{new Date(selectedOrder.created_at).toLocaleDateString()}</span>
+                        <span>
+                          {new Date(
+                            selectedOrder.created_at
+                          ).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div>
                     <h4 className="font-semibold mb-2">Financial Summary</h4>
                     <div className="bg-gray-50 p-3 rounded space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total Amount:</span>
-                        <span className="font-semibold text-lg">${selectedOrder.total_amount.toFixed(2)}</span>
+                        <span className="font-semibold text-lg">
+                          ${selectedOrder.total_amount.toFixed(2)}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Items Count:</span>
@@ -1030,7 +1165,9 @@ const PurchaseOrders = () => {
                     <div className="space-y-3">
                       {orderItems.map((item) => (
                         <div key={item.id} className="bg-gray-50 p-3 rounded">
-                          <div className="font-medium mb-2">{item.product_name || "Unknown Product"}</div>
+                          <div className="font-medium mb-2">
+                            {item.product_name || "Unknown Product"}
+                          </div>
                           <div className="grid grid-cols-3 gap-2 text-sm">
                             <div>
                               <div className="text-gray-600">Quantity</div>
@@ -1038,11 +1175,15 @@ const PurchaseOrders = () => {
                             </div>
                             <div>
                               <div className="text-gray-600">Unit Price</div>
-                              <div className="font-medium">${item.unit_price.toFixed(2)}</div>
+                              <div className="font-medium">
+                                ${item.unit_price.toFixed(2)}
+                              </div>
                             </div>
                             <div>
                               <div className="text-gray-600">Subtotal</div>
-                              <div className="font-medium">${item.subtotal.toFixed(2)}</div>
+                              <div className="font-medium">
+                                ${item.subtotal.toFixed(2)}
+                              </div>
                             </div>
                           </div>
                         </div>
