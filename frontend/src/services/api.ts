@@ -1,0 +1,474 @@
+// API service for all backend communications
+const API_BASE_URL = "http://localhost:4000/api";
+
+// Health check function
+export const healthCheck = async (): Promise<{
+  status: string;
+  message: string;
+}> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    const data = await response.json();
+    return { status: "connected", message: "Backend is running" };
+  } catch (error) {
+    return { status: "disconnected", message: "Cannot connect to backend" };
+  }
+};
+
+// Type definitions for API responses
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+  metadata?: {
+    total?: number;
+    page?: number;
+    limit?: number;
+  };
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  current_stock: number;
+  low_stock_threshold: number;
+  supplier_id: string;
+  description?: string;
+  barcode?: string;
+  unit?: string;
+  created_at?: string;
+  updated_at?: string;
+  // Legacy property names for backward compatibility
+  currentStock?: number;
+  lowStockThreshold?: number;
+  qrCode?: string;
+  supplier?: Supplier;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact_person?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  created_at?: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  created_at?: string;
+}
+
+export interface Bill {
+  id: string;
+  customer_id: string;
+  total_amount: number;
+  created_at: string;
+  items: BillItem[];
+}
+
+export interface BillItem {
+  id: string;
+  bill_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+}
+
+export interface Alert {
+  id: string;
+  product_id?: string;
+  type: "low_stock" | "system" | "manual";
+  message: string;
+  priority: "high" | "medium" | "low";
+  status: "active" | "acknowledged" | "resolved";
+  created_at: string;
+  resolved_at?: string;
+  product_name?: string;
+  current_stock?: number;
+  low_stock_threshold?: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  supplier_id: string;
+  total_amount: number;
+  status: "pending" | "approved" | "shipped" | "received" | "cancelled";
+  created_at: string;
+  supplier_name?: string;
+  items?: PurchaseOrderItem[];
+}
+
+export interface PurchaseOrderItem {
+  id: string;
+  purchase_order_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  product_name?: string;
+}
+
+// Generic API call function with error handling
+async function apiCall<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+      ...options,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || `HTTP error! status: ${response.status}`);
+    }
+
+    // Handle different response formats from backend
+    if (data.success !== undefined) {
+      return data.data || data; // Return data if available, otherwise full response
+    }
+
+    return data; // Direct response
+  } catch (error) {
+    console.error(`API call failed for ${endpoint}:`, error);
+    throw error;
+  }
+}
+
+// Dashboard API
+export const dashboardAPI = {
+  getOverview: () => apiCall<any>("/dashboard/overview"),
+  getActivity: () => apiCall<any>("/dashboard/activity"),
+  getTrends: () => apiCall<any>("/dashboard/trends"),
+  getAlerts: () => apiCall<any>("/dashboard/alerts"),
+  getForecast: () => apiCall<any>("/dashboard/forecast"),
+};
+
+// Products API
+export const productsAPI = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.search) queryParams.append("search", params.search);
+    if (params?.category) queryParams.append("category", params.category);
+
+    const query = queryParams.toString();
+    return apiCall<Product[]>(`/products${query ? `?${query}` : ""}`);
+  },
+
+  getById: (id: string) => apiCall<Product>(`/products/${id}`),
+
+  create: (product: Omit<Product, "id" | "created_at" | "updated_at">) =>
+    apiCall<Product>("/products", {
+      method: "POST",
+      body: JSON.stringify(product),
+    }),
+
+  update: (id: string, product: Partial<Product>) =>
+    apiCall<Product>(`/products/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(product),
+    }),
+
+  delete: (id: string) =>
+    apiCall<{ message: string }>(`/products/${id}`, {
+      method: "DELETE",
+    }),
+
+  getLowStock: () => apiCall<Product[]>("/products/low-stock"),
+
+  getStats: () => apiCall<any>("/products/stats/overview"),
+
+  addStockMovement: (
+    id: string,
+    movement: { type: "in" | "out"; quantity: number; reason?: string }
+  ) =>
+    apiCall<any>(`/products/${id}/stock-movement`, {
+      method: "POST",
+      body: JSON.stringify(movement),
+    }),
+};
+
+// Suppliers API
+export const suppliersAPI = {
+  getAll: (params?: { page?: number; limit?: number; search?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.search) queryParams.append("search", params.search);
+
+    const query = queryParams.toString();
+    return apiCall<Supplier[]>(`/suppliers${query ? `?${query}` : ""}`);
+  },
+
+  getById: (id: string) => apiCall<Supplier>(`/suppliers/${id}`),
+
+  create: (supplier: Omit<Supplier, "id" | "created_at">) =>
+    apiCall<Supplier>("/suppliers", {
+      method: "POST",
+      body: JSON.stringify(supplier),
+    }),
+
+  update: (id: string, supplier: Partial<Supplier>) =>
+    apiCall<Supplier>(`/suppliers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(supplier),
+    }),
+
+  delete: (id: string) =>
+    apiCall<{ message: string }>(`/suppliers/${id}`, {
+      method: "DELETE",
+    }),
+
+  getPerformance: (id: string) => apiCall<any>(`/suppliers/${id}/performance`),
+
+  getStats: () => apiCall<any>("/suppliers/stats/overview"),
+
+  getTopPerformers: () => apiCall<any>("/suppliers/stats/top-performers"),
+};
+
+// Customers API
+export const customersAPI = {
+  getAll: (params?: { page?: number; limit?: number; search?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.search) queryParams.append("search", params.search);
+
+    const query = queryParams.toString();
+    return apiCall<Customer[]>(`/customers${query ? `?${query}` : ""}`);
+  },
+
+  getById: (id: string) => apiCall<Customer>(`/customers/${id}`),
+
+  create: (customer: Omit<Customer, "id" | "created_at">) =>
+    apiCall<Customer>("/customers", {
+      method: "POST",
+      body: JSON.stringify(customer),
+    }),
+
+  update: (id: string, customer: Partial<Customer>) =>
+    apiCall<Customer>(`/customers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(customer),
+    }),
+
+  delete: (id: string) =>
+    apiCall<{ message: string }>(`/customers/${id}`, {
+      method: "DELETE",
+    }),
+
+  search: (query: string) =>
+    apiCall<Customer[]>(`/customers/search?q=${encodeURIComponent(query)}`),
+
+  getStats: () => apiCall<any>("/customers/stats/overview"),
+
+  getTopCustomers: () => apiCall<any>("/customers/stats/top"),
+};
+
+// Bills API
+export const billsAPI = {
+  getAll: (params?: { page?: number; limit?: number; status?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.status) queryParams.append("status", params.status);
+
+    const query = queryParams.toString();
+    return apiCall<Bill[]>(`/bills${query ? `?${query}` : ""}`);
+  },
+
+  getById: (id: string) => apiCall<Bill>(`/bills/${id}`),
+
+  upload: (file: File) => {
+    const formData = new FormData();
+    formData.append("bill", file);
+
+    return apiCall<any>("/bills/upload", {
+      method: "POST",
+      body: formData,
+      headers: {}, // Remove Content-Type for FormData
+    });
+  },
+
+  processExtracted: (billData: any) =>
+    apiCall<any>("/bills/process-extracted", {
+      method: "POST",
+      body: JSON.stringify(billData),
+    }),
+
+  updateStatus: (id: string, status: string) =>
+    apiCall<any>(`/bills/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
+  delete: (id: string) =>
+    apiCall<{ message: string }>(`/bills/${id}`, {
+      method: "DELETE",
+    }),
+
+  getStats: () => apiCall<any>("/bills/stats/summary"),
+};
+
+// Alerts API
+export const alertsAPI = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    type?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.type) queryParams.append("type", params.type);
+
+    const query = queryParams.toString();
+    return apiCall<Alert[]>(`/alerts${query ? `?${query}` : ""}`);
+  },
+
+  getById: (id: string) => apiCall<Alert>(`/alerts/${id}`),
+
+  create: (alert: Omit<Alert, "id" | "created_at">) =>
+    apiCall<Alert>("/alerts", {
+      method: "POST",
+      body: JSON.stringify(alert),
+    }),
+
+  updateStatus: (id: string, status: string) =>
+    apiCall<Alert>(`/alerts/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
+  delete: (id: string) =>
+    apiCall<{ message: string }>(`/alerts/${id}`, {
+      method: "DELETE",
+    }),
+
+  generateSystemAlerts: () =>
+    apiCall<any>("/alerts/generate-system-alerts", {
+      method: "POST",
+    }),
+};
+
+// Purchase Orders API
+export const purchaseOrdersAPI = {
+  getAll: (params?: { page?: number; limit?: number; status?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.status) queryParams.append("status", params.status);
+
+    const query = queryParams.toString();
+    return apiCall<PurchaseOrder[]>(
+      `/purchase-orders${query ? `?${query}` : ""}`
+    );
+  },
+
+  getById: (id: string) => apiCall<PurchaseOrder>(`/purchase-orders/${id}`),
+
+  create: (order: Omit<PurchaseOrder, "id" | "created_at">) =>
+    apiCall<PurchaseOrder>("/purchase-orders", {
+      method: "POST",
+      body: JSON.stringify(order),
+    }),
+
+  update: (id: string, order: Partial<PurchaseOrder>) =>
+    apiCall<PurchaseOrder>(`/purchase-orders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(order),
+    }),
+
+  updateStatus: (id: string, status: string) =>
+    apiCall<PurchaseOrder>(`/purchase-orders/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
+  delete: (id: string) =>
+    apiCall<{ message: string }>(`/purchase-orders/${id}`, {
+      method: "DELETE",
+    }),
+
+  getStats: () => apiCall<any>("/purchase-orders/stats/summary"),
+};
+
+// Reports API
+export const reportsAPI = {
+  getSales: (params?: {
+    startDate?: string;
+    endDate?: string;
+    groupBy?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+    if (params?.groupBy) queryParams.append("groupBy", params.groupBy);
+
+    const query = queryParams.toString();
+    return apiCall<any>(`/reports/sales${query ? `?${query}` : ""}`);
+  },
+
+  getTrends: (params?: { period?: string; metric?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.period) queryParams.append("period", params.period);
+    if (params?.metric) queryParams.append("metric", params.metric);
+
+    const query = queryParams.toString();
+    return apiCall<any>(`/reports/trends${query ? `?${query}` : ""}`);
+  },
+
+  getCategories: () => apiCall<any>("/reports/categories"),
+
+  getSuppliers: () => apiCall<any>("/reports/suppliers"),
+
+  export: (type: string, params?: any) => {
+    const queryParams = new URLSearchParams();
+    queryParams.append("type", type);
+    if (params) {
+      Object.keys(params).forEach((key) => {
+        queryParams.append(key, params[key]);
+      });
+    }
+
+    return apiCall<any>(`/reports/export?${queryParams.toString()}`);
+  },
+};
+
+// Export all APIs
+export default {
+  dashboard: dashboardAPI,
+  products: productsAPI,
+  suppliers: suppliersAPI,
+  customers: customersAPI,
+  bills: billsAPI,
+  alerts: alertsAPI,
+  purchaseOrders: purchaseOrdersAPI,
+  reports: reportsAPI,
+};
