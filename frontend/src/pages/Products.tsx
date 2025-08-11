@@ -52,7 +52,7 @@ import { useToast } from "@/hooks/use-toast";
 import { productsAPI, suppliersAPI } from "@/services/api";
 
 interface Product {
-  id: string;
+  id: string | number; // Support both string and number for flexibility
   name: string;
   category: string;
   current_stock?: number; // Frontend form field
@@ -60,10 +60,10 @@ interface Product {
   low_stock_threshold?: number;
   minStock?: number; // Backend response field
   price: number;
-  supplier_id?: string;
+  supplier_id?: string | number;
   supplier?: {
     // Backend nested supplier object
-    id: string;
+    id: string | number;
     name: string;
     email?: string;
   };
@@ -101,25 +101,29 @@ function exportProductsToCSV(products: ProductWithSupplier[]) {
     "Price",
     "Cost",
     "Low Stock Threshold",
-    "Supplier",
+    "Supplier ID",
+    "Supplier Name",
     "Stock Status",
+    "Description",
     "Created Date",
   ];
 
   const rows = products.map((p) => [
     p.id,
-    p.sku || "",
+    p.sku || `SKU-${p.id}`,
     `"${p.name}"`,
     `"${p.category}"`,
     p.stock || p.current_stock || 0,
     p.price || 0,
     p.cost || 0,
-    p.minStock || p.low_stock_threshold || 0,
+    p.minStock || p.low_stock_threshold || 10,
+    p.supplier_id || "",
     `"${p.supplier?.name || p.supplier_name || "N/A"}"`,
     (p.stock || p.current_stock || 0) <=
-    (p.minStock || p.low_stock_threshold || 0)
+    (p.minStock || p.low_stock_threshold || 10)
       ? "Low Stock"
       : "In Stock",
+    `"${p.description || ""}"`,
     p.createdAt || p.created_at || "",
   ]);
 
@@ -131,19 +135,21 @@ function exportProductsToCSV(products: ProductWithSupplier[]) {
 function exportProductsToJSON(products: ProductWithSupplier[]) {
   const exportData = products.map((p) => ({
     id: p.id,
-    sku: p.sku,
+    sku: p.sku || `SKU-${p.id}`,
     name: p.name,
     category: p.category,
     stock: p.stock || p.current_stock || 0,
     price: p.price || 0,
     cost: p.cost || 0,
-    minStock: p.minStock || p.low_stock_threshold || 0,
+    minStock: p.minStock || p.low_stock_threshold || 10,
+    supplierId: p.supplier_id,
     supplier: p.supplier?.name || p.supplier_name,
     status:
       (p.stock || p.current_stock || 0) <=
-      (p.minStock || p.low_stock_threshold || 0)
+      (p.minStock || p.low_stock_threshold || 10)
         ? "Low Stock"
         : "In Stock",
+    description: p.description || "",
     createdAt: p.createdAt || p.created_at,
   }));
 
@@ -164,23 +170,27 @@ function exportProductsToExcel(products: ProductWithSupplier[]) {
     "Price",
     "Cost",
     "Min Stock",
-    "Supplier",
+    "Supplier ID",
+    "Supplier Name",
     "Status",
+    "Description",
   ];
   const rows = products.map((p) => [
     p.id,
-    p.sku || "",
+    p.sku || `SKU-${p.id}`,
     p.name,
     p.category,
     p.stock || p.current_stock || 0,
     p.price || 0,
     p.cost || 0,
-    p.minStock || p.low_stock_threshold || 0,
+    p.minStock || p.low_stock_threshold || 10,
+    p.supplier_id || "",
     p.supplier?.name || p.supplier_name || "N/A",
     (p.stock || p.current_stock || 0) <=
-    (p.minStock || p.low_stock_threshold || 0)
+    (p.minStock || p.low_stock_threshold || 10)
       ? "Low Stock"
       : "In Stock",
+    p.description || "",
   ]);
 
   // Simple Excel format (tab-separated values)
@@ -317,7 +327,7 @@ async function importProductsFromCSV(
 ) {
   const fileExtension = file.name.split(".").pop()?.toLowerCase();
 
-  if (!["csv", "json", "xls", "xlsx"].includes(fileExtension || "")) {
+  if (!["csv", "json", "xls", "xlsx", "txt"].includes(fileExtension || "")) {
     onError("Unsupported file format. Please use CSV, Excel, or JSON files.");
     return;
   }
@@ -332,101 +342,200 @@ async function importProductsFromCSV(
         // Handle JSON import
         const jsonData = JSON.parse(text);
         products = Array.isArray(jsonData) ? jsonData : [jsonData];
+
+        // Map JSON fields to expected format
+        products = products.map((p) => ({
+          name: p.name,
+          sku:
+            p.sku ||
+            `SKU-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          category: p.category,
+          price: parseFloat(p.price) || 0,
+          cost: parseFloat(p.cost) || parseFloat(p.price) * 0.7 || 0,
+          stock: parseInt(p.stock) || parseInt(p.current_stock) || 0,
+          minStock:
+            parseInt(p.minStock) ||
+            parseInt(p.low_stock_threshold) ||
+            parseInt(p.min_stock) ||
+            10,
+          supplierId: p.supplierId || p.supplier_id || null,
+          description: p.description || `${p.name} - ${p.category}`,
+        }));
       } else {
-        // Handle CSV/Excel import
-        const lines = text.split("\n");
+        // Handle CSV/Excel import (both comma and tab separated)
+        const delimiter = text.includes("\t") ? "\t" : ",";
+        const lines = text.split("\n").filter((line) => line.trim());
+
+        if (lines.length < 2) {
+          onError("File must contain at least a header row and one data row.");
+          return;
+        }
+
         const headers = lines[0]
-          .split(",")
-          .map((h) => h.trim().replace(/"/g, "").toLowerCase());
+          .split(delimiter)
+          .map((h) =>
+            h.trim().replace(/"/g, "").toLowerCase().replace(/\s+/g, "_")
+          );
+
+        console.log("Detected headers:", headers);
 
         products = lines
           .slice(1)
           .filter((line) => line.trim())
-          .map((line) => {
-            const values = line
-              .split(",")
-              .map((v) => v.trim().replace(/"/g, ""));
+          .map((line, lineIndex) => {
+            const values = [];
+            let currentValue = "";
+            let inQuotes = false;
+
+            // Parse CSV with proper quote handling
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === delimiter && !inQuotes) {
+                values.push(currentValue.trim());
+                currentValue = "";
+              } else {
+                currentValue += char;
+              }
+            }
+            values.push(currentValue.trim()); // Don't forget the last value
+
             const product: any = {};
+            let hasRequiredFields = false;
 
             headers.forEach((header, index) => {
-              const value = values[index] || "";
+              const value = (values[index] || "").replace(/"/g, "").trim();
+
+              // Map various possible header names to our expected fields
               switch (header) {
                 case "name":
+                case "product_name":
                 case "product name":
                   product.name = value;
+                  hasRequiredFields = hasRequiredFields || !!value;
                   break;
                 case "category":
                   product.category = value;
+                  hasRequiredFields = hasRequiredFields || !!value;
                   break;
                 case "price":
                   product.price = parseFloat(value) || 0;
+                  hasRequiredFields =
+                    hasRequiredFields || parseFloat(value) > 0;
                   break;
                 case "cost":
                   product.cost = parseFloat(value) || 0;
                   break;
-                case "current stock":
+                case "current_stock":
                 case "stock":
-                case "stock quantity":
+                case "stock_quantity":
+                case "quantity":
                   product.stock = parseInt(value) || 0;
                   break;
-                case "low stock threshold":
-                case "min stock":
+                case "low_stock_threshold":
+                case "min_stock":
                 case "minstock":
-                case "minimum stock":
+                case "minimum_stock":
+                case "min_stock_level":
                   product.minStock = parseInt(value) || 10;
                   break;
                 case "sku":
                 case "barcode":
+                case "product_code":
                   product.sku = value;
+                  break;
+                case "supplier_id":
+                case "supplierid":
+                  product.supplierId = value || null;
                   break;
                 case "supplier":
                 case "supplier_name":
                 case "supplier name":
+                  // We'll need to lookup supplier by name if provided
                   product.supplier_name = value;
+                  break;
+                case "description":
+                  product.description = value;
                   break;
               }
             });
 
-            return product;
-          });
+            // Generate SKU if not provided
+            if (!product.sku) {
+              product.sku = `SKU-${Date.now()}-${Math.random()
+                .toString(36)
+                .substr(2, 5)}`;
+            }
+
+            // Set default cost if not provided (30% margin)
+            if (!product.cost && product.price) {
+              product.cost = product.price * 0.7;
+            }
+
+            // Set default description if not provided
+            if (!product.description && product.name && product.category) {
+              product.description = `${product.name} - ${product.category}`;
+            }
+
+            // Set default minStock if not provided
+            if (!product.minStock) {
+              product.minStock = 10;
+            }
+
+            // Only return products that have the required fields
+            return hasRequiredFields ? product : null;
+          })
+          .filter((p) => p !== null);
       }
 
-      // Filter and validate products
+      // Validate products have required fields
       const validProducts = products.filter(
-        (p) => p.name && p.category && p.price != null
+        (p) => p.name && p.category && p.price != null && p.price > 0
       );
 
       if (validProducts.length === 0) {
         onError(
-          "No valid products found. Make sure your file has Name, Category, and Price columns."
+          "No valid products found. Make sure your file has Name, Category, and Price columns with valid data."
         );
         return;
       }
+
+      console.log(
+        `Processing ${validProducts.length} valid products for import:`,
+        validProducts.slice(0, 2)
+      );
 
       // Use the bulk create API
       try {
         const response = await productsAPI.bulkCreate(validProducts);
 
-        if (response.results) {
+        if (response && response.results) {
           const { success, failed, errors } = response.results;
 
           if (success > 0) {
             onSuccess();
-            // Show detailed success message
-            const message =
-              failed > 0
-                ? `${success} products imported successfully, ${failed} failed.`
-                : `All ${success} products imported successfully!`;
+            // Show success message but let parent component handle UI updates
+            console.log(
+              `Import completed: ${success} products imported successfully${
+                failed > 0 ? `, ${failed} failed` : ""
+              }.`
+            );
 
-            console.log(message);
             if (errors && errors.length > 0) {
               console.log("Import errors:", errors);
             }
           } else {
             onError(
-              "Failed to import any products. Please check your file format and data."
+              failed > 0 && errors && errors.length > 0
+                ? `Failed to import products: ${errors
+                    .map((e) => e.error)
+                    .join(", ")}`
+                : "Failed to import any products. Please check your file format and data."
             );
           }
+        } else {
+          onError("Invalid response from server. Please try again.");
         }
       } catch (apiError: any) {
         console.error("API Error:", apiError);
@@ -557,7 +666,23 @@ export default function Products() {
 
     try {
       if (editProduct) {
-        await productsAPI.update(editProduct.id, form);
+        // Map frontend form fields to backend expected fields for update
+        const updateData = {
+          sku: form.barcode,
+          name: form.name,
+          category: form.category,
+          price: form.price,
+          cost: form.price && form.price > 0 ? form.price * 0.7 : undefined, // Calculate cost if price provided
+          stock: form.current_stock,
+          minStock: form.low_stock_threshold,
+          supplierId: form.supplier_id || null,
+          description:
+            form.name && form.category
+              ? `${form.name} - ${form.category}`
+              : undefined,
+        };
+
+        await productsAPI.update(String(editProduct.id), updateData as any);
         toast({
           title: "Success",
           description: "Product updated successfully",
@@ -610,7 +735,7 @@ export default function Products() {
     if (!deleteProduct) return;
 
     try {
-      await productsAPI.delete(deleteProduct.id);
+      await productsAPI.delete(String(deleteProduct.id));
       toast({
         title: "Success",
         description: "Product deleted successfully",

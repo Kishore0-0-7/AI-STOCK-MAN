@@ -67,18 +67,24 @@ const productsController = {
           price: parseFloat(product.price || 0),
           cost: parseFloat(product.cost || 0),
           stock: product.stock_quantity,
+          current_stock: product.stock_quantity, // Frontend compatibility
           minStock: product.min_stock_level,
+          low_stock_threshold: product.min_stock_level, // Frontend compatibility
+          supplier_id: product.supplier_id,
           supplier: {
             id: product.supplier_id,
             name: product.supplier_name,
             email: product.supplier_email,
           },
+          barcode: product.sku, // Use SKU as barcode for compatibility
           status:
             product.stock_quantity <= product.min_stock_level
               ? "low_stock"
               : "in_stock",
           createdAt: product.created_at,
+          created_at: product.created_at, // Snake case for compatibility
           updatedAt: product.updated_at,
+          updated_at: product.updated_at, // Snake case for compatibility
         })),
         pagination: {
           page,
@@ -128,19 +134,25 @@ const productsController = {
         price: parseFloat(product.price || 0),
         cost: parseFloat(product.cost || 0),
         stock: product.stock_quantity,
+        current_stock: product.stock_quantity, // Frontend compatibility
         minStock: product.min_stock_level,
+        low_stock_threshold: product.min_stock_level, // Frontend compatibility
+        supplier_id: product.supplier_id,
         supplier: {
           id: product.supplier_id,
           name: product.supplier_name,
           email: product.supplier_email,
           phone: product.supplier_phone,
         },
+        barcode: product.sku, // Use SKU as barcode for compatibility
         status:
           product.stock_quantity <= product.min_stock_level
             ? "low_stock"
             : "in_stock",
         createdAt: product.created_at,
+        created_at: product.created_at, // Snake case for compatibility
         updatedAt: product.updated_at,
+        updated_at: product.updated_at, // Snake case for compatibility
       });
     } catch (error) {
       console.error("Error fetching product:", error);
@@ -218,12 +230,17 @@ const productsController = {
           price: parseFloat(createdProduct[0].price),
           cost: parseFloat(createdProduct[0].cost),
           stock: createdProduct[0].stock_quantity,
+          current_stock: createdProduct[0].stock_quantity, // Frontend compatibility
           minStock: createdProduct[0].min_stock_level,
+          low_stock_threshold: createdProduct[0].min_stock_level, // Frontend compatibility
+          supplier_id: createdProduct[0].supplier_id,
           supplier: {
             id: createdProduct[0].supplier_id,
             name: createdProduct[0].supplier_name,
           },
+          barcode: createdProduct[0].sku, // Use SKU as barcode for compatibility
           createdAt: createdProduct[0].created_at,
+          created_at: createdProduct[0].created_at, // Snake case for compatibility
         },
       });
     } catch (error) {
@@ -320,12 +337,17 @@ const productsController = {
           price: parseFloat(updatedProduct[0].price),
           cost: parseFloat(updatedProduct[0].cost),
           stock: updatedProduct[0].stock_quantity,
+          current_stock: updatedProduct[0].stock_quantity, // Frontend compatibility
           minStock: updatedProduct[0].min_stock_level,
+          low_stock_threshold: updatedProduct[0].min_stock_level, // Frontend compatibility
+          supplier_id: updatedProduct[0].supplier_id,
           supplier: {
             id: updatedProduct[0].supplier_id,
             name: updatedProduct[0].supplier_name,
           },
+          barcode: updatedProduct[0].sku, // Use SKU as barcode for compatibility
           updatedAt: updatedProduct[0].updated_at,
+          updated_at: updatedProduct[0].updated_at, // Snake case for compatibility
         },
       });
     } catch (error) {
@@ -412,11 +434,9 @@ const productsController = {
           params = [parseInt(quantity), id];
           break;
         default:
-          return res
-            .status(400)
-            .json({
-              error: "Invalid operation. Use 'add', 'subtract', or 'set'",
-            });
+          return res.status(400).json({
+            error: "Invalid operation. Use 'add', 'subtract', or 'set'",
+          });
       }
 
       const result = await executeQuery(query, params);
