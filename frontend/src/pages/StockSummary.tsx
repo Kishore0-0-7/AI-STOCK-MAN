@@ -256,7 +256,7 @@ export default function StockSummary() {
                 {showForecast ? "Hide" : "Show"} Forecast
               </span>
             </Button>
-            <Button
+            {/* <Button
               variant="action"
               size="sm"
               onClick={exportSummary}
@@ -264,7 +264,7 @@ export default function StockSummary() {
             >
               <Download className="h-4 w-4 mr-2" />
               <span className="sm:inline">Export Summary</span>
-            </Button>
+            </Button> */}
           </div>
         </div>
 

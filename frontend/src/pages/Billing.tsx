@@ -210,12 +210,12 @@ export default function Billing() {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const clearCart = () => {
-    setCartItems([]);
-    setSelectedCustomer("");
-    setDiscount(0);
-    setBillNotes("");
-  };
+  // const clearCart = () => {
+  //   setCartItems([]);
+  //   setSelectedCustomer("");
+  //   setDiscount(0);
+  //   setBillNotes("");
+  // };
 
   // Calculations
   const subtotal = cartItems.reduce((sum, item) => sum + item.total, 0);
@@ -271,8 +271,8 @@ export default function Billing() {
         description: `Bill ${newBillId} has been created successfully.`,
       });
 
-      // Clear cart after successful bill generation
-      clearCart();
+      // // Clear cart after successful bill generation
+      // clearCart();
     } catch (error) {
       console.error("Error generating bill:", error);
       toast({
@@ -398,21 +398,21 @@ export default function Billing() {
           <Button
             onClick={fetchData}
             variant="outline"
-            className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-200"
+            className="flex items-center gap-2"
           >
             <RefreshCw className="h-4 w-4" />
             <span className="hidden sm:inline">Refresh</span>
             <span className="sm:hidden">Sync</span>
           </Button>
-          <Button
-            onClick={clearCart}
-            variant="outline"
-            className="flex items-center gap-2 hover:bg-red-50 hover:border-red-200"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Clear Cart</span>
-            <span className="sm:hidden">Clear</span>
-          </Button>
+            {/* <Button
+              onClick={clearCart}
+              variant="outline"
+              className="flex items-center gap-2 hover:bg-red-50 hover:border-red-200"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Clear Cart</span>
+              <span className="sm:hidden">Clear</span>
+            </Button> */}
         </div>
       </div>
 

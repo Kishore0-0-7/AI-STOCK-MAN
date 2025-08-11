@@ -411,14 +411,14 @@ const Dashboard = () => {
             Dashboard
           </h1>
           <p className="text-muted-foreground mt-2 text-base md:text-lg">
-            Welcome back! Here's your business overview
+            Welcome back!
           </p>
         </div>
         <div className="flex justify-center lg:justify-end">
           <Button
             onClick={loadDashboardData}
             variant="outline"
-            className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-200"
+            className="flex items-center gap-2"
           >
             <RefreshCw className="h-4 w-4" />
             <span className="hidden sm:inline">Refresh Data</span>
@@ -452,6 +452,13 @@ const Dashboard = () => {
         />
         <StatCard
           title="Pending Orders"
+          value={stats.pending_orders || 0}
+          icon={ShoppingCart}
+          color="purple"
+          trend={trendCalculations.ordersTrend}
+        />
+        <StatCard
+          title="Dameged Products"
           value={stats.pending_orders || 0}
           icon={ShoppingCart}
           color="purple"
