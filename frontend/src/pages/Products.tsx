@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as XLSX from "xlsx";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -323,126 +324,192 @@ async function importProductsFromCSV(
   }
 
   const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const text = e.target?.result as string;
-      let products: any[] = [];
 
-      if (fileExtension === "json") {
-        // Handle JSON import
-        const jsonData = JSON.parse(text);
-        products = Array.isArray(jsonData) ? jsonData : [jsonData];
-      } else {
-        // Handle CSV/Excel import
-        const lines = text.split("\n");
-        const headers = lines[0]
-          .split(",")
-          .map((h) => h.trim().replace(/"/g, "").toLowerCase());
 
-        products = lines
-          .slice(1)
-          .filter((line) => line.trim())
-          .map((line) => {
-            const values = line
-              .split(",")
-              .map((v) => v.trim().replace(/"/g, ""));
-            const product: any = {};
+reader.onload = async (e) => {
+  try {
+    const fileData = e.target?.result;
+    let products: any[] = [];
 
-            headers.forEach((header, index) => {
-              const value = values[index] || "";
-              switch (header) {
-                case "name":
-                case "product name":
-                  product.name = value;
-                  break;
-                case "category":
-                  product.category = value;
-                  break;
-                case "price":
-                  product.price = parseFloat(value) || 0;
-                  break;
-                case "cost":
-                  product.cost = parseFloat(value) || 0;
-                  break;
-                case "current stock":
-                case "stock":
-                case "stock quantity":
-                  product.stock = parseInt(value) || 0;
-                  break;
-                case "low stock threshold":
-                case "min stock":
-                case "minstock":
-                case "minimum stock":
-                  product.minStock = parseInt(value) || 10;
-                  break;
-                case "sku":
-                case "barcode":
-                  product.sku = value;
-                  break;
-                case "supplier":
-                case "supplier_name":
-                case "supplier name":
-                  product.supplier_name = value;
-                  break;
-              }
-            });
+    const normalizeHeader = (h: string) => h.trim().replace(/"/g, "").toLowerCase();
 
-            return product;
-          });
-      }
+    if (fileExtension === "json") {
+      // JSON import
+      const jsonData = JSON.parse(fileData as string);
+      products = Array.isArray(jsonData) ? jsonData : [jsonData];
 
-      // Filter and validate products
-      const validProducts = products.filter(
-        (p) => p.name && p.category && p.price != null
-      );
+      console.log('----------------------------------------');
+      console.log('Importing data from JSON file:');
+      console.log('Number of products:', products.length);
+      console.log('Sample of imported data:', products.slice(0, 2));
+      console.log('----------------------------------------');
 
-      if (validProducts.length === 0) {
-        onError(
-          "No valid products found. Make sure your file has Name, Category, and Price columns."
-        );
-        return;
-      }
+    } else if (["xls", "xlsx"].includes(fileExtension)) {
+      // Excel import using SheetJS
+      const workbook = XLSX.read(fileData, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
 
-      // Use the bulk create API
-      try {
-        const response = await productsAPI.bulkCreate(validProducts);
+      // Read as arrays first to handle messy headers
+      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+      const headers = rows[0].map(normalizeHeader);
+      const dataRows = rows.slice(1);
 
-        if (response.results) {
-          const { success, failed, errors } = response.results;
+      console.log('----------------------------------------');
+      console.log(`Importing data from ${fileExtension.toUpperCase()} file:`);
+      console.log('Detected headers:', headers);
+      console.log('Total rows to process:', dataRows.length);
+      console.log('----------------------------------------');
 
-          if (success > 0) {
-            onSuccess();
-            // Show detailed success message
-            const message =
-              failed > 0
-                ? `${success} products imported successfully, ${failed} failed.`
-                : `All ${success} products imported successfully!`;
-
-            console.log(message);
-            if (errors && errors.length > 0) {
-              console.log("Import errors:", errors);
-            }
-          } else {
-            onError(
-              "Failed to import any products. Please check your file format and data."
-            );
+      products = dataRows.map((row) => {
+        const product: any = {};
+        headers.forEach((h, index) => {
+          const val = (row[index] || "").toString().trim();
+          switch (h) {
+            case "name":
+            case "product name":
+              product.name = val;
+              break;
+            case "category":
+              product.category = val;
+              break;
+            case "price":
+              product.price = parseFloat(val) || 0;
+              break;
+            case "cost":
+              product.cost = parseFloat(val) || 0;
+              break;
+            case "current stock":
+            case "stock":
+            case "stock quantity":
+              product.stock = parseInt(val) || 0;
+              break;
+            case "low stock threshold":
+            case "min stock":
+            case "minstock":
+            case "minimum stock":
+              product.minStock = parseInt(val) || 10;
+              break;
+            case "sku":
+            case "barcode":
+              product.sku = val;
+              break;
+            case "supplier":
+            case "supplier_name":
+            case "supplier name":
+              product.supplier_name = val;
+              break;
+            case "status":
+              product.status = val;
+              break;
           }
-        }
-      } catch (apiError: any) {
-        console.error("API Error:", apiError);
-        onError(
-          `Failed to import products: ${
-            apiError.message || "Unknown API error"
-          }`
-        );
-      }
-    } catch (error) {
-      console.error("Import error:", error);
-      onError(
-        "Failed to parse file. Please check the file format and try again."
-      );
+        });
+        return product;
+      });
+
+    } else {
+      // CSV / TSV import
+      const text = fileData as string;
+      const delimiter = text.includes("\t") ? "\t" : ",";
+      const lines = text.split("\n").filter(l => l.trim());
+      const headers = lines[0].split(delimiter).map(normalizeHeader);
+
+      console.log('----------------------------------------');
+      console.log(`Importing data from ${fileExtension.toUpperCase()} file:`);
+      console.log('Detected headers:', headers);
+      console.log('Total rows to process:', lines.length - 1);
+      console.log('----------------------------------------');
+
+      products = lines.slice(1).map((line) => {
+        const values = line.split(delimiter).map(v => v.trim().replace(/"/g, ""));
+        const product: any = {};
+
+        headers.forEach((h, index) => {
+          const value = values[index] || "";
+          switch (h) {
+            case "name":
+            case "product name":
+              product.name = value;
+              break;
+            case "category":
+              product.category = value;
+              break;
+            case "price":
+              product.price = parseFloat(value) || 0;
+              break;
+            case "cost":
+              product.cost = parseFloat(value) || 0;
+              break;
+            case "current stock":
+            case "stock":
+            case "stock quantity":
+              product.stock = parseInt(value) || 0;
+              break;
+            case "low stock threshold":
+            case "min stock":
+            case "minstock":
+            case "minimum stock":
+              product.minStock = parseInt(value) || 10;
+              break;
+            case "sku":
+            case "barcode":
+              product.sku = value;
+              break;
+            case "supplier":
+            case "supplier_name":
+            case "supplier name":
+              product.supplier_name = value;
+              break;
+            case "status":
+              product.status = value;
+              break;
+          }
+        });
+        return product;
+      });
     }
-  };
+
+    // Validate
+    const validProducts = products.filter(
+      (p) => p.name && p.category && p.price != null
+    );
+
+    if (validProducts.length === 0) {
+      onError("No valid products found. Make sure your file has Name, Category, and Price columns.");
+      return;
+    }
+
+    // Send to API
+    try {
+      const response = await productsAPI.bulkCreate(validProducts);
+      if (response.results) {
+        const { success, failed, errors } = response.results;
+        if (success > 0) {
+          onSuccess();
+          const message =
+            failed > 0
+              ? `${success} products imported successfully, ${failed} failed.`
+              : `All ${success} products imported successfully!`;
+          console.log(message);
+          if (errors && errors.length > 0) {
+            console.log("Import errors:", errors);
+          }
+        } else {
+          onError("Failed to import any products. Please check your file format and data.");
+        }
+      }
+    } catch (apiError: any) {
+      console.error("API Error:", apiError);
+      onError(`Failed to import products: ${apiError.message || "Unknown API error"}`);
+    }
+
+  } catch (error) {
+    console.error("Import error:", error);
+    onError("Failed to parse file. Please check the file format and try again.");
+  }
+};
+
+
 
   reader.readAsText(file);
 }

@@ -134,7 +134,7 @@ const Dashboard = () => {
             : (alertsData as any)?.alerts || (alertsData as any)?.data || [],
         });
       } else {
-        console.error("Failed to load overview:", overviewRes.reason);
+        // console.error("Failed to load overview:", overviewRes.reason);
         // Fallback to individual API calls
         await loadFallbackStats();
       }
@@ -171,7 +171,7 @@ const Dashboard = () => {
         setProducts(Array.isArray(productsData) ? productsData : []);
       }
     } catch (error) {
-      console.error("Dashboard data loading error:", error);
+      // console.error("Dashboard data loading error:", error);
       toast({
         title: "Error loading dashboard data",
         description: "Some data may be incomplete. Please refresh the page.",
@@ -222,7 +222,7 @@ const Dashboard = () => {
       };
       calculateTrends(updatedStats, null);
     } catch (error) {
-      console.error("Fallback stats loading error:", error);
+      // console.error("Fallback stats loading error:", error);
     }
   };
 
@@ -339,14 +339,14 @@ const Dashboard = () => {
     });
 
     // Debug: Log the calculated trends
-    console.log("Calculated trends:", {
-      productsTrend,
-      lowStockTrend,
-      suppliersTrend,
-      ordersTrend,
-      currentStats,
-      previousStats,
-    });
+    // console.log("Calculated trends:", {
+    //   productsTrend,
+    //   lowStockTrend,
+    //   suppliersTrend,
+    //   ordersTrend,
+    //   currentStats,
+    //   previousStats,
+    // });
 
     // Store current stats as historical for future comparisons
     setHistoricalStats(currentStats);

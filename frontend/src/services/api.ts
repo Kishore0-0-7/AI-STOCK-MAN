@@ -300,6 +300,8 @@ export const productsAPI = {
       `/products${query ? `?${query}` : ""}`
     );
 
+    console.log(response)
+
     // Handle both response formats: direct array or nested in products property
     if (Array.isArray(response)) {
       return response;
