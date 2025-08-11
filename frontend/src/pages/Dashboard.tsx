@@ -444,21 +444,14 @@ const Dashboard = () => {
           trend={trendCalculations.lowStockTrend}
         />
         <StatCard
-          title="Active Suppliers"
+          title="Damaged Products"
           value={stats.active_suppliers || 0}
           icon={Users}
-          color="green"
-          trend={trendCalculations.suppliersTrend}
+          color="red"
+          trend={trendCalculations.lowStockTrend}
         />
         <StatCard
           title="Pending Orders"
-          value={stats.pending_orders || 0}
-          icon={ShoppingCart}
-          color="purple"
-          trend={trendCalculations.ordersTrend}
-        />
-        <StatCard
-          title="Dameged Products"
           value={stats.pending_orders || 0}
           icon={ShoppingCart}
           color="purple"
