@@ -11,6 +11,7 @@ const customersController = require("./controllers/customers");
 const billsController = require("./controllers/bills");
 const purchaseOrdersController = require("./controllers/purchaseOrders");
 const reportsController = require("./controllers/reports");
+const customerOrdersController = require("./controllers/customerOrders");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -82,6 +83,7 @@ app.get("/api/suppliers/:id", suppliersController.getById);
 app.get("/api/suppliers/:id/products", suppliersController.getProducts);
 app.post("/api/suppliers", suppliersController.create);
 app.put("/api/suppliers/:id", suppliersController.update);
+app.put("/api/suppliers/:id/status", suppliersController.updateStatus);
 app.delete("/api/suppliers/:id", suppliersController.delete);
 
 // Alerts routes
@@ -126,6 +128,18 @@ app.put(
   purchaseOrdersController.receiveItems
 );
 app.delete("/api/purchase-orders/:id", purchaseOrdersController.delete);
+
+// Customer Orders routes
+app.get("/api/customer-orders", customerOrdersController.getAll);
+app.get("/api/customer-orders/stats", customerOrdersController.getStats);
+app.get("/api/customer-orders/:id", customerOrdersController.getById);
+app.post("/api/customer-orders", customerOrdersController.create);
+app.put("/api/customer-orders/:id", customerOrdersController.update);
+app.put(
+  "/api/customer-orders/:id/status",
+  customerOrdersController.updateStatus
+);
+app.delete("/api/customer-orders/:id", customerOrdersController.delete);
 
 // Reports routes
 app.get("/api/reports/sales/overview", reportsController.getSalesOverview);

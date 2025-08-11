@@ -8,10 +8,11 @@ const dashboardController = {
         products: "SELECT COUNT(*) as count FROM products",
         lowStock:
           "SELECT COUNT(*) as count FROM products WHERE stock_quantity <= min_stock_level",
-        suppliers: "SELECT COUNT(*) as count FROM suppliers",
+        suppliers:
+          "SELECT COUNT(*) as count FROM suppliers WHERE status = 'active'",
         customers: "SELECT COUNT(*) as count FROM customers",
-        recentOrders:
-          "SELECT COUNT(*) as count FROM purchase_orders WHERE DATE(created_at) = CURDATE()",
+        pendingOrders:
+          "SELECT COUNT(*) as count FROM purchase_orders WHERE status IN ('pending', 'approved', 'shipped')",
         totalValue:
           "SELECT COALESCE(SUM(stock_quantity * price), 0) as value FROM products",
       };
@@ -21,14 +22,14 @@ const dashboardController = {
         lowStock,
         suppliers,
         customers,
-        recentOrders,
+        pendingOrders,
         totalValue,
       ] = await Promise.all([
         executeQuery(queries.products),
         executeQuery(queries.lowStock),
         executeQuery(queries.suppliers),
         executeQuery(queries.customers),
-        executeQuery(queries.recentOrders),
+        executeQuery(queries.pendingOrders),
         executeQuery(queries.totalValue),
       ]);
 
@@ -37,7 +38,8 @@ const dashboardController = {
         lowStockProducts: lowStock[0].count,
         totalSuppliers: suppliers[0].count,
         totalCustomers: customers[0].count,
-        todayOrders: recentOrders[0].count,
+        todayOrders: pendingOrders[0].count,
+        pending_orders: pendingOrders[0].count, // Add explicit field for clarity
         inventoryValue: parseFloat(totalValue[0].value || 0),
       };
 

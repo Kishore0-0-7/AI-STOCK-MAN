@@ -32,7 +32,7 @@ const suppliersController = {
         FROM suppliers s
         LEFT JOIN products p ON s.id = p.supplier_id
         ${whereClause}
-        GROUP BY s.id, s.name, s.contact_person, s.email, s.phone, s.address, s.created_at, s.updated_at
+        GROUP BY s.id, s.name, s.contact_person, s.email, s.phone, s.address, s.status, s.created_at, s.updated_at
         ORDER BY s.name ASC
         LIMIT ? OFFSET ?
       `;
@@ -51,6 +51,7 @@ const suppliersController = {
           email: supplier.email,
           phone: supplier.phone,
           address: supplier.address,
+          status: supplier.status || "active",
           productCount: supplier.product_count,
           inventoryValue: parseFloat(supplier.total_inventory_value || 0),
           createdAt: supplier.created_at,
@@ -112,6 +113,7 @@ const suppliersController = {
         email: supplier.email,
         phone: supplier.phone,
         address: supplier.address,
+        status: supplier.status || "active",
         productCount: supplier.product_count,
         inventoryValue: parseFloat(supplier.total_inventory_value || 0),
         products: products.map((product) => ({
@@ -139,11 +141,25 @@ const suppliersController = {
   // Create new supplier
   create: async (req, res) => {
     try {
-      const { name, contactPerson, email, phone, address } = req.body;
+      const {
+        name,
+        contactPerson,
+        email,
+        phone,
+        address,
+        status = "active",
+      } = req.body;
 
       // Validate required fields
       if (!name) {
         return res.status(400).json({ error: "Supplier name is required" });
+      }
+
+      // Validate status
+      if (status && !["active", "inactive"].includes(status)) {
+        return res
+          .status(400)
+          .json({ error: "Status must be 'active' or 'inactive'" });
       }
 
       // Check if supplier with same name exists
@@ -158,8 +174,8 @@ const suppliersController = {
       }
 
       const query = `
-        INSERT INTO suppliers (name, contact_person, email, phone, address)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO suppliers (name, contact_person, email, phone, address, status)
+        VALUES (?, ?, ?, ?, ?, ?)
       `;
 
       const result = await executeQuery(query, [
@@ -168,6 +184,7 @@ const suppliersController = {
         email,
         phone,
         address,
+        status,
       ]);
 
       // Fetch the created supplier
@@ -185,6 +202,7 @@ const suppliersController = {
           email: createdSupplier[0].email,
           phone: createdSupplier[0].phone,
           address: createdSupplier[0].address,
+          status: createdSupplier[0].status,
           createdAt: createdSupplier[0].created_at,
         },
       });
@@ -198,7 +216,7 @@ const suppliersController = {
   update: async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, contactPerson, email, phone, address } = req.body;
+      const { name, contactPerson, email, phone, address, status } = req.body;
 
       // Check if supplier exists
       const existingSupplier = await executeQuery(
@@ -207,6 +225,13 @@ const suppliersController = {
       );
       if (existingSupplier.length === 0) {
         return res.status(404).json({ error: "Supplier not found" });
+      }
+
+      // Validate status if provided
+      if (status && !["active", "inactive"].includes(status)) {
+        return res
+          .status(400)
+          .json({ error: "Status must be 'active' or 'inactive'" });
       }
 
       // Check if name conflicts with another supplier
@@ -229,6 +254,7 @@ const suppliersController = {
           email = COALESCE(?, email),
           phone = COALESCE(?, phone),
           address = COALESCE(?, address),
+          status = COALESCE(?, status),
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `;
@@ -239,6 +265,7 @@ const suppliersController = {
         email,
         phone,
         address,
+        status,
         id,
       ]);
 
@@ -257,12 +284,54 @@ const suppliersController = {
           email: updatedSupplier[0].email,
           phone: updatedSupplier[0].phone,
           address: updatedSupplier[0].address,
+          status: updatedSupplier[0].status,
           updatedAt: updatedSupplier[0].updated_at,
         },
       });
     } catch (error) {
       console.error("Error updating supplier:", error);
       res.status(500).json({ error: "Failed to update supplier" });
+    }
+  },
+
+  // Update supplier status only
+  updateStatus: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      // Validate status
+      if (!status || !["active", "inactive"].includes(status)) {
+        return res
+          .status(400)
+          .json({ error: "Status must be 'active' or 'inactive'" });
+      }
+
+      // Check if supplier exists
+      const existingSupplier = await executeQuery(
+        "SELECT id, name FROM suppliers WHERE id = ?",
+        [id]
+      );
+      if (existingSupplier.length === 0) {
+        return res.status(404).json({ error: "Supplier not found" });
+      }
+
+      await executeQuery(
+        "UPDATE suppliers SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        [status, id]
+      );
+
+      res.json({
+        message: `Supplier status updated to ${status}`,
+        supplier: {
+          id: parseInt(id),
+          name: existingSupplier[0].name,
+          status: status,
+        },
+      });
+    } catch (error) {
+      console.error("Error updating supplier status:", error);
+      res.status(500).json({ error: "Failed to update supplier status" });
     }
   },
 

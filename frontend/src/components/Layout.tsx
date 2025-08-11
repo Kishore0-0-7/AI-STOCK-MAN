@@ -46,6 +46,7 @@ export function Layout() {
     { name: "Customers", href: "/customers", icon: Users },
     { name: "Billing", href: "/billing", icon: ShoppingCart },
     { name: "Purchase Orders", href: "/purchase-orders", icon: FileText },
+    { name: "Customer Orders", href: "/customer-orders", icon: ShoppingCart },
     { name: "Scan Bills", href: "/scan-bills", icon: ScanLine },
     { name: "Sales Reports", href: "/sales-reports", icon: TrendingUp },
     { name: "Stock Summary", href: "/stock-summary", icon: Archive },

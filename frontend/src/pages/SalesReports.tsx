@@ -154,7 +154,11 @@ export default function SalesReports() {
         productsRes,
         transactionsRes,
       ] = await Promise.allSettled([
-        reportsAPI.getSalesOverview({ period: dateRange, days }),
+        reportsAPI.getSalesOverview({
+          period: dateRange,
+          days,
+          compare: dateRange === "weekly" ? "full" : "ptd",
+        }),
         reportsAPI.getSalesTrends({ period: dateRange, days }),
         reportsAPI.getCategoryBreakdown({ days: categoryPeriod }),
         reportsAPI.getTopCustomers({ days, limit: "5" }),

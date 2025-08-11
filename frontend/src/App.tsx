@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Billing from "./pages/Billing";
 import PurchaseOrders from "./pages/PurchaseOrders";
+import CustomerOrders from "./pages/CustomerOrders";
 import ScanBills from "./pages/ScanBills";
 import SalesReports from "./pages/SalesReports";
 import StockSummary from "./pages/StockSummary";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="products" element={<Products />} />
             <Route path="billing" element={<Billing />} />
             <Route path="purchase-orders" element={<PurchaseOrders />} />
+            <Route path="customer-orders" element={<CustomerOrders />} />
             <Route path="scan-bills" element={<ScanBills />} />
             <Route path="sales-reports" element={<SalesReports />} />
             <Route path="stock-summary" element={<StockSummary />} />

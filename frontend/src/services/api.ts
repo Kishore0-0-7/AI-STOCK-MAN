@@ -29,13 +29,13 @@ export interface ApiResponse<T> {
 }
 
 export interface Product {
-  id: string;
+  id: number;
   name: string;
   category: string;
   price: number;
   current_stock: number;
   low_stock_threshold: number;
-  supplier_id: string;
+  supplier_id: number;
   description?: string;
   barcode?: string;
   unit?: string;
@@ -59,7 +59,7 @@ export interface Supplier {
 }
 
 export interface Customer {
-  id: string;
+  id: number;
   name: string;
   email?: string;
   phone?: string;
@@ -126,8 +126,20 @@ export interface PurchaseOrderItem {
   product_id: string;
   quantity: number;
   unit_price: number;
-  subtotal: number;
-  product_name?: string;
+  unitPrice?: number; // Backend camelCase
+  totalPrice?: number; // Backend camelCase
+  subtotal?: number; // Legacy support
+  product_name?: string; // Flattened structure
+  receivedQuantity?: number; // Backend camelCase
+  received_quantity?: number; // Snake case
+  notes?: string;
+  // Backend nested structure
+  product?: {
+    id: string;
+    name: string;
+    sku?: string;
+    category?: string;
+  };
 }
 
 export interface CreatePurchaseOrderRequest {
@@ -138,7 +150,64 @@ export interface CreatePurchaseOrderRequest {
     productId: string;
     quantity: number;
     unitPrice: number;
-    notes?: string | null;
+  }>;
+}
+
+// Customer Orders interfaces
+export interface CustomerOrder {
+  id: number;
+  order_number: string;
+  customer_id: number;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  customer_address?: string;
+  order_date: string;
+  delivery_date?: string;
+  status:
+    | "pending"
+    | "confirmed"
+    | "preparing"
+    | "ready"
+    | "completed"
+    | "cancelled";
+  total_amount: number;
+  payment_method: "cash" | "card" | "upi" | "bank_transfer" | "cheque";
+  payment_status: "pending" | "paid" | "failed" | "partial";
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+  items?: CustomerOrderItem[];
+  items_count?: number;
+  calculated_total?: number;
+}
+
+export interface CustomerOrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  product_name?: string;
+  product_sku?: string;
+  product_category?: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  available_stock?: number;
+  created_at?: string;
+}
+
+export interface CreateCustomerOrderRequest {
+  customer_id: string;
+  order_date?: string;
+  delivery_date?: string;
+  status?: string;
+  payment_method?: string;
+  payment_status?: string;
+  notes?: string;
+  items: Array<{
+    product_id: string;
+    quantity: number;
+    unit_price: number;
   }>;
 }
 
@@ -158,14 +227,41 @@ async function apiCall<T>(
       ...options,
     });
 
-    const data = await response.json();
+    // Check if the response has content
+    const contentType = response.headers.get("content-type");
+    let data;
+
+    if (contentType && contentType.includes("application/json")) {
+      const text = await response.text();
+      if (text.trim()) {
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          console.error(`JSON parse error for ${endpoint}:`, parseError);
+          throw new Error(
+            `Invalid JSON response: ${text.substring(0, 100)}...`
+          );
+        }
+      } else {
+        // Empty response
+        data = {};
+      }
+    } else {
+      // Non-JSON response
+      data = await response.text();
+    }
 
     if (!response.ok) {
-      throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      const errorMessage =
+        (typeof data === "object" && data.error) ||
+        (typeof data === "string"
+          ? data
+          : `HTTP error! status: ${response.status}`);
+      throw new Error(errorMessage);
     }
 
     // Handle different response formats from backend
-    if (data.success !== undefined) {
+    if (typeof data === "object" && data.success !== undefined) {
       return data.data || data; // Return data if available, otherwise full response
     }
 
@@ -187,12 +283,12 @@ export const dashboardAPI = {
 
 // Products API
 export const productsAPI = {
-  getAll: (params?: {
+  getAll: async (params?: {
     page?: number;
     limit?: number;
     search?: string;
     category?: string;
-  }) => {
+  }): Promise<Product[]> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.limit) queryParams.append("limit", params.limit.toString());
@@ -200,7 +296,16 @@ export const productsAPI = {
     if (params?.category) queryParams.append("category", params.category);
 
     const query = queryParams.toString();
-    return apiCall<Product[]>(`/products${query ? `?${query}` : ""}`);
+    const response = await apiCall<{ products: Product[] } | Product[]>(
+      `/products${query ? `?${query}` : ""}`
+    );
+
+    // Handle both response formats: direct array or nested in products property
+    if (Array.isArray(response)) {
+      return response;
+    } else {
+      return (response as { products: Product[] }).products || [];
+    }
   },
 
   getById: (id: string) => apiCall<Product>(`/products/${id}`),
@@ -271,6 +376,12 @@ export const suppliersAPI = {
       body: JSON.stringify(supplier),
     }),
 
+  updateStatus: (id: string, status: string) =>
+    apiCall<{ message: string }>(`/suppliers/${id}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    }),
+
   delete: (id: string) =>
     apiCall<{ message: string }>(`/suppliers/${id}`, {
       method: "DELETE",
@@ -285,14 +396,21 @@ export const suppliersAPI = {
 
 // Customers API
 export const customersAPI = {
-  getAll: (params?: { page?: number; limit?: number; search?: string }) => {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<Customer[]> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.limit) queryParams.append("limit", params.limit.toString());
     if (params?.search) queryParams.append("search", params.search);
 
     const query = queryParams.toString();
-    return apiCall<Customer[]>(`/customers${query ? `?${query}` : ""}`);
+    const response = await apiCall<{ customers: Customer[]; pagination: any }>(
+      `/customers${query ? `?${query}` : ""}`
+    );
+    return response.customers || [];
   },
 
   getById: (id: string) => apiCall<Customer>(`/customers/${id}`),
@@ -452,13 +570,79 @@ export const purchaseOrdersAPI = {
   getStats: () => apiCall<any>("/purchase-orders/stats/summary"),
 };
 
+// Customer Orders API
+export const customerOrdersAPI = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    customer_id?: string;
+    start_date?: string;
+    end_date?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.search) queryParams.append("search", params.search);
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.customer_id)
+      queryParams.append("customer_id", params.customer_id);
+    if (params?.start_date) queryParams.append("start_date", params.start_date);
+    if (params?.end_date) queryParams.append("end_date", params.end_date);
+
+    const query = queryParams.toString();
+    return apiCall<{
+      orders: CustomerOrder[];
+      pagination: {
+        current_page: number;
+        total_pages: number;
+        total_items: number;
+        per_page: number;
+      };
+    }>(`/customer-orders${query ? `?${query}` : ""}`);
+  },
+
+  getById: (id: string) => apiCall<CustomerOrder>(`/customer-orders/${id}`),
+
+  create: (order: CreateCustomerOrderRequest) =>
+    apiCall<CustomerOrder>("/customer-orders", {
+      method: "POST",
+      body: JSON.stringify(order),
+    }),
+
+  update: (id: string, order: Partial<CustomerOrder>) =>
+    apiCall<CustomerOrder>(`/customer-orders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(order),
+    }),
+
+  updateStatus: (id: string, status: string) =>
+    apiCall<{ message: string }>(`/customer-orders/${id}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    }),
+
+  delete: (id: string) =>
+    apiCall<{ message: string }>(`/customer-orders/${id}`, {
+      method: "DELETE",
+    }),
+
+  getStats: () => apiCall<any>("/customer-orders/stats"),
+};
+
 // Reports API
 export const reportsAPI = {
   // Sales Reports API
-  getSalesOverview: (params?: { period?: string; days?: string }) => {
+  getSalesOverview: (params?: {
+    period?: string;
+    days?: string;
+    compare?: "full" | "ptd";
+  }) => {
     const queryParams = new URLSearchParams();
     if (params?.period) queryParams.append("period", params.period);
     if (params?.days) queryParams.append("days", params.days);
+    if (params?.compare) queryParams.append("compare", params.compare);
 
     const query = queryParams.toString();
     return apiCall<any>(`/reports/sales/overview${query ? `?${query}` : ""}`);
@@ -533,5 +717,6 @@ export default {
   bills: billsAPI,
   alerts: alertsAPI,
   purchaseOrders: purchaseOrdersAPI,
+  customerOrders: customerOrdersAPI,
   reports: reportsAPI,
 };
