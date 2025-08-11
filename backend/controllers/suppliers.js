@@ -47,15 +47,20 @@ const suppliersController = {
         suppliers: suppliers.map((supplier) => ({
           id: supplier.id,
           name: supplier.name,
-          contactPerson: supplier.contact_person,
+          contact_person: supplier.contact_person, // Use snake_case to match frontend
+          contactPerson: supplier.contact_person, // Keep camelCase for backward compatibility
           email: supplier.email,
           phone: supplier.phone,
           address: supplier.address,
+          payment_terms: supplier.payment_terms,
           status: supplier.status || "active",
+          notes: supplier.notes,
           productCount: supplier.product_count,
           inventoryValue: parseFloat(supplier.total_inventory_value || 0),
           createdAt: supplier.created_at,
+          created_at: supplier.created_at, // Snake case for compatibility
           updatedAt: supplier.updated_at,
+          updated_at: supplier.updated_at, // Snake case for compatibility
         })),
         pagination: {
           page,
@@ -109,7 +114,8 @@ const suppliersController = {
       res.json({
         id: supplier.id,
         name: supplier.name,
-        contactPerson: supplier.contact_person,
+        contact_person: supplier.contact_person, // Use snake_case to match frontend
+        contactPerson: supplier.contact_person, // Keep camelCase for backward compatibility
         email: supplier.email,
         phone: supplier.phone,
         address: supplier.address,
@@ -130,7 +136,9 @@ const suppliersController = {
               : "in_stock",
         })),
         createdAt: supplier.created_at,
+        created_at: supplier.created_at, // Snake case for compatibility
         updatedAt: supplier.updated_at,
+        updated_at: supplier.updated_at, // Snake case for compatibility
       });
     } catch (error) {
       console.error("Error fetching supplier:", error);
@@ -144,11 +152,17 @@ const suppliersController = {
       const {
         name,
         contactPerson,
+        contact_person, // Handle both field names
         email,
         phone,
         address,
+        payment_terms,
+        notes,
         status = "active",
       } = req.body;
+
+      // Use either contactPerson or contact_person
+      const finalContactPerson = contactPerson || contact_person;
 
       // Validate required fields
       if (!name) {
@@ -174,16 +188,18 @@ const suppliersController = {
       }
 
       const query = `
-        INSERT INTO suppliers (name, contact_person, email, phone, address, status)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO suppliers (name, contact_person, email, phone, address, payment_terms, notes, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const result = await executeQuery(query, [
         name,
-        contactPerson,
+        finalContactPerson,
         email,
         phone,
         address,
+        payment_terms,
+        notes,
         status,
       ]);
 
@@ -194,17 +210,20 @@ const suppliersController = {
       );
 
       res.status(201).json({
-        message: "Supplier created successfully",
-        supplier: {
-          id: createdSupplier[0].id,
-          name: createdSupplier[0].name,
-          contactPerson: createdSupplier[0].contact_person,
-          email: createdSupplier[0].email,
-          phone: createdSupplier[0].phone,
-          address: createdSupplier[0].address,
-          status: createdSupplier[0].status,
-          createdAt: createdSupplier[0].created_at,
-        },
+        id: createdSupplier[0].id,
+        name: createdSupplier[0].name,
+        contact_person: createdSupplier[0].contact_person, // Use snake_case to match frontend
+        contactPerson: createdSupplier[0].contact_person, // Keep camelCase for backward compatibility
+        email: createdSupplier[0].email,
+        phone: createdSupplier[0].phone,
+        address: createdSupplier[0].address,
+        payment_terms: createdSupplier[0].payment_terms,
+        status: createdSupplier[0].status,
+        notes: createdSupplier[0].notes,
+        createdAt: createdSupplier[0].created_at,
+        created_at: createdSupplier[0].created_at, // Snake case for compatibility
+        updatedAt: createdSupplier[0].updated_at,
+        updated_at: createdSupplier[0].updated_at, // Snake case for compatibility
       });
     } catch (error) {
       console.error("Error creating supplier:", error);
@@ -216,7 +235,18 @@ const suppliersController = {
   update: async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, contactPerson, email, phone, address, status } = req.body;
+      const {
+        name,
+        contactPerson,
+        contact_person, // Handle both field names
+        email,
+        phone,
+        address,
+        status,
+      } = req.body;
+
+      // Use either contactPerson or contact_person
+      const finalContactPerson = contactPerson || contact_person;
 
       // Check if supplier exists
       const existingSupplier = await executeQuery(
@@ -261,7 +291,7 @@ const suppliersController = {
 
       await executeQuery(query, [
         name,
-        contactPerson,
+        finalContactPerson,
         email,
         phone,
         address,
@@ -280,12 +310,14 @@ const suppliersController = {
         supplier: {
           id: updatedSupplier[0].id,
           name: updatedSupplier[0].name,
-          contactPerson: updatedSupplier[0].contact_person,
+          contact_person: updatedSupplier[0].contact_person, // Use snake_case to match frontend
+          contactPerson: updatedSupplier[0].contact_person, // Keep camelCase for backward compatibility
           email: updatedSupplier[0].email,
           phone: updatedSupplier[0].phone,
           address: updatedSupplier[0].address,
           status: updatedSupplier[0].status,
           updatedAt: updatedSupplier[0].updated_at,
+          updated_at: updatedSupplier[0].updated_at, // Snake case for compatibility
         },
       });
     } catch (error) {

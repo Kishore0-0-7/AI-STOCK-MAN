@@ -2,9 +2,9 @@ const mysql = require("mysql2");
 
 // Clean database configuration
 const dbConfig = {
-  host: "13.127.244.139",
-  user: "admin",
-  password: "Hackathonintern",
+  host: "localhost",
+  user: "root",
+  password: "",
   database: "ai_stock_management",
   waitForConnections: true,
   connectionLimit: 10,

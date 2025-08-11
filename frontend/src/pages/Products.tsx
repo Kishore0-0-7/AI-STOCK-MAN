@@ -66,6 +66,12 @@ interface Product {
     id: string | number;
     name: string;
     email?: string;
+    phone?: string;
+    address?: string;
+    contact_person?: string;
+    payment_terms?: string;
+    status?: string;
+    notes?: string;
   };
   barcode?: string;
   sku?: string; // Backend field
@@ -81,9 +87,15 @@ interface Product {
 interface Supplier {
   id: string;
   name: string;
-  contact_name?: string;
+  contact_person?: string;
   phone?: string;
   email?: string;
+  address?: string;
+  status?: "active" | "inactive";
+  payment_terms?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ProductWithSupplier extends Product {
@@ -103,6 +115,12 @@ function exportProductsToCSV(products: ProductWithSupplier[]) {
     "Low Stock Threshold",
     "Supplier ID",
     "Supplier Name",
+    "Supplier Email",
+    "Supplier Phone",
+    "Supplier Address",
+    "Supplier Contact Person",
+    "Supplier Payment Terms",
+    "Supplier Status",
     "Stock Status",
     "Description",
     "Created Date",
@@ -119,6 +137,12 @@ function exportProductsToCSV(products: ProductWithSupplier[]) {
     p.minStock || p.low_stock_threshold || 10,
     p.supplier_id || "",
     `"${p.supplier?.name || p.supplier_name || "N/A"}"`,
+    `"${p.supplier?.email || ""}"`,
+    `"${p.supplier?.phone || ""}"`,
+    `"${p.supplier?.address || ""}"`,
+    `"${p.supplier?.contact_person || ""}"`,
+    `"${p.supplier?.payment_terms || ""}"`,
+    `"${p.supplier?.status || ""}"`,
     (p.stock || p.current_stock || 0) <=
     (p.minStock || p.low_stock_threshold || 10)
       ? "Low Stock"
@@ -129,7 +153,10 @@ function exportProductsToCSV(products: ProductWithSupplier[]) {
 
   const csvContent = [headers, ...rows].map((e) => e.join(",")).join("\n");
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.csv`);
+  downloadFile(
+    blob,
+    `products-with-suppliers-${new Date().toISOString().split("T")[0]}.csv`
+  );
 }
 
 function exportProductsToJSON(products: ProductWithSupplier[]) {
@@ -143,7 +170,17 @@ function exportProductsToJSON(products: ProductWithSupplier[]) {
     cost: p.cost || 0,
     minStock: p.minStock || p.low_stock_threshold || 10,
     supplierId: p.supplier_id,
-    supplier: p.supplier?.name || p.supplier_name,
+    supplier: {
+      id: p.supplier?.id,
+      name: p.supplier?.name || p.supplier_name,
+      email: p.supplier?.email,
+      phone: p.supplier?.phone,
+      address: p.supplier?.address,
+      contact_person: p.supplier?.contact_person,
+      payment_terms: p.supplier?.payment_terms,
+      status: p.supplier?.status,
+      notes: p.supplier?.notes,
+    },
     status:
       (p.stock || p.current_stock || 0) <=
       (p.minStock || p.low_stock_threshold || 10)
@@ -157,7 +194,10 @@ function exportProductsToJSON(products: ProductWithSupplier[]) {
   const blob = new Blob([jsonContent], {
     type: "application/json;charset=utf-8;",
   });
-  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.json`);
+  downloadFile(
+    blob,
+    `products-with-suppliers-${new Date().toISOString().split("T")[0]}.json`
+  );
 }
 
 function exportProductsToExcel(products: ProductWithSupplier[]) {
@@ -172,6 +212,12 @@ function exportProductsToExcel(products: ProductWithSupplier[]) {
     "Min Stock",
     "Supplier ID",
     "Supplier Name",
+    "Supplier Email",
+    "Supplier Phone",
+    "Supplier Address",
+    "Supplier Contact Person",
+    "Supplier Payment Terms",
+    "Supplier Status",
     "Status",
     "Description",
   ];
@@ -186,6 +232,12 @@ function exportProductsToExcel(products: ProductWithSupplier[]) {
     p.minStock || p.low_stock_threshold || 10,
     p.supplier_id || "",
     p.supplier?.name || p.supplier_name || "N/A",
+    p.supplier?.email || "",
+    p.supplier?.phone || "",
+    p.supplier?.address || "",
+    p.supplier?.contact_person || "",
+    p.supplier?.payment_terms || "",
+    p.supplier?.status || "",
     (p.stock || p.current_stock || 0) <=
     (p.minStock || p.low_stock_threshold || 10)
       ? "Low Stock"
@@ -200,7 +252,10 @@ function exportProductsToExcel(products: ProductWithSupplier[]) {
   const blob = new Blob([excelContent], {
     type: "application/vnd.ms-excel;charset=utf-8;",
   });
-  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.xls`);
+  downloadFile(
+    blob,
+    `products-with-suppliers-${new Date().toISOString().split("T")[0]}.xls`
+  );
 }
 
 function downloadFile(blob: Blob, filename: string) {
@@ -452,8 +507,51 @@ async function importProductsFromCSV(
                 case "supplier":
                 case "supplier_name":
                 case "supplier name":
-                  // We'll need to lookup supplier by name if provided
+                case "vendor":
+                case "vendor_name":
+                case "vendor name":
                   product.supplier_name = value;
+                  break;
+                case "supplier_email":
+                case "supplier email":
+                case "vendor_email":
+                case "vendor email":
+                  product.supplier_email = value;
+                  break;
+                case "supplier_phone":
+                case "supplier phone":
+                case "supplier_contact":
+                case "vendor_phone":
+                case "vendor phone":
+                  product.supplier_phone = value;
+                  break;
+                case "supplier_address":
+                case "supplier address":
+                case "vendor_address":
+                case "vendor address":
+                  product.supplier_address = value;
+                  break;
+                case "supplier_contact_person":
+                case "supplier contact person":
+                case "contact_person":
+                case "contact person":
+                case "vendor_contact_person":
+                case "vendor contact person":
+                  product.supplier_contact_person = value;
+                  break;
+                case "supplier_payment_terms":
+                case "supplier payment terms":
+                case "payment_terms":
+                case "payment terms":
+                case "vendor_payment_terms":
+                case "vendor payment terms":
+                  product.supplier_payment_terms = value;
+                  break;
+                case "supplier_status":
+                case "supplier status":
+                case "vendor_status":
+                case "vendor status":
+                  product.supplier_status = value || "active";
                   break;
                 case "description":
                   product.description = value;
@@ -506,33 +604,170 @@ async function importProductsFromCSV(
         validProducts.slice(0, 2)
       );
 
-      // Use the bulk create API
+      // Process suppliers first - create unique suppliers from the import data
+      const suppliersToCreate = new Map();
+      const suppliersMap = new Map();
+
+      // Get existing suppliers to avoid duplicates
       try {
-        const response = await productsAPI.bulkCreate(validProducts);
+        const existingSuppliers = await suppliersAPI.getAll();
+        const supplierData =
+          (existingSuppliers as any)?.suppliers || existingSuppliers || [];
+
+        // Map existing suppliers by name (case-insensitive and trimmed)
+        supplierData.forEach((supplier: any) => {
+          const cleanName = supplier.name.toLowerCase().trim();
+          suppliersMap.set(cleanName, supplier);
+          console.log(
+            `Existing supplier mapped: "${cleanName}" -> ID ${supplier.id}`
+          );
+        });
+
+        console.log(
+          `Found ${supplierData.length} existing suppliers in database`
+        );
+      } catch (error) {
+        console.warn("Could not fetch existing suppliers:", error);
+      }
+
+      // Extract unique suppliers from products
+      validProducts.forEach((product) => {
+        if (product.supplier_name && product.supplier_name.trim()) {
+          const supplierName = product.supplier_name.trim();
+          const supplierKey = supplierName.toLowerCase();
+
+          // Skip if supplier already exists or already queued for creation
+          if (
+            !suppliersMap.has(supplierKey) &&
+            !suppliersToCreate.has(supplierKey)
+          ) {
+            const newSupplier = {
+              name: supplierName,
+              email: product.supplier_email || "",
+              phone: product.supplier_phone || "",
+              address: product.supplier_address || "",
+              contact_person: product.supplier_contact_person || "",
+              payment_terms: product.supplier_payment_terms || "Net 30",
+              status: product.supplier_status || "active",
+              notes: `Auto-created during product import on ${new Date().toLocaleDateString()}`,
+            };
+
+            suppliersToCreate.set(supplierKey, newSupplier);
+            console.log(`Queued new supplier for creation: "${supplierName}"`);
+          }
+        }
+      });
+
+      // Create new suppliers if any
+      if (suppliersToCreate.size > 0) {
+        console.log(`Creating ${suppliersToCreate.size} new suppliers...`);
+
+        for (const [key, supplierData] of suppliersToCreate.entries()) {
+          try {
+            const createdSupplier = await suppliersAPI.create(supplierData);
+            suppliersMap.set(key, createdSupplier);
+            console.log(
+              `✅ Created supplier: "${supplierData.name}" with ID ${createdSupplier.id}`
+            );
+          } catch (error) {
+            console.error(
+              `❌ Failed to create supplier "${supplierData.name}":`,
+              error
+            );
+          }
+        }
+
+        console.log(
+          `Supplier creation completed. Total suppliers available: ${suppliersMap.size}`
+        );
+      } else {
+        console.log("No new suppliers to create - all suppliers already exist");
+      }
+
+      // Now update products with correct supplier IDs
+      const productsWithSuppliers = validProducts.map((product) => {
+        let supplierFound = false;
+
+        if (product.supplier_name && product.supplier_name.trim()) {
+          const supplierKey = product.supplier_name.trim().toLowerCase();
+          const supplier = suppliersMap.get(supplierKey);
+
+          if (supplier) {
+            product.supplierId = supplier.id;
+            supplierFound = true;
+            console.log(
+              `✅ Linked product "${product.name}" to supplier "${supplier.name}" (ID: ${supplier.id})`
+            );
+          } else {
+            console.warn(
+              `⚠️  No supplier found for product "${product.name}" with supplier name "${product.supplier_name}"`
+            );
+          }
+        }
+
+        // Remove supplier fields that aren't part of product schema
+        const {
+          supplier_name,
+          supplier_email,
+          supplier_phone,
+          supplier_address,
+          supplier_contact_person,
+          supplier_payment_terms,
+          supplier_status,
+          ...cleanProduct
+        } = product;
+
+        return {
+          ...cleanProduct,
+          // Keep supplier info for debugging
+          _supplierMapped: supplierFound,
+          _originalSupplierName: product.supplier_name,
+        };
+      });
+
+      // Use the bulk create API
+      console.log(
+        `Sending ${productsWithSuppliers.length} products to backend for creation...`
+      );
+
+      try {
+        const response = await productsAPI.bulkCreate(productsWithSuppliers);
 
         if (response && response.results) {
           const { success, failed, errors } = response.results;
 
+          console.log(
+            `Import Results: ${success} successful, ${failed} failed`
+          );
+
           if (success > 0) {
-            onSuccess();
-            // Show success message but let parent component handle UI updates
-            console.log(
-              `Import completed: ${success} products imported successfully${
-                failed > 0 ? `, ${failed} failed` : ""
-              }.`
-            );
+            const summaryMessage =
+              suppliersToCreate.size > 0
+                ? `Import completed! Created ${
+                    suppliersToCreate.size
+                  } suppliers and imported ${success} products${
+                    failed > 0 ? `, ${failed} products failed` : ""
+                  }.`
+                : `Import completed! ${success} products imported successfully${
+                    failed > 0 ? `, ${failed} failed` : ""
+                  }.`;
+
+            console.log(summaryMessage);
 
             if (errors && errors.length > 0) {
               console.log("Import errors:", errors);
             }
+
+            onSuccess();
           } else {
-            onError(
+            const errorMessage =
               failed > 0 && errors && errors.length > 0
-                ? `Failed to import products: ${errors
+                ? `Failed to import any products. Errors: ${errors
                     .map((e) => e.error)
                     .join(", ")}`
-                : "Failed to import any products. Please check your file format and data."
-            );
+                : "Failed to import any products. Please check your file format and data.";
+
+            onError(errorMessage);
           }
         } else {
           onError("Invalid response from server. Please try again.");
@@ -618,6 +853,23 @@ export default function Products() {
             product.supplier?.name ||
             product.supplier_name ||
             "N/A",
+          // Preserve the complete supplier object from backend or use the one from suppliers list
+          supplier:
+            product.supplier && product.supplier.name
+              ? product.supplier
+              : supplier
+              ? {
+                  id: supplier.id,
+                  name: supplier.name,
+                  email: supplier.email,
+                  phone: supplier.phone,
+                  address: supplier.address,
+                  contact_person: supplier.contact_person,
+                  payment_terms: supplier.payment_terms,
+                  status: supplier.status,
+                  notes: supplier.notes,
+                }
+              : null,
         };
 
         // Debug logging for first few products
@@ -628,7 +880,10 @@ export default function Products() {
             mappedCurrentStock: mappedProduct.current_stock,
             originalSupplier: product.supplier,
             supplierFromList: supplier,
+            mappedSupplier: mappedProduct.supplier,
             mappedSupplierName: mappedProduct.supplier_name,
+            supplierId: product.supplier_id,
+            rawProduct: product,
           });
         }
 
@@ -836,7 +1091,7 @@ export default function Products() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
-                <Download className="h-4 w-4" />
+                <Upload className="h-4 w-4" />
                 Export
                 <ChevronDown className="h-4 w-4" />
               </Button>
@@ -876,7 +1131,7 @@ export default function Products() {
           >
             <DialogTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
+                <Download className="h-4 w-4" />
                 Import
               </Button>
             </DialogTrigger>
@@ -1101,7 +1356,7 @@ export default function Products() {
                   <div>
                     <p className="text-muted-foreground">Supplier</p>
                     <p className="font-medium">
-                      {product.supplier_name || "N/A"}
+                      {product.supplier?.name || product.supplier_name || "N/A"}
                     </p>
                   </div>
                 </div>
@@ -1221,7 +1476,9 @@ export default function Products() {
                         ₹{product.price.toFixed(2)}
                       </TableCell>
                       <TableCell className="truncate px-6 py-4">
-                        {product.supplier_name}
+                        {product.supplier?.name ||
+                          product.supplier_name ||
+                          "No Supplier"}
                       </TableCell>
                       <TableCell className="text-center px-6 py-4">
                         <Badge
@@ -1525,18 +1782,21 @@ export default function Products() {
                       importFile,
                       () => {
                         toast({
-                          title: "Success",
-                          description: "Products imported successfully",
+                          title: "Import Successful! 🎉",
+                          description:
+                            "Products and suppliers have been imported and linked automatically.",
+                          duration: 5000,
                         });
                         setIsImportDialogOpen(false);
                         setImportFile(null);
-                        fetchData();
+                        fetchData(); // Refresh the data to show new products with suppliers
                       },
                       (error) => {
                         toast({
-                          title: "Import Error",
+                          title: "Import Failed ❌",
                           description: error,
                           variant: "destructive",
+                          duration: 8000,
                         });
                       }
                     );

@@ -55,7 +55,11 @@ export interface Supplier {
   email?: string;
   phone?: string;
   address?: string;
+  payment_terms?: string;
+  status?: "active" | "inactive";
+  notes?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface Customer {

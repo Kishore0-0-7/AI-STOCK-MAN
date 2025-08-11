@@ -38,12 +38,18 @@ const productsController = {
       const countResult = await executeQuery(countQuery, params);
       const total = countResult[0].total;
 
-      // Get products with supplier info
+      // Get products with complete supplier info
       const dataQuery = `
         SELECT 
           p.*,
           s.name as supplier_name,
-          s.email as supplier_email
+          s.email as supplier_email,
+          s.phone as supplier_phone,
+          s.address as supplier_address,
+          s.contact_person as supplier_contact_person,
+          s.payment_terms as supplier_payment_terms,
+          s.status as supplier_status,
+          s.notes as supplier_notes
         FROM products p
         LEFT JOIN suppliers s ON p.supplier_id = s.id
         ${whereClause}
@@ -75,6 +81,12 @@ const productsController = {
             id: product.supplier_id,
             name: product.supplier_name,
             email: product.supplier_email,
+            phone: product.supplier_phone,
+            address: product.supplier_address,
+            contact_person: product.supplier_contact_person,
+            payment_terms: product.supplier_payment_terms,
+            status: product.supplier_status,
+            notes: product.supplier_notes,
           },
           barcode: product.sku, // Use SKU as barcode for compatibility
           status:
@@ -110,8 +122,13 @@ const productsController = {
         SELECT 
           p.*,
           s.name as supplier_name,
-          s.contact_email as supplier_email,
-          s.contact_phone as supplier_phone
+          s.email as supplier_email,
+          s.phone as supplier_phone,
+          s.address as supplier_address,
+          s.contact_person as supplier_contact_person,
+          s.payment_terms as supplier_payment_terms,
+          s.status as supplier_status,
+          s.notes as supplier_notes
         FROM products p
         LEFT JOIN suppliers s ON p.supplier_id = s.id
         WHERE p.id = ?
@@ -143,6 +160,11 @@ const productsController = {
           name: product.supplier_name,
           email: product.supplier_email,
           phone: product.supplier_phone,
+          address: product.supplier_address,
+          contact_person: product.supplier_contact_person,
+          payment_terms: product.supplier_payment_terms,
+          status: product.supplier_status,
+          notes: product.supplier_notes,
         },
         barcode: product.sku, // Use SKU as barcode for compatibility
         status:
@@ -208,10 +230,13 @@ const productsController = {
         supplierId || null,
       ]);
 
-      // Fetch the created product
+      // Fetch the created product with complete supplier info
       const createdProduct = await executeQuery(
         `
-        SELECT p.*, s.name as supplier_name
+        SELECT p.*, s.name as supplier_name, s.email as supplier_email,
+               s.phone as supplier_phone, s.address as supplier_address,
+               s.contact_person as supplier_contact_person, s.payment_terms as supplier_payment_terms,
+               s.status as supplier_status, s.notes as supplier_notes
         FROM products p
         LEFT JOIN suppliers s ON p.supplier_id = s.id
         WHERE p.id = ?
@@ -237,6 +262,13 @@ const productsController = {
           supplier: {
             id: createdProduct[0].supplier_id,
             name: createdProduct[0].supplier_name,
+            email: createdProduct[0].supplier_email,
+            phone: createdProduct[0].supplier_phone,
+            address: createdProduct[0].supplier_address,
+            contact_person: createdProduct[0].supplier_contact_person,
+            payment_terms: createdProduct[0].supplier_payment_terms,
+            status: createdProduct[0].supplier_status,
+            notes: createdProduct[0].supplier_notes,
           },
           barcode: createdProduct[0].sku, // Use SKU as barcode for compatibility
           createdAt: createdProduct[0].created_at,
@@ -315,10 +347,13 @@ const productsController = {
         id,
       ]);
 
-      // Fetch updated product
+      // Fetch updated product with complete supplier info
       const updatedProduct = await executeQuery(
         `
-        SELECT p.*, s.name as supplier_name
+        SELECT p.*, s.name as supplier_name, s.email as supplier_email,
+               s.phone as supplier_phone, s.address as supplier_address,
+               s.contact_person as supplier_contact_person, s.payment_terms as supplier_payment_terms,
+               s.status as supplier_status, s.notes as supplier_notes
         FROM products p
         LEFT JOIN suppliers s ON p.supplier_id = s.id
         WHERE p.id = ?
@@ -344,6 +379,13 @@ const productsController = {
           supplier: {
             id: updatedProduct[0].supplier_id,
             name: updatedProduct[0].supplier_name,
+            email: updatedProduct[0].supplier_email,
+            phone: updatedProduct[0].supplier_phone,
+            address: updatedProduct[0].supplier_address,
+            contact_person: updatedProduct[0].supplier_contact_person,
+            payment_terms: updatedProduct[0].supplier_payment_terms,
+            status: updatedProduct[0].supplier_status,
+            notes: updatedProduct[0].supplier_notes,
           },
           barcode: updatedProduct[0].sku, // Use SKU as barcode for compatibility
           updatedAt: updatedProduct[0].updated_at,
@@ -518,6 +560,22 @@ const productsController = {
             continue;
           }
 
+          // Validate supplier_id if provided
+          let validSupplierId = null;
+          if (supplierId) {
+            const supplierExists = await executeQuery(
+              "SELECT id FROM suppliers WHERE id = ?",
+              [supplierId]
+            );
+            if (supplierExists.length > 0) {
+              validSupplierId = supplierId;
+            } else {
+              console.log(
+                `Supplier ID ${supplierId} not found, setting to null`
+              );
+            }
+          }
+
           const query = `
             INSERT INTO products (
               sku, name, description, category, price, cost, 
@@ -534,7 +592,7 @@ const productsController = {
             parseFloat(cost || price * 0.7), // 30% margin if cost not provided
             parseInt(stock || 0),
             parseInt(minStock || 10),
-            supplierId || null,
+            validSupplierId, // Use validated supplier ID or null
           ]);
 
           results.success++;
