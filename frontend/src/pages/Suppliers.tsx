@@ -90,8 +90,25 @@ export default function Suppliers() {
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
+      console.log('----------------------------------------');
+      console.log('Fetching suppliers data...');
       const response = await suppliersAPI.getAll();
       const supplierData = (response as any)?.suppliers || response || [];
+      
+      // Log the fetched data
+      console.log('Suppliers data fetched successfully:');
+      console.log('Total suppliers:', supplierData.length);
+      console.log('Sample supplier data (first item):', 
+        supplierData[0] ? {
+          name: supplierData[0].name,
+          contact_person: supplierData[0].contactPerson,
+          email: supplierData[0].email,
+          phone: supplierData[0].phone,
+          status: supplierData[0].status
+        } : 'No suppliers found'
+      );
+      console.log('----------------------------------------');
+      
       setSuppliers(supplierData);
     } catch (error) {
       console.error("Failed to fetch suppliers:", error);
