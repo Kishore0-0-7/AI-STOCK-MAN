@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +59,7 @@ import {
   AreaChart,
 } from "recharts";
 import { useToast } from "@/hooks/use-toast";
+import { stockSummaryAPI } from "@/services/api1";
 
 interface StockMovement {
   date: string;
@@ -83,269 +84,34 @@ interface StockItem {
   lastRestocked: string;
   expiryDate?: string;
   location: string;
-  movements: StockMovement[];
+  movements?: StockMovement[];
   stockValue: number;
   stockTurnover: number;
   daysSinceLastMovement: number;
 }
 
 // Enhanced sample stock data
-const stockData: StockItem[] = [
-  {
-    id: "P001",
-    name: "Iron Casting Blocks - Grade A",
-    category: "Iron Castings",
-    sku: "ICB-GA-001",
-    currentStock: 120,
-    reorderLevel: 50,
-    maxStock: 300,
-    unit: "kg",
-    costPrice: 12000,
-    sellingPrice: 15000,
-    supplier: "SteelWorks Industries",
-    lastRestocked: "2024-01-18",
-    location: "Warehouse-A-01",
-    stockValue: 1440000,
-    stockTurnover: 8.5,
-    daysSinceLastMovement: 2,
-    movements: [
-      {
-        date: "2024-01-22",
-        type: "Sale",
-        quantity: -30,
-        balance: 120,
-        reference: "INV-2024-001",
-      },
-      {
-        date: "2024-01-20",
-        type: "Sale",
-        quantity: -20,
-        balance: 150,
-        reference: "INV-2024-002",
-      },
-      {
-        date: "2024-01-18",
-        type: "Purchase",
-        quantity: +100,
-        balance: 170,
-        reference: "PO-2024-003",
-      },
-      {
-        date: "2024-01-15",
-        type: "Sale",
-        quantity: -50,
-        balance: 70,
-        reference: "INV-2024-003",
-      },
-    ],
-  },
-  {
-    id: "P002",
-    name: "Aluminum Alloy Bars - 6061",
-    category: "Aluminum Castings",
-    sku: "AAB-6061-001",
-    currentStock: 80,
-    reorderLevel: 100,
-    maxStock: 200,
-    unit: "kg",
-    costPrice: 380,
-    sellingPrice: 450,
-    supplier: "MetalCraft Co",
-    lastRestocked: "2024-01-10",
-    location: "Warehouse-B-02",
-    stockValue: 30400,
-    stockTurnover: 12.3,
-    daysSinceLastMovement: 1,
-    movements: [
-      {
-        date: "2024-01-23",
-        type: "Sale",
-        quantity: -20,
-        balance: 80,
-        reference: "INV-2024-004",
-      },
-      {
-        date: "2024-01-21",
-        type: "Sale",
-        quantity: -30,
-        balance: 100,
-        reference: "INV-2024-005",
-      },
-      {
-        date: "2024-01-10",
-        type: "Purchase",
-        quantity: +150,
-        balance: 130,
-        reference: "PO-2024-001",
-      },
-    ],
-  },
-  {
-    id: "P003",
-    name: "Bronze Ingots - Phosphor Bronze",
-    category: "Bronze Castings",
-    sku: "BI-PB-001",
-    currentStock: 200,
-    reorderLevel: 80,
-    maxStock: 400,
-    unit: "kg",
-    costPrice: 720,
-    sellingPrice: 850,
-    supplier: "Bronze Masters Ltd",
-    lastRestocked: "2024-01-16",
-    location: "Warehouse-C-01",
-    stockValue: 144000,
-    stockTurnover: 6.2,
-    daysSinceLastMovement: 4,
-    movements: [
-      {
-        date: "2024-01-20",
-        type: "Sale",
-        quantity: -50,
-        balance: 200,
-        reference: "INV-2024-006",
-      },
-      {
-        date: "2024-01-16",
-        type: "Purchase",
-        quantity: +100,
-        balance: 250,
-        reference: "PO-2024-002",
-      },
-      {
-        date: "2024-01-14",
-        type: "Sale",
-        quantity: -80,
-        balance: 150,
-        reference: "INV-2024-007",
-      },
-    ],
-  },
-  {
-    id: "P004",
-    name: "Steel Billets - Carbon Steel",
-    category: "Steel Castings",
-    sku: "SB-CS-001",
-    currentStock: 0,
-    reorderLevel: 500,
-    maxStock: 2000,
-    unit: "kg",
-    costPrice: 55,
-    sellingPrice: 65,
-    supplier: "Carbon Steel Works",
-    lastRestocked: "2024-01-05",
-    location: "Warehouse-D-03",
-    stockValue: 0,
-    stockTurnover: 15.8,
-    daysSinceLastMovement: 1,
-    movements: [
-      {
-        date: "2024-01-23",
-        type: "Sale",
-        quantity: -300,
-        balance: 0,
-        reference: "INV-2024-008",
-      },
-      {
-        date: "2024-01-22",
-        type: "Sale",
-        quantity: -200,
-        balance: 300,
-        reference: "INV-2024-009",
-      },
-      {
-        date: "2024-01-05",
-        type: "Purchase",
-        quantity: +1000,
-        balance: 500,
-        reference: "PO-2024-004",
-      },
-    ],
-  },
-  {
-    id: "P005",
-    name: "Brass Rods - Naval Brass",
-    category: "Brass Castings",
-    sku: "BR-NB-001",
-    currentStock: 120,
-    reorderLevel: 60,
-    maxStock: 250,
-    unit: "kg",
-    costPrice: 600,
-    sellingPrice: 720,
-    supplier: "Naval Brass Co",
-    lastRestocked: "2024-01-19",
-    location: "Warehouse-E-01",
-    stockValue: 72000,
-    stockTurnover: 9.7,
-    daysSinceLastMovement: 3,
-    movements: [
-      {
-        date: "2024-01-21",
-        type: "Sale",
-        quantity: -40,
-        balance: 120,
-        reference: "INV-2024-010",
-      },
-      {
-        date: "2024-01-19",
-        type: "Purchase",
-        quantity: +80,
-        balance: 160,
-        reference: "PO-2024-005",
-      },
-      {
-        date: "2024-01-17",
-        type: "Sale",
-        quantity: -20,
-        balance: 80,
-        reference: "INV-2024-011",
-      },
-    ],
-  },
-  {
-    id: "P006",
-    name: "Cast Iron Pipes - Ductile",
-    category: "Cast Iron",
-    sku: "CIP-DI-001",
-    currentStock: 300,
-    reorderLevel: 150,
-    maxStock: 500,
-    unit: "meters",
-    costPrice: 150,
-    sellingPrice: 180,
-    supplier: "SteelWorks Industries",
-    lastRestocked: "2024-01-14",
-    location: "Warehouse-F-02",
-    stockValue: 45000,
-    stockTurnover: 4.2,
-    daysSinceLastMovement: 5,
-    movements: [
-      {
-        date: "2024-01-19",
-        type: "Sale",
-        quantity: -100,
-        balance: 300,
-        reference: "INV-2024-012",
-      },
-      {
-        date: "2024-01-14",
-        type: "Purchase",
-        quantity: +200,
-        balance: 400,
-        reference: "PO-2024-006",
-      },
-    ],
-  },
-];
-
 export default function StockSummary() {
   const { toast } = useToast();
 
+  // State for API data
+  const [stockData, setStockData] = useState<StockItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stockStats, setStockStats] = useState({
+    total: 0,
+    inStock: 0,
+    lowStock: 0,
+    outOfStock: 0,
+    totalValue: 0,
+    avgTurnover: 0
+  });
+  const [categories, setCategories] = useState<string[]>(["all"]);
+
+  // UI state
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [stockFilter, setStockFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("name");
+  const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "low_stock" | "out_of_stock">("all");
+  const [sortBy, setSortBy] = useState<"name" | "value" | "stock" | "turnover" | "lastMovement">("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
@@ -354,103 +120,49 @@ export default function StockSummary() {
 
   const itemsPerPage = 10;
 
-  // Calculate stock statistics
-  const stockStats = useMemo(() => {
-    const total = stockData.length;
-    const inStock = stockData.filter(
-      (item) => item.currentStock > item.reorderLevel
-    ).length;
-    const lowStock = stockData.filter(
-      (item) => item.currentStock > 0 && item.currentStock <= item.reorderLevel
-    ).length;
-    const outOfStock = stockData.filter(
-      (item) => item.currentStock === 0
-    ).length;
-    const totalValue = stockData.reduce(
-      (sum, item) => sum + item.stockValue,
-      0
-    );
-    const avgTurnover =
-      stockData.reduce((sum, item) => sum + item.stockTurnover, 0) / total;
+  // Fetch stock summary data
+  const fetchStockData = async () => {
+    try {
+      setLoading(true);
+      const response = await stockSummaryAPI.getStockSummary({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm,
+        category: categoryFilter,
+        stockFilter,
+        sortBy,
+        sortOrder
+      });
 
-    return { total, inStock, lowStock, outOfStock, totalValue, avgTurnover };
-  }, []);
+      setStockData(response.items);
+      setStockStats(response.stats);
+      setCategories(["all", ...response.categories]);
+      
+    } catch (error) {
+      console.error("Error fetching stock data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load stock data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Get unique categories
-  const categories = useMemo(() => {
-    const uniqueCategories = [
-      ...new Set(stockData.map((item) => item.category)),
-    ];
-    return ["all", ...uniqueCategories];
-  }, []);
+  // Load data on component mount and when filters change
+  useEffect(() => {
+    fetchStockData();
+  }, [currentPage, searchTerm, categoryFilter, stockFilter, sortBy, sortOrder]);
 
-  // Filter and sort stock data
+  // Filter and sort stock data (now done on backend, but keeping for pagination)
   const filteredAndSortedStock = useMemo(() => {
-    let filtered = stockData.filter((item) => {
-      const matchesSearch =
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+    return stockData; // Data is already filtered and sorted by the backend
+  }, [stockData]);
 
-      const matchesCategory =
-        categoryFilter === "all" || item.category === categoryFilter;
-
-      const matchesStock =
-        stockFilter === "all" ||
-        (stockFilter === "in_stock" && item.currentStock > item.reorderLevel) ||
-        (stockFilter === "low_stock" &&
-          item.currentStock > 0 &&
-          item.currentStock <= item.reorderLevel) ||
-        (stockFilter === "out_of_stock" && item.currentStock === 0);
-
-      return matchesSearch && matchesCategory && matchesStock;
-    });
-
-    // Sort items
-    filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
-
-      switch (sortBy) {
-        case "name":
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case "stock":
-          aValue = a.currentStock;
-          bValue = b.currentStock;
-          break;
-        case "value":
-          aValue = a.stockValue;
-          bValue = b.stockValue;
-          break;
-        case "turnover":
-          aValue = a.stockTurnover;
-          bValue = b.stockTurnover;
-          break;
-        case "lastMovement":
-          aValue = a.daysSinceLastMovement;
-          bValue = b.daysSinceLastMovement;
-          break;
-        default:
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-      }
-
-      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }, [stockData, searchTerm, categoryFilter, stockFilter, sortBy, sortOrder]);
-
-  // Paginated data
-  const paginatedStock = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredAndSortedStock.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredAndSortedStock, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredAndSortedStock.length / itemsPerPage);
+  // Pagination
+  const totalPages = Math.ceil(stockStats.total / itemsPerPage);
+  const paginatedItems = filteredAndSortedStock;
 
   // Stock level distribution for pie chart
   const stockDistribution = useMemo(() => {
@@ -489,15 +201,17 @@ export default function StockSummary() {
 
     // Aggregate movements
     stockData.forEach((item) => {
-      item.movements.forEach((movement) => {
-        if (trends[movement.date]) {
-          if (movement.quantity > 0) {
-            trends[movement.date].in += movement.quantity;
-          } else {
-            trends[movement.date].out += Math.abs(movement.quantity);
+      if (item.movements) {
+        item.movements.forEach((movement) => {
+          if (trends[movement.date]) {
+            if (movement.quantity > 0) {
+              trends[movement.date].in += movement.quantity;
+            } else {
+              trends[movement.date].out += Math.abs(movement.quantity);
+            }
           }
-        }
-      });
+        });
+      }
     });
 
     return Object.values(trends).map((trend) => ({
@@ -585,8 +299,13 @@ export default function StockSummary() {
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button variant="outline" className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4" />
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={() => fetchStockData()}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -779,7 +498,7 @@ export default function StockSummary() {
               </SelectContent>
             </Select>
 
-            <Select value={stockFilter} onValueChange={setStockFilter}>
+            <Select value={stockFilter} onValueChange={(value) => setStockFilter(value as "all" | "in_stock" | "low_stock" | "out_of_stock")}>
               <SelectTrigger className="w-[130px]">
                 <SelectValue placeholder="Stock Status" />
               </SelectTrigger>
@@ -791,7 +510,7 @@ export default function StockSummary() {
               </SelectContent>
             </Select>
 
-            <Select value={sortBy} onValueChange={setSortBy}>
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as "name" | "value" | "stock" | "turnover" | "lastMovement")}>
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -833,7 +552,16 @@ export default function StockSummary() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedStock.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      <RefreshCw className="h-8 w-8 mx-auto mb-4 animate-spin" />
+                      <p className="text-lg font-medium">Loading stock data...</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : paginatedItems.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8">
                     <div className="text-muted-foreground">
@@ -848,7 +576,7 @@ export default function StockSummary() {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedStock.map((item) => {
+                paginatedItems.map((item) => {
                   const stockStatus = getStockStatus(item);
                   const Icon = stockStatus.icon;
 
@@ -974,7 +702,7 @@ export default function StockSummary() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between pt-4">
             <div className="text-sm text-muted-foreground">
-              Showing {paginatedStock.length} of {filteredAndSortedStock.length}{" "}
+              Showing {paginatedItems.length} of {stockStats.total}{" "}
               items
             </div>
             <div className="flex gap-2">
@@ -1103,7 +831,8 @@ export default function StockSummary() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedItem.movements.map((movement, index) => (
+                      {selectedItem.movements && selectedItem.movements.length > 0 ? (
+                        selectedItem.movements.map((movement, index) => (
                         <TableRow key={index}>
                           <TableCell>
                             {new Date(movement.date).toLocaleDateString()}
@@ -1143,7 +872,14 @@ export default function StockSummary() {
                             {movement.reference || "—"}
                           </TableCell>
                         </TableRow>
-                      ))}
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                            No movement data available
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>

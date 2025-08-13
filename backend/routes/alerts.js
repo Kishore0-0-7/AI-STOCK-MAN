@@ -26,6 +26,9 @@ router.get("/:id", asyncHandler(AlertsController.getAlertById));
 // Create new alert
 router.post("/", asyncHandler(AlertsController.createAlert));
 
+// Update alert status - matches alertsAPI.updateStatus()
+router.patch("/:id/status", asyncHandler(AlertsController.updateAlert));
+
 // Update alert (acknowledge, resolve, etc.)
 router.put("/:id", asyncHandler(AlertsController.updateAlert));
 router.patch("/:id", asyncHandler(AlertsController.updateAlert));
