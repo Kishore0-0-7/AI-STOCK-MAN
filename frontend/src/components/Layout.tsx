@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
   Package,
+  PackageX,
   ShoppingCart,
   FileText,
   ScanLine,
@@ -20,6 +21,9 @@ import {
   Users,
   ShieldAlert,
   Calculator,
+  PackageOpen,
+  PackageCheck,
+  Warehouse,
 } from "lucide-react";
 
 export function Layout() {
@@ -49,6 +53,26 @@ export function Layout() {
       name: "Production Calculator",
       href: "/production-calculator",
       icon: Calculator,
+    },
+    {
+      name: "Inbound Dashboard",
+      href: "/inbound-dashboard",
+      icon: PackageOpen,
+    },
+    {
+      name: "Outbound Dashboard",
+      href: "/outbound-dashboard",
+      icon: PackageCheck,
+    },
+    {
+      name: "Storage Utilization",
+      href: "/storage-utilization",
+      icon: Warehouse,
+    },
+    {
+      name: "Stock Out Management",
+      href: "/stock-out",
+      icon: PackageX,
     },
     { name: "Suppliers", href: "/suppliers", icon: Truck },
     // { name: "Customers", href: "/customers", icon: Users },

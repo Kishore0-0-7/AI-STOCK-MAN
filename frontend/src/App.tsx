@@ -12,9 +12,12 @@ import StockSummary from "./pages/StockSummary";
 import LowStockAlerts from "./pages/LowStockAlerts";
 import Settings from "./pages/Settings";
 import Suppliers from "./pages/Suppliers";
-import Customers from "./pages/Customers";
 import QcDashboard from "./pages/QcDashboard";
 import ProductionCalculator from "./pages/ProductionCalculator";
+import InboundDashboard from "./pages/InboundDashboard";
+import OutboundDashboard from "./pages/OutboundDashboard";
+import StorageUtilizationDashboard from "./pages/StorageUtilizationDashboard";
+import StockOutManagement from "./pages/StockOutManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +37,13 @@ const App = () => (
               path="production-calculator"
               element={<ProductionCalculator />}
             />
+            <Route path="inbound-dashboard" element={<InboundDashboard />} />
+            <Route path="outbound-dashboard" element={<OutboundDashboard />} />
+            <Route
+              path="storage-utilization"
+              element={<StorageUtilizationDashboard />}
+            />
+            <Route path="stock-out" element={<StockOutManagement />} />
             {/* <Route path="billing" element={<Billing />} /> */}
             <Route path="purchase-orders" element={<PurchaseOrders />} />
             {/* <Route path="customer-orders" element={<CustomerOrders />} /> */}
@@ -43,7 +53,6 @@ const App = () => (
             <Route path="stock-summary" element={<StockSummary />} />
             <Route path="low-stock-alerts" element={<LowStockAlerts />} />
             <Route path="suppliers" element={<Suppliers />} />
-            <Route path="customers" element={<Customers />} />
             <Route path="settings" element={<Settings />} />
             {/* <Route path="api-test" element={<ApiTestComponent />} /> */}
           </Route>

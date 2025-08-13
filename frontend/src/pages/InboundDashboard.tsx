@@ -1,8 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart,
   Bar,
@@ -14,8 +20,8 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  Legend
-} from 'recharts';
+  Legend,
+} from "recharts";
 import {
   TrendingUp,
   Package,
@@ -25,8 +31,8 @@ import {
   Clock,
   Calendar,
   Users,
-  FileText
-} from 'lucide-react';
+  FileText,
+} from "lucide-react";
 
 // Types
 interface InboundMetrics {
@@ -49,12 +55,12 @@ interface PendingShipment {
   supplier: string;
   expectedDate: string;
   quantity: number;
-  status: 'In Transit' | 'Delayed' | 'Confirmed' | 'Processing';
-  priority: 'High' | 'Medium' | 'Low';
+  status: "In Transit" | "Delayed" | "Confirmed" | "Processing";
+  priority: "High" | "Medium" | "Low";
 }
 
 interface QualityStatus {
-  status: 'Pass' | 'Fail' | 'Hold' | 'Pending';
+  status: "Pass" | "Fail" | "Hold" | "Pending";
   quantity: number;
   percentage: number;
   color: string;
@@ -66,96 +72,130 @@ const InboundDashboard: React.FC = () => {
     totalReceivedToday: 0,
     totalReceivedMonth: 0,
     todayGrowth: 0,
-    monthGrowth: 0
+    monthGrowth: 0,
   });
   const [supplierData, setSupplierData] = useState<SupplierData[]>([]);
-  const [pendingShipments, setPendingShipments] = useState<PendingShipment[]>([]);
+  const [pendingShipments, setPendingShipments] = useState<PendingShipment[]>(
+    []
+  );
   const [qualityStatus, setQualityStatus] = useState<QualityStatus[]>([]);
 
   // Colors for charts
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+  const COLORS = [
+    "#3b82f6",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#8b5cf6",
+    "#06b6d4",
+  ];
 
   // Load sample data
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      
+
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       // Sample metrics
       setMetrics({
         totalReceivedToday: 1247,
         totalReceivedMonth: 28943,
         todayGrowth: 12.5,
-        monthGrowth: 8.3
+        monthGrowth: 8.3,
       });
 
       // Sample supplier data
       setSupplierData([
-        { name: 'MetalCorp Industries', quantity: 450, value: 125000, color: COLORS[0] },
-        { name: 'SteelWorks Ltd', quantity: 320, value: 89000, color: COLORS[1] },
-        { name: 'Iron Foundry Co', quantity: 280, value: 76000, color: COLORS[2] },
-        { name: 'Allied Materials', quantity: 197, value: 54000, color: COLORS[3] },
-        { name: 'Prime Suppliers', quantity: 156, value: 42000, color: COLORS[4] },
-        { name: 'Others', quantity: 234, value: 67000, color: COLORS[5] }
+        {
+          name: "MetalCorp Industries",
+          quantity: 450,
+          value: 125000,
+          color: COLORS[0],
+        },
+        {
+          name: "SteelWorks Ltd",
+          quantity: 320,
+          value: 89000,
+          color: COLORS[1],
+        },
+        {
+          name: "Iron Foundry Co",
+          quantity: 280,
+          value: 76000,
+          color: COLORS[2],
+        },
+        {
+          name: "Allied Materials",
+          quantity: 197,
+          value: 54000,
+          color: COLORS[3],
+        },
+        {
+          name: "Prime Suppliers",
+          quantity: 156,
+          value: 42000,
+          color: COLORS[4],
+        },
+        { name: "Others", quantity: 234, value: 67000, color: COLORS[5] },
       ]);
 
       // Sample pending shipments
       setPendingShipments([
         {
-          id: 'PO-2025-001',
-          poNumber: 'PO-2025-001',
-          supplier: 'MetalCorp Industries',
-          expectedDate: '2025-08-15',
+          id: "PO-2025-001",
+          poNumber: "PO-2025-001",
+          supplier: "MetalCorp Industries",
+          expectedDate: "2025-08-15",
           quantity: 500,
-          status: 'In Transit',
-          priority: 'High'
+          status: "In Transit",
+          priority: "High",
         },
         {
-          id: 'PO-2025-002',
-          poNumber: 'PO-2025-002',
-          supplier: 'SteelWorks Ltd',
-          expectedDate: '2025-08-16',
+          id: "PO-2025-002",
+          poNumber: "PO-2025-002",
+          supplier: "SteelWorks Ltd",
+          expectedDate: "2025-08-16",
           quantity: 300,
-          status: 'Confirmed',
-          priority: 'Medium'
+          status: "Confirmed",
+          priority: "Medium",
         },
         {
-          id: 'PO-2025-003',
-          poNumber: 'PO-2025-003',
-          supplier: 'Iron Foundry Co',
-          expectedDate: '2025-08-14',
+          id: "PO-2025-003",
+          poNumber: "PO-2025-003",
+          supplier: "Iron Foundry Co",
+          expectedDate: "2025-08-14",
           quantity: 200,
-          status: 'Delayed',
-          priority: 'High'
+          status: "Delayed",
+          priority: "High",
         },
         {
-          id: 'PO-2025-004',
-          poNumber: 'PO-2025-004',
-          supplier: 'Allied Materials',
-          expectedDate: '2025-08-18',
+          id: "PO-2025-004",
+          poNumber: "PO-2025-004",
+          supplier: "Allied Materials",
+          expectedDate: "2025-08-18",
           quantity: 150,
-          status: 'Processing',
-          priority: 'Low'
+          status: "Processing",
+          priority: "Low",
         },
         {
-          id: 'PO-2025-005',
-          poNumber: 'PO-2025-005',
-          supplier: 'Prime Suppliers',
-          expectedDate: '2025-08-17',
+          id: "PO-2025-005",
+          poNumber: "PO-2025-005",
+          supplier: "Prime Suppliers",
+          expectedDate: "2025-08-17",
           quantity: 250,
-          status: 'Confirmed',
-          priority: 'Medium'
-        }
+          status: "Confirmed",
+          priority: "Medium",
+        },
       ]);
 
       // Sample quality check data
       setQualityStatus([
-        { status: 'Pass', quantity: 1089, percentage: 87.3, color: '#10b981' },
-        { status: 'Hold', quantity: 98, percentage: 7.9, color: '#f59e0b' },
-        { status: 'Fail', quantity: 45, percentage: 3.6, color: '#ef4444' },
-        { status: 'Pending', quantity: 15, percentage: 1.2, color: '#6b7280' }
+        { status: "Pass", quantity: 1089, percentage: 87.3, color: "#10b981" },
+        { status: "Hold", quantity: 98, percentage: 7.9, color: "#f59e0b" },
+        { status: "Fail", quantity: 45, percentage: 3.6, color: "#ef4444" },
+        { status: "Pending", quantity: 15, percentage: 1.2, color: "#6b7280" },
       ]);
 
       setLoading(false);
@@ -166,33 +206,42 @@ const InboundDashboard: React.FC = () => {
 
   // Utility functions
   const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-IN').format(num);
+    return new Intl.NumberFormat("en-IN").format(num);
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 0,
     }).format(amount);
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'In Transit': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Confirmed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Delayed': return 'bg-red-100 text-red-800 border-red-200';
-      case 'Processing': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case "In Transit":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "Confirmed":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "Delayed":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "Processing":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800 border-red-200';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case "High":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "Medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "Low":
+        return "bg-green-100 text-green-800 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
@@ -263,18 +312,22 @@ const InboundDashboard: React.FC = () => {
             <Package className="h-6 w-6 lg:h-8 lg:w-8 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-xl lg:text-3xl font-bold text-gray-900">Inbound Dashboard</h1>
-            <p className="text-sm lg:text-base text-gray-600">Material receiving and quality control</p>
+            <h1 className="text-xl lg:text-3xl font-bold text-gray-900">
+              Inbound Dashboard
+            </h1>
+            <p className="text-sm lg:text-base text-gray-600">
+              Material receiving and quality control
+            </p>
           </div>
         </div>
 
         <MetricsSkeleton />
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           <ChartSkeleton />
           <ChartSkeleton />
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           <ListSkeleton />
           <ListSkeleton />
@@ -291,8 +344,12 @@ const InboundDashboard: React.FC = () => {
           <Package className="h-6 w-6 lg:h-8 lg:w-8 text-blue-600" />
         </div>
         <div>
-          <h1 className="text-xl lg:text-3xl font-bold text-gray-900">Inbound Dashboard</h1>
-          <p className="text-sm lg:text-base text-gray-600">Material receiving and quality control</p>
+          <h1 className="text-xl lg:text-3xl font-bold text-gray-900">
+            Inbound Dashboard
+          </h1>
+          <p className="text-sm lg:text-base text-gray-600">
+            Material receiving and quality control
+          </p>
         </div>
       </div>
 
@@ -354,15 +411,20 @@ const InboundDashboard: React.FC = () => {
               <Users className="h-5 w-5 text-blue-600" />
               Inbound by Supplier
             </CardTitle>
-            <CardDescription>Quantity received by supplier this week</CardDescription>
+            <CardDescription>
+              Quantity received by supplier this week
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={supplierData} margin={{ top: 5, right: 10, left: 10, bottom: 45 }}>
+                <BarChart
+                  data={supplierData}
+                  margin={{ top: 5, right: 10, left: 10, bottom: 45 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="name" 
+                  <XAxis
+                    dataKey="name"
                     tick={{ fontSize: 10 }}
                     angle={-45}
                     textAnchor="end"
@@ -370,22 +432,22 @@ const InboundDashboard: React.FC = () => {
                     interval={0}
                   />
                   <YAxis tick={{ fontSize: 10 }} />
-                  <RechartsTooltip 
+                  <RechartsTooltip
                     formatter={(value: number, name: string) => [
-                      formatNumber(value), 
-                      name === 'quantity' ? 'Quantity' : name
+                      formatNumber(value),
+                      name === "quantity" ? "Quantity" : name,
                     ]}
                     labelFormatter={(label) => `Supplier: ${label}`}
                     contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      backgroundColor: "white",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                     }}
                   />
-                  <Bar 
-                    dataKey="quantity" 
-                    fill="#3b82f6" 
+                  <Bar
+                    dataKey="quantity"
+                    fill="#3b82f6"
                     radius={[4, 4, 0, 0]}
                     name="Quantity"
                   />
@@ -402,7 +464,9 @@ const InboundDashboard: React.FC = () => {
               <CheckCircle2 className="h-5 w-5 text-green-600" />
               Quality Check Status
             </CardTitle>
-            <CardDescription>Current quality inspection results</CardDescription>
+            <CardDescription>
+              Current quality inspection results
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-64 w-full">
@@ -413,7 +477,9 @@ const InboundDashboard: React.FC = () => {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ status, percentage }) => `${status}: ${percentage}%`}
+                    label={({ status, percentage }) =>
+                      `${status}: ${percentage}%`
+                    }
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="quantity"
@@ -422,13 +488,16 @@ const InboundDashboard: React.FC = () => {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <RechartsTooltip 
-                    formatter={(value: number) => [formatNumber(value), 'Quantity']}
+                  <RechartsTooltip
+                    formatter={(value: number) => [
+                      formatNumber(value),
+                      "Quantity",
+                    ]}
                     contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      backgroundColor: "white",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                     }}
                   />
                   <Legend />
@@ -448,19 +517,23 @@ const InboundDashboard: React.FC = () => {
               <Truck className="h-5 w-5 text-orange-600" />
               Pending Inbound Shipments
             </CardTitle>
-            <CardDescription>Purchase orders awaiting receipt ({pendingShipments.length} items)</CardDescription>
+            <CardDescription>
+              Purchase orders awaiting receipt ({pendingShipments.length} items)
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {pendingShipments.map((shipment) => (
-                <div 
-                  key={shipment.id} 
+                <div
+                  key={shipment.id}
                   className="p-3 lg:p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium text-sm lg:text-base">{shipment.poNumber}</span>
+                      <span className="font-medium text-sm lg:text-base">
+                        {shipment.poNumber}
+                      </span>
                     </div>
                     <div className="flex gap-2">
                       <Badge className={getPriorityColor(shipment.priority)}>
@@ -478,8 +551,17 @@ const InboundDashboard: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      <span className={isOverdue(shipment.expectedDate) ? 'text-red-600 font-medium' : ''}>
-                        Expected: {new Date(shipment.expectedDate).toLocaleDateString('en-IN')}
+                      <span
+                        className={
+                          isOverdue(shipment.expectedDate)
+                            ? "text-red-600 font-medium"
+                            : ""
+                        }
+                      >
+                        Expected:{" "}
+                        {new Date(shipment.expectedDate).toLocaleDateString(
+                          "en-IN"
+                        )}
                       </span>
                       {isOverdue(shipment.expectedDate) && (
                         <AlertCircle className="h-3 w-3 text-red-600 ml-1" />
@@ -499,7 +581,9 @@ const InboundDashboard: React.FC = () => {
               <CheckCircle2 className="h-5 w-5 text-green-600" />
               Quality Check Details
             </CardTitle>
-            <CardDescription>Detailed breakdown of inspection results</CardDescription>
+            <CardDescription>
+              Detailed breakdown of inspection results
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -507,11 +591,13 @@ const InboundDashboard: React.FC = () => {
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
+                      <div
+                        className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: status.color }}
                       />
-                      <span className="font-medium text-sm lg:text-base">{status.status}</span>
+                      <span className="font-medium text-sm lg:text-base">
+                        {status.status}
+                      </span>
                     </div>
                     <div className="text-right">
                       <span className="font-bold text-sm lg:text-base">
@@ -522,24 +608,33 @@ const InboundDashboard: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                  <Progress 
-                    value={status.percentage} 
+                  <Progress
+                    value={status.percentage}
                     className="h-2"
-                    style={{
-                      '--progress-color': status.color
-                    } as React.CSSProperties}
+                    style={
+                      {
+                        "--progress-color": status.color,
+                      } as React.CSSProperties
+                    }
                   />
                 </div>
               ))}
             </div>
-            
+
             {/* Summary */}
             <div className="mt-6 pt-4 border-t bg-gray-50 rounded-lg p-3">
               <div className="text-center">
                 <div className="text-lg lg:text-xl font-bold text-gray-900">
-                  {formatNumber(qualityStatus.reduce((sum, status) => sum + status.quantity, 0))}
+                  {formatNumber(
+                    qualityStatus.reduce(
+                      (sum, status) => sum + status.quantity,
+                      0
+                    )
+                  )}
                 </div>
-                <div className="text-xs lg:text-sm text-gray-600">Total Items Inspected</div>
+                <div className="text-xs lg:text-sm text-gray-600">
+                  Total Items Inspected
+                </div>
               </div>
             </div>
           </CardContent>
