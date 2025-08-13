@@ -376,6 +376,8 @@ export default function EnhancedProducts() {
     supplier_id: "",
     sku: "",
     description: "",
+    unit: "pcs",
+    barcode: "",
   });
   const { toast } = useToast();
 
@@ -604,17 +606,21 @@ export default function EnhancedProducts() {
 
       const productData = {
         name: form.name!,
-        category: form.category!,
         sku: form.sku || `SKU-${Date.now()}`,
-        price: Number(form.price!),
-        cost: Number(form.cost || form.price! * 0.7),
+        description: form.description || "",
+        category: form.category!,
+        category_id: null, // We'll need to implement category lookup later
+        price: Number(form.price!) || 0,
+        cost: Number(form.cost || form.price! * 0.7) || 0,
         current_stock: Number(form.current_stock || 0),
         low_stock_threshold: Number(form.low_stock_threshold || 10),
-        supplier_id: form.supplier_id || null,
-        description: form.description || "",
+        max_stock_level: 1000,
         unit: form.unit || "pcs",
-        barcode: form.barcode || "",
-        status: "active",
+        barcode: form.barcode || null,
+        supplier_id: form.supplier_id || null,
+        reorder_level: 0,
+        reorder_quantity: 0,
+        location: null,
       };
 
       if (selectedProduct) {
@@ -647,6 +653,8 @@ export default function EnhancedProducts() {
         supplier_id: "",
         sku: "",
         description: "",
+        unit: "pcs",
+        barcode: "",
       });
       setSelectedProduct(null);
     } catch (error) {
@@ -694,15 +702,17 @@ export default function EnhancedProducts() {
   const openEditDialog = (product: ProductWithSupplier) => {
     setSelectedProduct(product);
     setForm({
-      name: product.name,
-      category: product.category,
-      current_stock: product.current_stock,
-      low_stock_threshold: product.low_stock_threshold,
-      price: product.price,
-      cost: product.cost,
-      supplier_id: product.supplier_id,
-      sku: product.sku,
-      description: product.description,
+      name: product.name || "",
+      category: product.category || "",
+      current_stock: product.current_stock || 0,
+      low_stock_threshold: product.low_stock_threshold || 10,
+      price: product.price || 0,
+      cost: product.cost || 0,
+      supplier_id: product.supplier_id || "",
+      sku: product.sku || "",
+      description: product.description || "",
+      unit: product.unit || "pcs",
+      barcode: product.barcode || "",
     });
     setIsEditDialogOpen(true);
   };

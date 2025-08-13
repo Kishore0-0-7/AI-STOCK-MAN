@@ -266,7 +266,7 @@ export default function EnhancedSuppliers() {
 
   // Top suppliers by value
   const topSuppliersData = useMemo(() => {
-    return suppliers
+    const data = suppliers
       .filter((s) => s.totalValue && s.totalValue > 0)
       .sort((a, b) => (b.totalValue || 0) - (a.totalValue || 0))
       .slice(0, 6)
@@ -275,6 +275,9 @@ export default function EnhancedSuppliers() {
         value: s.totalValue || 0,
         orders: s.totalOrders || 0,
       }));
+    
+    console.log("Top suppliers chart data:", data);
+    return data;
   }, [suppliers]);
 
   const handleNavigate = (supplierId: string) => {
@@ -654,27 +657,55 @@ export default function EnhancedSuppliers() {
           <h3 className="text-base sm:text-lg font-semibold mb-4">
             Top Suppliers by Value
           </h3>
-          <div className="h-48 sm:h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topSuppliersData} layout="horizontal">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tick={{ fontSize: isMobile ? 10 : 12 }} />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  width={isMobile ? 60 : 100}
-                  tick={{ fontSize: isMobile ? 8 : 10 }}
-                />
-                <Tooltip
-                  formatter={(value) => [
-                    `₹${(value as number).toLocaleString()}`,
-                    "Total Value",
-                  ]}
-                />
-                <Bar dataKey="value" fill="#3B82F6" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {topSuppliersData.length === 0 ? (
+            <div className="h-48 sm:h-64 flex items-center justify-center text-muted-foreground">
+              No supplier data available
+            </div>
+          ) : (
+            <div className="h-48 sm:h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={topSuppliersData} 
+                  layout="horizontal"
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    type="number" 
+                    tick={{ fontSize: isMobile ? 10 : 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={isMobile ? 80 : 120}
+                    tick={{ fontSize: isMobile ? 8 : 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      `₹${(value as number).toLocaleString()}`,
+                      "Total Value",
+                    ]}
+                    labelStyle={{ color: "#374151" }}
+                    contentStyle={{
+                      backgroundColor: "white",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "6px",
+                    }}
+                  />
+                  <Bar 
+                    dataKey="value" 
+                    fill="#3B82F6" 
+                    radius={[0, 4, 4, 0]}
+                    name="Total Value"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
       </div>
 

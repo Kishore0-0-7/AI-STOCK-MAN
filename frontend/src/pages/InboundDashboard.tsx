@@ -9,7 +9,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import api from "@/services/api";
+import { Button } from "@/components/ui/button";
+import { inboundAPI } from "@/services/api";
 import {
   BarChart,
   Bar,
@@ -108,10 +109,10 @@ const InboundDashboard: React.FC = () => {
           shipmentsResponse,
           qualityResponse,
         ] = await Promise.all([
-          api.inbound.getMetrics(),
-          api.inbound.getSupplierData(),
-          api.inbound.getPendingShipments(),
-          api.inbound.getQualityStatus(),
+          inboundAPI.getMetrics(),
+          inboundAPI.getSupplierData(),
+          inboundAPI.getPendingShipments(),
+          inboundAPI.getQualityStatus(),
         ]);
 
         // Set metrics

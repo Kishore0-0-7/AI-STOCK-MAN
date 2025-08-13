@@ -136,6 +136,10 @@ const StockOutManagement: React.FC = () => {
     notes: "",
     items: [],
   });
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<string>("");
+  const [itemQuantity, setItemQuantity] = useState<number>(1);
+  const [requestItems, setRequestItems] = useState<StockOutItem[]>([]);
 
   const itemsPerPage = 10;
   const CHART_COLORS = [
