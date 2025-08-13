@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Card,
   CardContent,
@@ -118,6 +119,8 @@ interface ProductionBatch {
 }
 
 const ProductionCalculator: React.FC = () => {
+  const isMobile = useIsMobile();
+  
   // State management
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -548,164 +551,168 @@ const ProductionCalculator: React.FC = () => {
   }, [] as { name: string; value: number }[]);
 
   return (
-    <div className="container mx-auto p-4 space-y-6 max-w-7xl">
+    <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-gradient-to-br from-background to-muted/20 min-h-screen max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Calculator className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4">
+        <div className="w-full lg:w-auto">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+              <Calculator className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-blue-600" />
             </div>
-            <span className="truncate">Production Calculator</span>
+            <span className="break-words leading-tight">Production Calculator</span>
           </h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-2">
+          <p className="text-sm lg:text-base text-muted-foreground mt-1">
             Calculate raw material requirements and production feasibility
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button
             onClick={fetchRawMaterials}
             variant="outline"
             size="sm"
-            className="gap-2"
+            className="gap-2 flex-1 sm:flex-initial"
           >
-            <RefreshCw className="h-4 w-4" />
-            <span className="hidden sm:inline">Refresh</span>
+            <RefreshCw className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden xs:inline">Refresh</span>
           </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Export</span>
+          <Button variant="outline" size="sm" className="gap-2 flex-1 sm:flex-initial">
+            <Download className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden xs:inline">Export</span>
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <Package className="h-4 w-4 text-blue-600" />
-              Raw Materials
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {rawMaterials.length}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="hover:shadow-md transition-shadow duration-200 p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <Package className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
+                <span className="hidden xs:inline">Raw Materials</span>
+                <span className="xs:hidden">Materials</span>
+              </p>
+              <div className="text-lg sm:text-2xl font-bold">
+                {rawMaterials.length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {rawMaterials.filter((m) => m.currentStock <= m.reorderLevel).length}{" "}
+                <span className="hidden sm:inline">low stock</span>
+                <span className="sm:hidden">low</span>
+              </p>
             </div>
-            <p className="text-xs text-gray-500">
-              {
-                rawMaterials.filter((m) => m.currentStock <= m.reorderLevel)
-                  .length
-              }{" "}
-              low stock
-            </p>
-          </CardContent>
+            <Package className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0 opacity-60" />
+          </div>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <Factory className="h-4 w-4 text-green-600" />
-              Products
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {products.length}
+        <Card className="hover:shadow-md transition-shadow duration-200 p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <Factory className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
+                <span className="hidden xs:inline">Products</span>
+                <span className="xs:hidden">Products</span>
+              </p>
+              <div className="text-lg sm:text-2xl font-bold">
+                {products.length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <span className="hidden sm:inline">available designs</span>
+                <span className="sm:hidden">designs</span>
+              </p>
             </div>
-            <p className="text-xs text-gray-500">Available for production</p>
-          </CardContent>
+            <Factory className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 flex-shrink-0 opacity-60" />
+          </div>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <IndianRupee className="h-4 w-4 text-orange-600" />
-              Total Stock Value
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {formatCurrency(
-                rawMaterials.reduce(
-                  (sum, m) => sum + m.currentStock * m.costPerUnit,
-                  0
-                )
-              )}
+        <Card className="hover:shadow-md transition-shadow duration-200 p-4 sm:p-6 col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600 flex-shrink-0" />
+                <span className="hidden xs:inline">Calculations</span>
+                <span className="xs:hidden">Calcs</span>
+              </p>
+              <div className="text-lg sm:text-2xl font-bold">
+                {calculations.length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <span className="hidden sm:inline">completed</span>
+                <span className="sm:hidden">done</span>
+              </p>
             </div>
-            <p className="text-xs text-gray-500">Current inventory</p>
-          </CardContent>
+            <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 flex-shrink-0 opacity-60" />
+          </div>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <Zap className="h-4 w-4 text-purple-600" />
-              Active Batches
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {
-                productionBatches.filter((b) => b.status === "In Progress")
-                  .length
-              }
+        <Card className="hover:shadow-md transition-shadow duration-200 p-4 sm:p-6 col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <Zap className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600 flex-shrink-0" />
+                <span className="hidden xs:inline">Active Batches</span>
+                <span className="xs:hidden">Batches</span>
+              </p>
+              <div className="text-lg sm:text-2xl font-bold">
+                {productionBatches.filter((b) => b.status === "In Progress").length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <span className="hidden sm:inline">in production</span>
+                <span className="sm:hidden">active</span>
+              </p>
             </div>
-            <p className="text-xs text-gray-500">
-              {productionBatches.filter((b) => b.status === "Planned").length}{" "}
-              planned
-            </p>
-          </CardContent>
+            <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 flex-shrink-0 opacity-60" />
+          </div>
         </Card>
       </div>
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
-          <TabsTrigger value="calculator" className="text-xs sm:text-sm">
-            <Calculator className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Calculator</span>
-            <span className="sm:hidden">Calc</span>
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 mb-4">
+          <TabsTrigger value="calculator" className="text-xs sm:text-sm px-2 py-2">
+            <Calculator className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+            <span className="hidden xs:inline">Calculator</span>
+            <span className="xs:hidden">Calc</span>
           </TabsTrigger>
-          <TabsTrigger value="materials" className="text-xs sm:text-sm">
-            <Package className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Materials</span>
-            <span className="sm:hidden">Stock</span>
+          <TabsTrigger value="materials" className="text-xs sm:text-sm px-2 py-2">
+            <Package className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+            <span className="hidden xs:inline">Materials</span>
+            <span className="xs:hidden">Mat</span>
           </TabsTrigger>
-          <TabsTrigger value="batches" className="text-xs sm:text-sm">
-            <Factory className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Batches</span>
-            <span className="sm:hidden">Jobs</span>
+          <TabsTrigger value="batches" className="text-xs sm:text-sm px-2 py-2">
+            <Factory className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+            <span className="hidden xs:inline">Batches</span>
+            <span className="xs:hidden">Batch</span>
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs sm:text-sm">
-            <BarChart3 className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Analytics</span>
-            <span className="sm:hidden">Stats</span>
+          <TabsTrigger value="analytics" className="text-xs sm:text-sm px-2 py-2">
+            <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+            <span className="hidden xs:inline">Analytics</span>
+            <span className="xs:hidden">Stats</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Production Calculator Tab */}
-        <TabsContent value="calculator" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <TabsContent value="calculator" className="space-y-4 sm:space-y-6">
+          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Input Section */}
-            <Card className="lg:col-span-1">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="h-5 w-5 text-blue-600" />
-                  Production Setup
+            <Card className="w-full lg:col-span-1">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Wrench className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+                  <span>Production Setup</span>
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Configure your production requirements
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="product-select">Select Product</Label>
+                  <Label htmlFor="product-select" className="text-sm font-medium">Select Product</Label>
                   <Select
                     value={selectedProduct}
                     onValueChange={setSelectedProduct}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Choose a product" />
                     </SelectTrigger>
                     <SelectContent>
@@ -815,7 +822,7 @@ const ProductionCalculator: React.FC = () => {
             </Card>
 
             {/* Results Section */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="w-full lg:col-span-2 space-y-4">
               {calculations.length > 0 ? (
                 calculations.map((calc, index) => (
                   <Card key={index} className="w-full">
@@ -1104,35 +1111,45 @@ const ProductionCalculator: React.FC = () => {
         </TabsContent>
 
         {/* Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="analytics" className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6">
             {/* Stock Levels Chart */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-blue-600" />
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                   Stock Levels Analysis
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Current stock vs reorder levels
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 w-full">
+                <div className="h-48 sm:h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={stockAnalysisData}
-                      margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+                      margin={{ 
+                        top: 5, 
+                        right: isMobile ? 5 : 10, 
+                        left: isMobile ? 5 : 10, 
+                        bottom: 5 
+                      }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: isMobile ? 8 : 10 }}
+                        interval={isMobile ? 'preserveStartEnd' : 0}
+                      />
+                      <YAxis tick={{ fontSize: isMobile ? 8 : 10 }} />
                       <RechartsTooltip
                         contentStyle={{
                           backgroundColor: "white",
                           border: "1px solid #e2e8f0",
                           borderRadius: "8px",
                           boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                          fontSize: isMobile ? "12px" : "14px",
                         }}
                       />
                       <Bar
@@ -1156,16 +1173,16 @@ const ProductionCalculator: React.FC = () => {
             {/* Category Distribution */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                   Inventory Value Distribution
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Stock value by material category
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 w-full">
+                <div className="h-48 sm:h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -1173,10 +1190,10 @@ const ProductionCalculator: React.FC = () => {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percent }) =>
-                          `${name}: ${(percent * 100).toFixed(0)}%`
+                        label={!isMobile ? ({ name, percent }) =>
+                          `${name}: ${(percent * 100).toFixed(0)}%` : false
                         }
-                        outerRadius={80}
+                        outerRadius={isMobile ? 60 : 80}
                         fill="#8884d8"
                         dataKey="value"
                       >
@@ -1197,6 +1214,7 @@ const ProductionCalculator: React.FC = () => {
                           border: "1px solid #e2e8f0",
                           borderRadius: "8px",
                           boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                          fontSize: isMobile ? "12px" : "14px",
                         }}
                       />
                     </PieChart>

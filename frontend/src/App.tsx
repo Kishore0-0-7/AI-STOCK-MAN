@@ -45,7 +45,10 @@ const App = () => (
             />
             <Route path="stock-out" element={<StockOutManagement />} />
             {/* <Route path="billing" element={<Billing />} /> */}
-            <Route path="purchase-orders" element={<PurchaseOrders />} />
+            <Route
+              path="purchase-orders"
+              element={<PurchaseOrders />}
+            />
             {/* <Route path="customer-orders" element={<CustomerOrders />} /> */}
             {/* <Route path="scan-bills" element={<ScanBills />} /> */}
             {/* <Route path="sales-reports" element={<SalesReports />} /> */}
