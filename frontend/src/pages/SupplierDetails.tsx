@@ -13,7 +13,7 @@ import {
   Box,
 } from "lucide-react";
 
-import type { Supplier, SupplierDetails } from "@/types/supplier";
+import type { SupplierDetails } from "@/types/supplier";
 import { dummySuppliers } from "./Suppliers";
 
 // Extended dummy data for the selected supplier
@@ -26,6 +26,7 @@ const getDummySupplierDetails = (id: string): SupplierDetails | null => {
     email: "contact@example.com",
     phone: "+1 234-567-8900",
     address: "123 Business Street, Industry Park, City, Country",
+    contact_person: "John Doe",
     contract: {
       startDate: "2023-01-01",
       endDate: "2024-12-31",
