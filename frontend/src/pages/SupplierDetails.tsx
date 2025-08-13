@@ -196,7 +196,7 @@ export default function SupplierDetails() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-medium">${purchase.amount.toLocaleString()}</div>
+                <div className="font-medium">₹{purchase.amount.toLocaleString('en-IN')}</div>
                 <div className="text-sm">
                   <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                     purchase.status === "completed"
@@ -230,7 +230,7 @@ export default function SupplierDetails() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-medium">${order.amount.toLocaleString()}</div>
+                <div className="font-medium">₹{order.amount.toLocaleString('en-IN')}</div>
                 <div className="text-sm">
                   <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                     order.status === "completed"
