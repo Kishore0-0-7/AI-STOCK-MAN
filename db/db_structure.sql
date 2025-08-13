@@ -190,26 +190,26 @@ CREATE TABLE `customers` (
 DROP TABLE IF EXISTS `products`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `products` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `sku` varchar(100) NOT NULL,
-  `name` varchar(255) NOT NULL,
-  `description` text,
-  `category` varchar(100) NOT NULL,
-  `price` decimal(10,2) NOT NULL,
-  `cost` decimal(10,2) NOT NULL,
-  `stock_quantity` int DEFAULT '0',
-  `min_stock_level` int DEFAULT '10',
-  `supplier_id` int DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_sku` (`sku`),
-  KEY `idx_category` (`category`),
-  KEY `idx_stock` (`stock_quantity`),
-  KEY `idx_supplier` (`supplier_id`),
-  CONSTRAINT `products_ibfk_1` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  CREATE TABLE `products` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `sku` varchar(100) NOT NULL,
+    `name` varchar(255) NOT NULL,
+    `description` text,
+    `category` varchar(100) NOT NULL,
+    `price` decimal(10,2) NOT NULL,
+    `cost` decimal(10,2) NOT NULL,
+    `stock_quantity` int DEFAULT '0',
+    `min_stock_level` int DEFAULT '10',
+    `supplier_id` int DEFAULT NULL,
+    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `unique_sku` (`sku`),
+    KEY `idx_category` (`category`),
+    KEY `idx_stock` (`stock_quantity`),
+    KEY `idx_supplier` (`supplier_id`),
+    CONSTRAINT `products_ibfk_1` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE SET NULL
+  ) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
