@@ -56,6 +56,14 @@ export const dummySuppliers: Supplier[] = [
     currentOrders: 2,
     status: "active",
   },
+  {
+    id: "5",
+    name: "Health Supplies Ltd",
+    category: "Healthcare",
+    products: ["Medical Equipment", "Pharmaceuticals", "Personal Care"],
+    currentOrders: 4,
+    status: "active",
+  }
 ];
 
 export default function Suppliers() {
