@@ -48,15 +48,7 @@ if (process.env.NODE_ENV === "production") {
 // CORS configuration
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173", // Vite default
-      "http://localhost:8080", // Alternative frontend port
-      "http://localhost:3000", // React default
-      "http://localhost:4000", // Alternative port
-      "https://localhost",
-      "https://hackathon.artechnology.pro",
-      process.env.CORS_ORIGIN,
-    ].filter(Boolean),
+    origin: "*",
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
