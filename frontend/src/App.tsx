@@ -7,7 +7,7 @@ import { Layout } from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import PurchaseOrders from "./pages/PurchaseOrders";
-import SalesReports from "./pages/SalesReports";
+import SupplierDetails from "./pages/SupplierDetails";
 import StockSummary from "./pages/StockSummary";
 import LowStockAlerts from "./pages/LowStockAlerts";
 import Settings from "./pages/Settings";
@@ -34,6 +34,7 @@ const App = () => (
             {/* <Route path="customer-orders" element={<CustomerOrders />} /> */}
             {/* <Route path="scan-bills" element={<ScanBills />} /> */}
             {/* <Route path="sales-reports" element={<SalesReports />} /> */}
+            <Route path="/suppliers/:id" element={<SupplierDetails />} />
             <Route path="stock-summary" element={<StockSummary />} />
             <Route path="low-stock-alerts" element={<LowStockAlerts />} />
             <Route path="suppliers" element={<Suppliers />} />

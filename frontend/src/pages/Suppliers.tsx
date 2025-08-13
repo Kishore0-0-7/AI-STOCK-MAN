@@ -20,19 +20,10 @@ import {
 } from "@/components/ui/table";
 import { Eye, Filter } from "lucide-react";
 
-// Define supplier data structure
-interface Supplier {
-  id: string;
-  name: string;
-  category?: string;
-  products?: string[];
-  currentOrders?: number;
-  contact_person?: string;
-  status?: "active" | "inactive";
-}
+import { Supplier } from "@/types/supplier";
 
 // Sample suppliers data for demonstration
-const dummySuppliers: Supplier[] = [
+export const dummySuppliers: Supplier[] = [
   {
     id: "1",
     name: "Tech Components Ltd",
