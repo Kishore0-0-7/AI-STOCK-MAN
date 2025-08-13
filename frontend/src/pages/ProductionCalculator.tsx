@@ -1,4 +1,14 @@
 import React, { useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useToast } from "@/hooks/use-toast";
+import {
+  productionCalculatorAPI,
+  type RawMaterial,
+  type ProductRecipe,
+  type ProductionCalculation,
+  type ProductionBatch,
+  type InventoryAnalytics,
+} from "@/services/api";
 import {
   Card,
   CardContent,
@@ -53,47 +63,13 @@ import {
   Cell,
 } from "recharts";
 
-// Types for our production calculator
-interface RawMaterial {
-  id: string;
-  name: string;
-  currentStock: number;
-  unit: string;
-  costPerUnit: number;
-  reorderLevel: number;
-  supplier: string;
-  category: string;
-  lastUpdated: string;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  estimatedTime: number; // in hours
-  complexity: "Low" | "Medium" | "High";
-  materials: MaterialRequirement[];
-}
-
+// Types for our production calculator - using MaterialRequirement from API
 interface MaterialRequirement {
   materialId: string;
   materialName: string;
   requiredQuantity: number;
   unit: string;
   wastagePercent: number;
-}
-
-interface ProductionCalculation {
-  productId: string;
-  productName: string;
-  requestedQuantity: number;
-  possibleQuantity: number;
-  totalCost: number;
-  estimatedTime: number;
-  materialBreakdown: MaterialBreakdown[];
-  feasible: boolean;
-  bottlenecks: string[];
 }
 
 interface MaterialBreakdown {
@@ -106,23 +82,15 @@ interface MaterialBreakdown {
   unit: string;
 }
 
-interface ProductionBatch {
-  id: string;
-  productName: string;
-  quantity: number;
-  status: "Planned" | "In Progress" | "Completed" | "On Hold";
-  startDate: string;
-  estimatedCompletion: string;
-  progress: number;
-  materials: MaterialBreakdown[];
-}
-
 const ProductionCalculator: React.FC = () => {
+  const isMobile = useIsMobile();
+
   // State management
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductRecipe[]>([]);
   const [calculations, setCalculations] = useState<ProductionCalculation[]>([]);
   const [productionBatches, setBatches] = useState<ProductionBatch[]>([]);
+  const [analytics, setAnalytics] = useState<InventoryAnalytics | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<string>("");
   const [requestedQuantity, setRequestedQuantity] = useState<number>(1);
   const [loading, setLoading] = useState({
@@ -131,6 +99,7 @@ const ProductionCalculator: React.FC = () => {
     calculating: false,
   });
   const [activeTab, setActiveTab] = useState<string>("calculator");
+  const { toast } = useToast();
 
   // Colors for charts
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
@@ -139,68 +108,15 @@ const ProductionCalculator: React.FC = () => {
   const fetchRawMaterials = async () => {
     setLoading((prev) => ({ ...prev, materials: true }));
     try {
-      // Simulate API call with mock data
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const mockMaterials: RawMaterial[] = [
-        {
-          id: "steel_rod",
-          name: "Steel Rod",
-          currentStock: 50,
-          unit: "kg",
-          costPerUnit: 85,
-          reorderLevel: 20,
-          supplier: "MetalCorp",
-          category: "Metal",
-          lastUpdated: new Date().toISOString(),
-        },
-        {
-          id: "cement_bag",
-          name: "Cement Bag",
-          currentStock: 30,
-          unit: "bags",
-          costPerUnit: 450,
-          reorderLevel: 15,
-          supplier: "CementCo",
-          category: "Building Material",
-          lastUpdated: new Date().toISOString(),
-        },
-        {
-          id: "sand",
-          name: "Sand",
-          currentStock: 200,
-          unit: "cubic ft",
-          costPerUnit: 25,
-          reorderLevel: 50,
-          supplier: "SandSupply",
-          category: "Aggregate",
-          lastUpdated: new Date().toISOString(),
-        },
-        {
-          id: "gravel",
-          name: "Gravel",
-          currentStock: 150,
-          unit: "cubic ft",
-          costPerUnit: 35,
-          reorderLevel: 40,
-          supplier: "StoneWorks",
-          category: "Aggregate",
-          lastUpdated: new Date().toISOString(),
-        },
-        {
-          id: "iron_powder",
-          name: "Iron Powder",
-          currentStock: 25,
-          unit: "kg",
-          costPerUnit: 120,
-          reorderLevel: 10,
-          supplier: "IronWorks Ltd",
-          category: "Metal",
-          lastUpdated: new Date().toISOString(),
-        },
-      ];
-      setRawMaterials(mockMaterials);
+      const response = await productionCalculatorAPI.getRawMaterials();
+      setRawMaterials(response);
     } catch (error) {
       console.error("Error fetching raw materials:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch raw materials",
+        variant: "destructive",
+      });
     } finally {
       setLoading((prev) => ({ ...prev, materials: false }));
     }
@@ -209,130 +125,15 @@ const ProductionCalculator: React.FC = () => {
   const fetchProducts = async () => {
     setLoading((prev) => ({ ...prev, products: true }));
     try {
-      // Simulate API call with mock data
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      const mockProducts: Product[] = [
-        {
-          id: "concrete_block",
-          name: "Concrete Block",
-          category: "Building Material",
-          description: "Standard concrete block for construction",
-          estimatedTime: 2,
-          complexity: "Low",
-          materials: [
-            {
-              materialId: "cement_bag",
-              materialName: "Cement Bag",
-              requiredQuantity: 0.5,
-              unit: "bags",
-              wastagePercent: 5,
-            },
-            {
-              materialId: "sand",
-              materialName: "Sand",
-              requiredQuantity: 10,
-              unit: "cubic ft",
-              wastagePercent: 3,
-            },
-            {
-              materialId: "gravel",
-              materialName: "Gravel",
-              requiredQuantity: 8,
-              unit: "cubic ft",
-              wastagePercent: 2,
-            },
-          ],
-        },
-        {
-          id: "steel_beam",
-          name: "Steel Beam",
-          category: "Structural",
-          description: "Reinforced steel beam for construction",
-          estimatedTime: 4,
-          complexity: "High",
-          materials: [
-            {
-              materialId: "steel_rod",
-              materialName: "Steel Rod",
-              requiredQuantity: 15,
-              unit: "kg",
-              wastagePercent: 8,
-            },
-            {
-              materialId: "iron_powder",
-              materialName: "Iron Powder",
-              requiredQuantity: 2,
-              unit: "kg",
-              wastagePercent: 10,
-            },
-          ],
-        },
-        {
-          id: "casting_mold",
-          name: "Casting Mold",
-          category: "Tools",
-          description: "Metal casting mold for manufacturing",
-          estimatedTime: 6,
-          complexity: "Medium",
-          materials: [
-            {
-              materialId: "steel_rod",
-              materialName: "Steel Rod",
-              requiredQuantity: 8,
-              unit: "kg",
-              wastagePercent: 5,
-            },
-            {
-              materialId: "sand",
-              materialName: "Sand",
-              requiredQuantity: 15,
-              unit: "cubic ft",
-              wastagePercent: 4,
-            },
-          ],
-        },
-        {
-          id: "foundation_slab",
-          name: "Foundation Slab",
-          category: "Foundation",
-          description: "Pre-cast foundation slab",
-          estimatedTime: 8,
-          complexity: "High",
-          materials: [
-            {
-              materialId: "cement_bag",
-              materialName: "Cement Bag",
-              requiredQuantity: 2,
-              unit: "bags",
-              wastagePercent: 3,
-            },
-            {
-              materialId: "steel_rod",
-              materialName: "Steel Rod",
-              requiredQuantity: 20,
-              unit: "kg",
-              wastagePercent: 7,
-            },
-            {
-              materialId: "sand",
-              materialName: "Sand",
-              requiredQuantity: 25,
-              unit: "cubic ft",
-              wastagePercent: 2,
-            },
-            {
-              materialId: "gravel",
-              materialName: "Gravel",
-              requiredQuantity: 30,
-              unit: "cubic ft",
-              wastagePercent: 3,
-            },
-          ],
-        },
-      ];
-      setProducts(mockProducts);
+      const response = await productionCalculatorAPI.getProducts();
+      setProducts(response);
     } catch (error) {
       console.error("Error fetching products:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch products",
+        variant: "destructive",
+      });
     } finally {
       setLoading((prev) => ({ ...prev, products: false }));
     }
@@ -340,60 +141,29 @@ const ProductionCalculator: React.FC = () => {
 
   const fetchProductionBatches = async () => {
     try {
-      const mockBatches: ProductionBatch[] = [
-        {
-          id: "batch_001",
-          productName: "Concrete Block",
-          quantity: 50,
-          status: "In Progress",
-          startDate: "2025-08-10",
-          estimatedCompletion: "2025-08-15",
-          progress: 65,
-          materials: [
-            {
-              materialId: "cement_bag",
-              materialName: "Cement Bag",
-              required: 25,
-              available: 30,
-              shortage: 0,
-              cost: 11250,
-              unit: "bags",
-            },
-            {
-              materialId: "sand",
-              materialName: "Sand",
-              required: 500,
-              available: 200,
-              shortage: 300,
-              cost: 12500,
-              unit: "cubic ft",
-            },
-          ],
-        },
-        {
-          id: "batch_002",
-          productName: "Steel Beam",
-          quantity: 10,
-          status: "Planned",
-          startDate: "2025-08-16",
-          estimatedCompletion: "2025-08-20",
-          progress: 0,
-          materials: [
-            {
-              materialId: "steel_rod",
-              materialName: "Steel Rod",
-              required: 150,
-              available: 50,
-              shortage: 100,
-              cost: 12750,
-              unit: "kg",
-            },
-          ],
-        },
-      ];
-      setBatches(mockBatches);
+      const response = await productionCalculatorAPI.getProductionBatches();
+      setBatches(response);
     } catch (error) {
       console.error("Error fetching production batches:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch production batches",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    try {
+      const response = await productionCalculatorAPI.getInventoryAnalytics();
+      setAnalytics(response);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch analytics data",
+        variant: "destructive",
+      });
     }
   };
 
@@ -403,69 +173,27 @@ const ProductionCalculator: React.FC = () => {
 
     setLoading((prev) => ({ ...prev, calculating: true }));
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await productionCalculatorAPI.calculateProduction(
+        selectedProduct,
+        requestedQuantity
+      );
 
-      const product = products.find((p) => p.id === selectedProduct);
-      if (!product) return;
+      setCalculations((prev) => [response, ...prev.slice(0, 4)]);
 
-      const materialBreakdown: MaterialBreakdown[] = [];
-      const bottlenecks: string[] = [];
-      let totalCost = 0;
-      let possibleQuantity = requestedQuantity;
-
-      for (const requirement of product.materials) {
-        const material = rawMaterials.find(
-          (m) => m.id === requirement.materialId
-        );
-        if (!material) continue;
-
-        const requiredWithWastage =
-          requirement.requiredQuantity * (1 + requirement.wastagePercent / 100);
-        const totalRequired = requiredWithWastage * requestedQuantity;
-        const shortage = Math.max(0, totalRequired - material.currentStock);
-        const availableForProduction = Math.floor(
-          material.currentStock / requiredWithWastage
-        );
-
-        if (availableForProduction < requestedQuantity) {
-          possibleQuantity = Math.min(possibleQuantity, availableForProduction);
-          bottlenecks.push(
-            `${material.name} (Available: ${material.currentStock} ${
-              material.unit
-            }, Required: ${totalRequired.toFixed(2)} ${material.unit})`
-          );
-        }
-
-        const costForPossible =
-          requiredWithWastage * possibleQuantity * material.costPerUnit;
-        totalCost += costForPossible;
-
-        materialBreakdown.push({
-          materialId: material.id,
-          materialName: material.name,
-          required: totalRequired,
-          available: material.currentStock,
-          shortage,
-          cost: costForPossible,
-          unit: material.unit,
-        });
-      }
-
-      const calculation: ProductionCalculation = {
-        productId: product.id,
-        productName: product.name,
-        requestedQuantity,
-        possibleQuantity,
-        totalCost,
-        estimatedTime: product.estimatedTime * possibleQuantity,
-        materialBreakdown,
-        feasible: possibleQuantity === requestedQuantity,
-        bottlenecks,
-      };
-
-      setCalculations((prev) => [calculation, ...prev.slice(0, 4)]);
+      toast({
+        title: "Calculation Complete",
+        description: response.feasible
+          ? `Production is feasible! Cost: ₹${response.totalCost.toFixed(2)}`
+          : "Production has constraints. Check material requirements.",
+        variant: response.feasible ? "default" : "destructive",
+      });
     } catch (error) {
       console.error("Error calculating production:", error);
+      toast({
+        title: "Error",
+        description: "Failed to calculate production requirements",
+        variant: "destructive",
+      });
     } finally {
       setLoading((prev) => ({ ...prev, calculating: false }));
     }
@@ -524,188 +252,207 @@ const ProductionCalculator: React.FC = () => {
     fetchRawMaterials();
     fetchProducts();
     fetchProductionBatches();
+    fetchAnalytics();
   }, []);
 
   // Chart data preparation
-  const stockAnalysisData = rawMaterials.map((material) => ({
-    name: material.name.split(" ")[0],
-    current: material.currentStock,
-    reorder: material.reorderLevel,
-    cost: material.costPerUnit,
-  }));
-
-  const categoryDistribution = rawMaterials.reduce((acc, material) => {
-    const existing = acc.find((item) => item.name === material.category);
-    if (existing) {
-      existing.value += material.currentStock * material.costPerUnit;
-    } else {
-      acc.push({
-        name: material.category,
-        value: material.currentStock * material.costPerUnit,
-      });
-    }
-    return acc;
-  }, [] as { name: string; value: number }[]);
+  const stockAnalysisData = analytics?.stockAnalysis || [];
+  const categoryDistribution = analytics?.categoryDistribution || [];
 
   return (
-    <div className="container mx-auto p-4 space-y-6 max-w-7xl">
+    <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-gradient-to-br from-background to-muted/20 min-h-screen max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Calculator className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4">
+        <div className="w-full lg:w-auto">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+              <Calculator className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-blue-600" />
             </div>
-            <span className="truncate">Production Calculator</span>
+            <span className="break-words leading-tight">
+              Production Calculator
+            </span>
           </h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-2">
+          <p className="text-sm lg:text-base text-muted-foreground mt-1">
             Calculate raw material requirements and production feasibility
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button
-            onClick={fetchRawMaterials}
+            onClick={() => {
+              fetchRawMaterials();
+              fetchProducts();
+              fetchProductionBatches();
+              fetchAnalytics();
+            }}
             variant="outline"
             size="sm"
-            className="gap-2"
+            className="gap-2 flex-1 sm:flex-initial"
           >
-            <RefreshCw className="h-4 w-4" />
-            <span className="hidden sm:inline">Refresh</span>
+            <RefreshCw className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden xs:inline">Refresh</span>
           </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Export</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 flex-1 sm:flex-initial"
+          >
+            <Download className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden xs:inline">Export</span>
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <Package className="h-4 w-4 text-blue-600" />
-              Raw Materials
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {rawMaterials.length}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="hover:shadow-md transition-shadow duration-200 p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <Package className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
+                <span className="hidden xs:inline">Raw Materials</span>
+                <span className="xs:hidden">Materials</span>
+              </p>
+              <div className="text-lg sm:text-2xl font-bold">
+                {rawMaterials.length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {
+                  rawMaterials.filter((m) => m.currentStock <= m.reorderLevel)
+                    .length
+                }{" "}
+                <span className="hidden sm:inline">low stock</span>
+                <span className="sm:hidden">low</span>
+              </p>
             </div>
-            <p className="text-xs text-gray-500">
-              {
-                rawMaterials.filter((m) => m.currentStock <= m.reorderLevel)
-                  .length
-              }{" "}
-              low stock
-            </p>
-          </CardContent>
+            <Package className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0 opacity-60" />
+          </div>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <Factory className="h-4 w-4 text-green-600" />
-              Products
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {products.length}
+        <Card className="hover:shadow-md transition-shadow duration-200 p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <Factory className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
+                <span className="hidden xs:inline">Products</span>
+                <span className="xs:hidden">Products</span>
+              </p>
+              <div className="text-lg sm:text-2xl font-bold">
+                {products.length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <span className="hidden sm:inline">available designs</span>
+                <span className="sm:hidden">designs</span>
+              </p>
             </div>
-            <p className="text-xs text-gray-500">Available for production</p>
-          </CardContent>
+            <Factory className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 flex-shrink-0 opacity-60" />
+          </div>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <IndianRupee className="h-4 w-4 text-orange-600" />
-              Total Stock Value
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {formatCurrency(
-                rawMaterials.reduce(
-                  (sum, m) => sum + m.currentStock * m.costPerUnit,
-                  0
-                )
-              )}
+        <Card className="hover:shadow-md transition-shadow duration-200 p-4 sm:p-6 col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600 flex-shrink-0" />
+                <span className="hidden xs:inline">Calculations</span>
+                <span className="xs:hidden">Calcs</span>
+              </p>
+              <div className="text-lg sm:text-2xl font-bold">
+                {calculations.length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <span className="hidden sm:inline">completed</span>
+                <span className="sm:hidden">done</span>
+              </p>
             </div>
-            <p className="text-xs text-gray-500">Current inventory</p>
-          </CardContent>
+            <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 flex-shrink-0 opacity-60" />
+          </div>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <Zap className="h-4 w-4 text-purple-600" />
-              Active Batches
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {
-                productionBatches.filter((b) => b.status === "In Progress")
-                  .length
-              }
+        <Card className="hover:shadow-md transition-shadow duration-200 p-4 sm:p-6 col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <Zap className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600 flex-shrink-0" />
+                <span className="hidden xs:inline">Active Batches</span>
+                <span className="xs:hidden">Batches</span>
+              </p>
+              <div className="text-lg sm:text-2xl font-bold">
+                {
+                  productionBatches.filter((b) => b.status === "In Progress")
+                    .length
+                }
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <span className="hidden sm:inline">in production</span>
+                <span className="sm:hidden">active</span>
+              </p>
             </div>
-            <p className="text-xs text-gray-500">
-              {productionBatches.filter((b) => b.status === "Planned").length}{" "}
-              planned
-            </p>
-          </CardContent>
+            <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 flex-shrink-0 opacity-60" />
+          </div>
         </Card>
       </div>
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
-          <TabsTrigger value="calculator" className="text-xs sm:text-sm">
-            <Calculator className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Calculator</span>
-            <span className="sm:hidden">Calc</span>
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 mb-4">
+          <TabsTrigger
+            value="calculator"
+            className="text-xs sm:text-sm px-2 py-2"
+          >
+            <Calculator className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+            <span className="hidden xs:inline">Calculator</span>
+            <span className="xs:hidden">Calc</span>
           </TabsTrigger>
-          <TabsTrigger value="materials" className="text-xs sm:text-sm">
-            <Package className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Materials</span>
-            <span className="sm:hidden">Stock</span>
+          <TabsTrigger
+            value="materials"
+            className="text-xs sm:text-sm px-2 py-2"
+          >
+            <Package className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+            <span className="hidden xs:inline">Materials</span>
+            <span className="xs:hidden">Mat</span>
           </TabsTrigger>
-          <TabsTrigger value="batches" className="text-xs sm:text-sm">
-            <Factory className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Batches</span>
-            <span className="sm:hidden">Jobs</span>
+          <TabsTrigger value="batches" className="text-xs sm:text-sm px-2 py-2">
+            <Factory className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+            <span className="hidden xs:inline">Batches</span>
+            <span className="xs:hidden">Batch</span>
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs sm:text-sm">
-            <BarChart3 className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Analytics</span>
-            <span className="sm:hidden">Stats</span>
+          <TabsTrigger
+            value="analytics"
+            className="text-xs sm:text-sm px-2 py-2"
+          >
+            <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+            <span className="hidden xs:inline">Analytics</span>
+            <span className="xs:hidden">Stats</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Production Calculator Tab */}
-        <TabsContent value="calculator" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <TabsContent value="calculator" className="space-y-4 sm:space-y-6">
+          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Input Section */}
-            <Card className="lg:col-span-1">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="h-5 w-5 text-blue-600" />
-                  Production Setup
+            <Card className="w-full lg:col-span-1">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Wrench className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+                  <span>Production Setup</span>
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Configure your production requirements
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="product-select">Select Product</Label>
+                  <Label
+                    htmlFor="product-select"
+                    className="text-sm font-medium"
+                  >
+                    Select Product
+                  </Label>
                   <Select
                     value={selectedProduct}
                     onValueChange={setSelectedProduct}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Choose a product" />
                     </SelectTrigger>
                     <SelectContent>
@@ -815,7 +562,7 @@ const ProductionCalculator: React.FC = () => {
             </Card>
 
             {/* Results Section */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="w-full lg:col-span-2 space-y-4">
               {calculations.length > 0 ? (
                 calculations.map((calc, index) => (
                   <Card key={index} className="w-full">
@@ -1104,35 +851,45 @@ const ProductionCalculator: React.FC = () => {
         </TabsContent>
 
         {/* Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="analytics" className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6">
             {/* Stock Levels Chart */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-blue-600" />
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                   Stock Levels Analysis
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Current stock vs reorder levels
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 w-full">
+                <div className="h-48 sm:h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={stockAnalysisData}
-                      margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+                      margin={{
+                        top: 5,
+                        right: isMobile ? 5 : 10,
+                        left: isMobile ? 5 : 10,
+                        bottom: 5,
+                      }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: isMobile ? 8 : 10 }}
+                        interval={isMobile ? "preserveStartEnd" : 0}
+                      />
+                      <YAxis tick={{ fontSize: isMobile ? 8 : 10 }} />
                       <RechartsTooltip
                         contentStyle={{
                           backgroundColor: "white",
                           border: "1px solid #e2e8f0",
                           borderRadius: "8px",
                           boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                          fontSize: isMobile ? "12px" : "14px",
                         }}
                       />
                       <Bar
@@ -1156,16 +913,16 @@ const ProductionCalculator: React.FC = () => {
             {/* Category Distribution */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                   Inventory Value Distribution
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm">
                   Stock value by material category
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 w-full">
+                <div className="h-48 sm:h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -1173,10 +930,13 @@ const ProductionCalculator: React.FC = () => {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percent }) =>
-                          `${name}: ${(percent * 100).toFixed(0)}%`
+                        label={
+                          !isMobile
+                            ? ({ name, percent }) =>
+                                `${name}: ${(percent * 100).toFixed(0)}%`
+                            : false
                         }
-                        outerRadius={80}
+                        outerRadius={isMobile ? 60 : 80}
                         fill="#8884d8"
                         dataKey="value"
                       >
@@ -1197,6 +957,7 @@ const ProductionCalculator: React.FC = () => {
                           border: "1px solid #e2e8f0",
                           borderRadius: "8px",
                           boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                          fontSize: isMobile ? "12px" : "14px",
                         }}
                       />
                     </PieChart>
@@ -1217,10 +978,7 @@ const ProductionCalculator: React.FC = () => {
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">
                     {formatCurrency(
-                      rawMaterials.reduce(
-                        (sum, m) => sum + m.currentStock * m.costPerUnit,
-                        0
-                      )
+                      analytics?.summary.totalInventoryValue || 0
                     )}
                   </div>
                   <div className="text-sm text-blue-700">
@@ -1229,21 +987,13 @@ const ProductionCalculator: React.FC = () => {
                 </div>
                 <div className="text-center p-4 bg-red-50 rounded-lg">
                   <div className="text-2xl font-bold text-red-600">
-                    {
-                      rawMaterials.filter(
-                        (m) => m.currentStock <= m.reorderLevel
-                      ).length
-                    }
+                    {analytics?.summary.lowStockCount || 0}
                   </div>
                   <div className="text-sm text-red-700">Low Stock Items</div>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">
-                    {
-                      rawMaterials.filter(
-                        (m) => m.currentStock > m.reorderLevel * 2
-                      ).length
-                    }
+                    {analytics?.summary.wellStockedCount || 0}
                   </div>
                   <div className="text-sm text-green-700">
                     Well Stocked Items
@@ -1251,25 +1001,7 @@ const ProductionCalculator: React.FC = () => {
                 </div>
                 <div className="text-center p-4 bg-orange-50 rounded-lg">
                   <div className="text-2xl font-bold text-orange-600">
-                    {formatCurrency(
-                      rawMaterials
-                        .reduce(
-                          (sum, m) =>
-                            sum +
-                            (m.reorderLevel - m.currentStock) * m.costPerUnit,
-                          0
-                        )
-                        .toString()
-                        .includes("-")
-                        ? 0
-                        : rawMaterials.reduce(
-                            (sum, m) =>
-                              sum +
-                              Math.max(0, m.reorderLevel - m.currentStock) *
-                                m.costPerUnit,
-                            0
-                          )
-                    )}
+                    {formatCurrency(analytics?.summary.restockInvestment || 0)}
                   </div>
                   <div className="text-sm text-orange-700">
                     Restock Investment

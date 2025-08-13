@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -18,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -31,7 +34,19 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Search,
@@ -47,544 +62,532 @@ import {
   DollarSign,
   RefreshCw,
   ChevronDown,
-  FileImage,
+  MoreVertical,
+  Eye,
+  TrendingUp,
+  TrendingDown,
+  Filter,
+  ArrowUpDown,
+  Package2,
+  ShoppingCart,
+  Barcode,
+  Building2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { productsAPI, suppliersAPI, Product, Supplier } from "@/services/api";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 
 interface ProductWithSupplier extends Product {
   supplier_name?: string;
+  stock_status?: "good" | "low" | "out";
+  value?: number;
 }
 
-// Export functions
-function exportProductsToCSV(products: ProductWithSupplier[]) {
-  const headers = [
-    "ID",
-    "SKU",
-    "Name",
-    "Category",
-    "Current Stock",
-    "Price",
-    "Cost",
-    "Low Stock Threshold",
-    "Supplier",
-    "Stock Status",
-    "Created Date",
-  ];
+// Sample product data for demonstration
+const sampleProducts: ProductWithSupplier[] = [
+  {
+    id: "1",
+    name: "Iron Casting Blocks - Grade A",
+    category: "Iron Castings",
+    sku: "ICB-GA-001",
+    price: 15000,
+    cost: 12000,
+    current_stock: 150,
+    low_stock_threshold: 50,
+    supplier_id: "supplier-1",
+    supplier_name: "SteelWorks Industries",
+    stock_status: "good",
+    value: 1800000,
+    description:
+      "High-grade iron casting blocks for heavy machinery components",
+    unit: "kg",
+  },
+  {
+    id: "2",
+    name: "Aluminum Alloy Bars - 6061",
+    category: "Aluminum Castings",
+    sku: "AAB-6061-001",
+    price: 450,
+    cost: 380,
+    current_stock: 80,
+    low_stock_threshold: 100,
+    supplier_id: "supplier-2",
+    supplier_name: "MetalCraft Co",
+    stock_status: "low",
+    value: 36000,
+    description: "6061-T6 aluminum alloy bars for precision casting",
+    unit: "kg",
+  },
+  {
+    id: "3",
+    name: "Bronze Ingots - Phosphor Bronze",
+    category: "Bronze Castings",
+    sku: "BI-PB-001",
+    price: 850,
+    cost: 720,
+    current_stock: 200,
+    low_stock_threshold: 80,
+    supplier_id: "supplier-3",
+    supplier_name: "Bronze Masters Ltd",
+    stock_status: "good",
+    value: 170000,
+    description: "High-quality phosphor bronze ingots for marine applications",
+    unit: "kg",
+  },
+  {
+    id: "4",
+    name: "Steel Billets - Carbon Steel",
+    category: "Steel Castings",
+    sku: "SB-CS-001",
+    price: 65,
+    cost: 55,
+    current_stock: 0,
+    low_stock_threshold: 500,
+    supplier_id: "supplier-4",
+    supplier_name: "Carbon Steel Works",
+    stock_status: "out",
+    value: 0,
+    description: "Carbon steel billets for structural casting applications",
+    unit: "kg",
+  },
+  {
+    id: "5",
+    name: "Brass Rods - Naval Brass",
+    category: "Brass Castings",
+    sku: "BR-NB-001",
+    price: 720,
+    cost: 600,
+    current_stock: 120,
+    low_stock_threshold: 60,
+    supplier_id: "supplier-5",
+    supplier_name: "Naval Brass Co",
+    stock_status: "good",
+    value: 86400,
+    description: "Corrosion-resistant naval brass rods for marine fittings",
+    unit: "kg",
+  },
+  {
+    id: "6",
+    name: "Cast Iron Pipes - Ductile",
+    category: "Cast Iron",
+    sku: "CIP-DI-001",
+    price: 180,
+    cost: 150,
+    current_stock: 300,
+    low_stock_threshold: 150,
+    supplier_id: "supplier-1",
+    supplier_name: "SteelWorks Industries",
+    stock_status: "good",
+    value: 54000,
+    description: "Ductile cast iron pipes for water infrastructure",
+    unit: "meters",
+  },
+  {
+    id: "7",
+    name: "Stainless Steel Sheets - 304 Grade",
+    category: "Stainless Steel",
+    sku: "SS-304-001",
+    price: 450,
+    cost: 380,
+    current_stock: 85,
+    low_stock_threshold: 100,
+    supplier_id: "supplier-2",
+    supplier_name: "MetalCraft Co",
+    stock_status: "low",
+    value: 38250,
+    description: "High-grade 304 stainless steel sheets for food industry",
+    unit: "sheets",
+  },
+  {
+    id: "8",
+    name: "Copper Wire Rods - Electrolytic",
+    category: "Copper Castings",
+    sku: "CWR-EL-001",
+    price: 890,
+    cost: 750,
+    current_stock: 45,
+    low_stock_threshold: 50,
+    supplier_id: "supplier-3",
+    supplier_name: "Bronze Masters Ltd",
+    stock_status: "low",
+    value: 40050,
+    description: "High conductivity electrolytic copper wire rods",
+    unit: "kg",
+  },
+  {
+    id: "9",
+    name: "Titanium Alloy Bars - Grade 5",
+    category: "Titanium Castings",
+    sku: "TAB-G5-001",
+    price: 15000,
+    cost: 12500,
+    current_stock: 25,
+    low_stock_threshold: 20,
+    supplier_id: "supplier-2",
+    supplier_name: "MetalCraft Co",
+    stock_status: "good",
+    value: 375000,
+    description: "Grade 5 titanium alloy bars for aerospace applications",
+    unit: "bars",
+  },
+  {
+    id: "10",
+    name: "Lead Ingots - Pure Lead",
+    category: "Lead Castings",
+    sku: "LI-PL-001",
+    price: 220,
+    cost: 190,
+    current_stock: 180,
+    low_stock_threshold: 100,
+    supplier_id: "supplier-4",
+    supplier_name: "Carbon Steel Works",
+    stock_status: "good",
+    value: 39600,
+    description: "Pure lead ingots for radiation shielding applications",
+    unit: "kg",
+  },
+  {
+    id: "11",
+    name: "Zinc Die Casting Alloy",
+    category: "Zinc Castings",
+    sku: "ZDC-AL-001",
+    price: 350,
+    cost: 290,
+    current_stock: 0,
+    low_stock_threshold: 80,
+    supplier_id: "supplier-5",
+    supplier_name: "Naval Brass Co",
+    stock_status: "out",
+    value: 0,
+    description: "High-quality zinc die casting alloy for precision parts",
+    unit: "kg",
+  },
+  {
+    id: "12",
+    name: "Magnesium Alloy Blocks",
+    category: "Magnesium Castings",
+    sku: "MAB-MG-001",
+    price: 1200,
+    cost: 1000,
+    current_stock: 60,
+    low_stock_threshold: 40,
+    supplier_id: "supplier-1",
+    supplier_name: "SteelWorks Industries",
+    stock_status: "good",
+    value: 72000,
+    description: "Lightweight magnesium alloy blocks for automotive industry",
+    unit: "blocks",
+  },
+  {
+    id: "13",
+    name: "Nickel Alloy Pipes - Inconel 625",
+    category: "Nickel Alloys",
+    sku: "NAP-I625-001",
+    price: 8500,
+    cost: 7200,
+    current_stock: 15,
+    low_stock_threshold: 25,
+    supplier_id: "supplier-2",
+    supplier_name: "MetalCraft Co",
+    stock_status: "low",
+    value: 127500,
+    description:
+      "Inconel 625 nickel alloy pipes for high-temperature applications",
+    unit: "meters",
+  },
+  {
+    id: "14",
+    name: "Cobalt-Chrome Alloy Rods",
+    category: "Specialty Alloys",
+    sku: "CCA-CC-001",
+    price: 12000,
+    cost: 10200,
+    current_stock: 8,
+    low_stock_threshold: 15,
+    supplier_id: "supplier-3",
+    supplier_name: "Bronze Masters Ltd",
+    stock_status: "low",
+    value: 96000,
+    description: "Cobalt-chrome alloy rods for medical implants",
+    unit: "rods",
+  },
+  {
+    id: "15",
+    name: "Tool Steel Blocks - H13 Grade",
+    category: "Tool Steel",
+    sku: "TSB-H13-001",
+    price: 950,
+    cost: 800,
+    current_stock: 0,
+    low_stock_threshold: 30,
+    supplier_id: "supplier-4",
+    supplier_name: "Carbon Steel Works",
+    stock_status: "out",
+    value: 0,
+    description: "H13 tool steel blocks for die casting molds",
+    unit: "blocks",
+  },
+];
 
-  const rows = products.map((p) => [
-    p.id,
-    p.sku || "",
-    `"${p.name}"`,
-    `"${p.category}"`,
-    p.stock || p.current_stock || 0,
-    p.price || 0,
-    p.cost || 0,
-    p.minStock || p.low_stock_threshold || 0,
-    `"${p.supplier?.name || p.supplier_name || "N/A"}"`,
-    (p.stock || p.current_stock || 0) <=
-    (p.minStock || p.low_stock_threshold || 0)
-      ? "Low Stock"
-      : "In Stock",
-    p.createdAt || p.created_at || "",
-  ]);
+// const sampleSuppliers: Supplier[] = [
+//   { id: "supplier-1", name: "SteelWorks Industries", status: "active" },
+//   { id: "supplier-2", name: "MetalCraft Co", status: "active" },
+//   { id: "supplier-3", name: "Bronze Masters Ltd", status: "active" },
+//   { id: "supplier-4", name: "Carbon Steel Works", status: "active" },
+//   { id: "supplier-5", name: "Naval Brass Co", status: "active" },
+// ];
 
-  const csvContent = [headers, ...rows].map((e) => e.join(",")).join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.csv`);
-}
-
-function exportProductsToJSON(products: ProductWithSupplier[]) {
-  const exportData = products.map((p) => ({
-    id: p.id,
-    sku: p.sku,
-    name: p.name,
-    category: p.category,
-    stock: p.stock || p.current_stock || 0,
-    price: p.price || 0,
-    cost: p.cost || 0,
-    minStock: p.minStock || p.low_stock_threshold || 0,
-    supplier: p.supplier?.name || p.supplier_name,
-    status:
-      (p.stock || p.current_stock || 0) <=
-      (p.minStock || p.low_stock_threshold || 0)
-        ? "Low Stock"
-        : "In Stock",
-    createdAt: p.createdAt || p.created_at,
-  }));
-
-  const jsonContent = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([jsonContent], {
-    type: "application/json;charset=utf-8;",
-  });
-  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.json`);
-}
-
-function exportProductsToExcel(products: ProductWithSupplier[]) {
-  const headers = [
-    "ID",
-    "SKU",
-    "Name",
-    "Category",
-    "Stock",
-    "Price",
-    "Cost",
-    "Min Stock",
-    "Supplier",
-    "Status",
-  ];
-  const rows = products.map((p) => [
-    p.id,
-    p.sku || "",
-    p.name,
-    p.category,
-    p.stock || p.current_stock || 0,
-    p.price || 0,
-    p.cost || 0,
-    p.minStock || p.low_stock_threshold || 0,
-    p.supplier?.name || p.supplier_name || "N/A",
-    (p.stock || p.current_stock || 0) <=
-    (p.minStock || p.low_stock_threshold || 0)
-      ? "Low Stock"
-      : "In Stock",
-  ]);
-
-  // Simple Excel format (tab-separated values)
-  const excelContent = [headers, ...rows]
-    .map((row) => row.join("\t"))
-    .join("\n");
-  const blob = new Blob([excelContent], {
-    type: "application/vnd.ms-excel;charset=utf-8;",
-  });
-  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.xls`);
-}
-
-function downloadFile(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-// PDF Export function
-function exportProductsToPDF(products: ProductWithSupplier[]) {
-  // Create PDF content as HTML string
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { color: #2563eb; margin-bottom: 5px; }
-        .header p { color: #64748b; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
-        th { background-color: #f8fafc; font-weight: bold; }
-        tr:nth-child(even) { background-color: #f8fafc; }
-        .status-low { color: #dc2626; font-weight: bold; }
-        .status-ok { color: #16a34a; font-weight: bold; }
-        .footer { margin-top: 30px; text-align: center; color: #64748b; font-size: 10px; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>Products Inventory Report</h1>
-        <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-        <p>Total Products: ${products.length}</p>
-      </div>
-      
-      <table>
-        <thead>
-          <tr>
-            <th>SKU</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Stock</th>
-            <th>Price</th>
-            <th>Cost</th>
-            <th>Supplier</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${products
-            .map(
-              (p) => `
-            <tr>
-              <td>${p.sku || "N/A"}</td>
-              <td>${p.name}</td>
-              <td>${p.category}</td>
-              <td>${p.stock || p.current_stock || 0}</td>
-              <td>₹${(p.price || 0).toFixed(2)}</td>
-              <td>₹${(p.cost || 0).toFixed(2)}</td>
-              <td>${p.supplier?.name || p.supplier_name || "N/A"}</td>
-              <td class="${
-                (p.stock || p.current_stock || 0) <=
-                (p.minStock || p.low_stock_threshold || 0)
-                  ? "status-low"
-                  : "status-ok"
-              }">
-                ${
-                  (p.stock || p.current_stock || 0) <=
-                  (p.minStock || p.low_stock_threshold || 0)
-                    ? "Low Stock"
-                    : "In Stock"
-                }
-              </td>
-            </tr>
-          `
-            )
-            .join("")}
-        </tbody>
-      </table>
-      
-      <div class="footer">
-        <p>AI Stock Management System - Products Report</p>
-      </div>
-    </body>
-    </html>
-  `;
-
-  // Convert HTML to PDF using window.print
-  const printWindow = window.open("", "_blank");
-  if (printWindow) {
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
-
-    // Set up print styles
-    const style = printWindow.document.createElement("style");
-    style.textContent = `
-      @media print {
-        @page { margin: 0.5in; }
-        body { -webkit-print-color-adjust: exact; }
-      }
-    `;
-    printWindow.document.head.appendChild(style);
-
-    // Trigger print dialog
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
-  }
-}
-
-// Import function with proper API integration
-async function importProductsFromCSV(
-  file: File,
-  onSuccess: () => void,
-  onError: (error: string) => void
-) {
-  const fileExtension = file.name.split(".").pop()?.toLowerCase();
-
-  if (!["csv", "json", "xls", "xlsx"].includes(fileExtension || "")) {
-    onError("Unsupported file format. Please use CSV, Excel, or JSON files.");
-    return;
-  }
-
-  const reader = new FileReader();
-
-  reader.onload = async (e) => {
-    try {
-      const fileData = e.target?.result;
-      let products: any[] = [];
-
-      const normalizeHeader = (h: string) =>
-        h.trim().replace(/"/g, "").toLowerCase();
-
-      if (fileExtension === "json") {
-        // JSON import
-        const jsonData = JSON.parse(fileData as string);
-        products = Array.isArray(jsonData) ? jsonData : [jsonData];
-
-        console.log("----------------------------------------");
-        console.log("Importing data from JSON file:");
-        console.log("Number of products:", products.length);
-        console.log("Sample of imported data:", products.slice(0, 2));
-        console.log("----------------------------------------");
-      } else if (["xls", "xlsx"].includes(fileExtension)) {
-        // Excel import using SheetJS
-        const workbook = XLSX.read(fileData, { type: "binary" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-
-        // Read as arrays first to handle messy headers
-        const rows: any[][] = XLSX.utils.sheet_to_json(sheet, {
-          header: 1,
-          defval: "",
-        });
-        const headers = rows[0].map(normalizeHeader);
-        const dataRows = rows.slice(1);
-
-        console.log("----------------------------------------");
-        console.log(`Importing data from ${fileExtension.toUpperCase()} file:`);
-        console.log("Detected headers:", headers);
-        console.log("Total rows to process:", dataRows.length);
-        console.log("----------------------------------------");
-
-        products = dataRows.map((row) => {
-          const product: any = {};
-          headers.forEach((h, index) => {
-            const val = (row[index] || "").toString().trim();
-            switch (h) {
-              case "name":
-              case "product name":
-                product.name = val;
-                break;
-              case "category":
-                product.category = val;
-                break;
-              case "price":
-                product.price = parseFloat(val) || 0;
-                break;
-              case "cost":
-                product.cost = parseFloat(val) || 0;
-                break;
-              case "current stock":
-              case "stock":
-              case "stock quantity":
-                product.stock = parseInt(val) || 0;
-                break;
-              case "low stock threshold":
-              case "min stock":
-              case "minstock":
-              case "minimum stock":
-                product.minStock = parseInt(val) || 10;
-                break;
-              case "sku":
-              case "barcode":
-                product.sku = val;
-                break;
-              case "supplier":
-              case "supplier_name":
-              case "supplier name":
-                product.supplier_name = val;
-                break;
-              case "status":
-                product.status = val;
-                break;
-            }
-          });
-          return product;
-        });
-      } else {
-        // CSV / TSV import
-        const text = fileData as string;
-        const delimiter = text.includes("\t") ? "\t" : ",";
-        const lines = text.split("\n").filter((l) => l.trim());
-        const headers = lines[0].split(delimiter).map(normalizeHeader);
-
-        console.log("----------------------------------------");
-        console.log(`Importing data from ${fileExtension.toUpperCase()} file:`);
-        console.log("Detected headers:", headers);
-        console.log("Total rows to process:", lines.length - 1);
-        console.log("----------------------------------------");
-
-        products = lines.slice(1).map((line) => {
-          const values = line
-            .split(delimiter)
-            .map((v) => v.trim().replace(/"/g, ""));
-          const product: any = {};
-
-          headers.forEach((h, index) => {
-            const value = values[index] || "";
-            switch (h) {
-              case "name":
-              case "product name":
-                product.name = value;
-                break;
-              case "category":
-                product.category = value;
-                break;
-              case "price":
-                product.price = parseFloat(value) || 0;
-                break;
-              case "cost":
-                product.cost = parseFloat(value) || 0;
-                break;
-              case "current stock":
-              case "stock":
-              case "stock quantity":
-                product.stock = parseInt(value) || 0;
-                break;
-              case "low stock threshold":
-              case "min stock":
-              case "minstock":
-              case "minimum stock":
-                product.minStock = parseInt(value) || 10;
-                break;
-              case "sku":
-              case "barcode":
-                product.sku = value;
-                break;
-              case "supplier":
-              case "supplier_name":
-              case "supplier name":
-                product.supplier_name = value;
-                break;
-              case "status":
-                product.status = value;
-                break;
-            }
-          });
-          return product;
-        });
-      }
-
-      // Validate
-      const validProducts = products.filter(
-        (p) => p.name && p.category && p.price != null
-      );
-
-      if (validProducts.length === 0) {
-        onError(
-          "No valid products found. Make sure your file has Name, Category, and Price columns."
-        );
-        return;
-      }
-
-      // Send to API
-      try {
-        const response = await productsAPI.bulkCreate(validProducts);
-        if (response.results) {
-          const { success, failed, errors } = response.results;
-          if (success > 0) {
-            onSuccess();
-            const message =
-              failed > 0
-                ? `${success} products imported successfully, ${failed} failed.`
-                : `All ${success} products imported successfully!`;
-            console.log(message);
-            if (errors && errors.length > 0) {
-              console.log("Import errors:", errors);
-            }
-          } else {
-            onError(
-              "Failed to import any products. Please check your file format and data."
-            );
-          }
-        }
-      } catch (apiError: any) {
-        console.error("API Error:", apiError);
-        onError(
-          `Failed to import products: ${
-            apiError.message || "Unknown API error"
-          }`
-        );
-      }
-    } catch (error) {
-      console.error("Import error:", error);
-      onError(
-        "Failed to parse file. Please check the file format and try again."
-      );
-    }
-  };
-
-  reader.readAsText(file);
-}
-
-export default function Products() {
+export default function EnhancedProducts() {
   const [products, setProducts] = useState<ProductWithSupplier[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [stockFilter, setStockFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [selectedProduct, setSelectedProduct] =
+    useState<ProductWithSupplier | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const itemsPerPage = 15;
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editProduct, setEditProduct] = useState<Product | null>(null);
-  const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [form, setForm] = useState<Partial<Product>>({
     name: "",
     category: "",
     current_stock: 0,
     low_stock_threshold: 10,
     price: 0,
+    cost: 0,
     supplier_id: "",
+    sku: "",
+    description: "",
+    unit: "pcs",
     barcode: "",
   });
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const itemsPerPage = isMobile ? 6 : 12;
 
-  const fetchData = async () => {
+  // Load products from API
+  const loadProducts = async () => {
     try {
       setLoading(true);
-      const [productsData, suppliersData] = await Promise.allSettled([
-        productsAPI.getAll(),
-        suppliersAPI.getAll(),
-      ]);
-
-      const products =
-        productsData.status === "fulfilled"
-          ? (productsData.value as any)?.products || productsData.value || []
-          : [];
-      const suppliers =
-        suppliersData.status === "fulfilled"
-          ? (suppliersData.value as any)?.suppliers || suppliersData.value || []
-          : [];
-
-      const productsWithSuppliers = (products || []).map((product: any) => {
-        const supplier = (suppliers || []).find(
-          (s: any) =>
-            s.id === product.supplier_id || s.id === product.supplier?.id
-        );
-
-        const mappedProduct = {
-          ...product,
-          // Map backend fields to frontend fields for consistency
-          current_stock: product.stock || product.current_stock || 0,
-          low_stock_threshold:
-            product.minStock || product.low_stock_threshold || 10,
-          supplier_name:
-            supplier?.name ||
-            product.supplier?.name ||
-            product.supplier_name ||
-            "N/A",
-        };
-
-        // Debug logging for first few products
-        if (products.indexOf(product) < 3) {
-          console.log(`Product ${product.name}:`, {
-            originalStock: product.stock,
-            originalCurrentStock: product.current_stock,
-            mappedCurrentStock: mappedProduct.current_stock,
-            originalSupplier: product.supplier,
-            supplierFromList: supplier,
-            mappedSupplierName: mappedProduct.supplier_name,
-          });
-        }
-
-        return mappedProduct;
+      const productsData = await productsAPI.getAll({
+        limit: 500, // Get all products with reasonable limit
       });
 
-      setProducts(productsWithSuppliers);
-      setSuppliers(suppliers || []);
+      // Transform products data to include stock_status and value
+      const transformedProducts = productsData.map((product: any) => ({
+        ...product,
+        stock_status:
+          product.current_stock <= product.low_stock_threshold
+            ? product.current_stock === 0
+              ? "out"
+              : "low"
+            : "good",
+        value: (product.current_stock || 0) * (product.price || 0),
+        supplier_name: product.supplier?.name || "No Supplier",
+      }));
+
+      setProducts(transformedProducts);
     } catch (error) {
-      console.error("Failed to fetch data:", error);
+      console.error("Failed to load products:", error);
       toast({
-        title: "Error loading data",
-        description: "Failed to load products or suppliers. Please try again.",
+        title: "Error",
+        description: "Failed to load products. Please try again.",
         variant: "destructive",
       });
-      setProducts([]);
-      setSuppliers([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // Load suppliers from API
+  const loadSuppliers = async () => {
+    try {
+      const suppliersData = await suppliersAPI.getAll({ limit: 500 });
+      setSuppliers(suppliersData);
+    } catch (error) {
+      console.error("Failed to load suppliers:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load suppliers. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Initial data load
+  useEffect(() => {
+    loadProducts();
+    loadSuppliers();
+  }, []);
+
+  // Check for mobile viewport
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+
+    checkIsMobile();
+    window.addEventListener("resize", checkIsMobile);
+
+    return () => {
+      window.removeEventListener("resize", checkIsMobile);
+    };
+  }, []);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, stockFilter, sortBy, sortOrder]);
+
+  // Calculate product statistics
+  const productStats = useMemo(() => {
+    const total = products.length;
+    const lowStock = products.filter(
+      (p) => (p.current_stock || 0) <= (p.low_stock_threshold || 0)
+    ).length;
+    const outOfStock = products.filter(
+      (p) => (p.current_stock || 0) === 0
+    ).length;
+    const totalValue = products.reduce(
+      (sum, p) => sum + (p.current_stock || 0) * (p.price || 0),
+      0
+    );
+
+    return { total, lowStock, outOfStock, totalValue };
+  }, [products]);
+
+  // Get unique categories
+  const categories = useMemo(() => {
+    const uniqueCategories = [
+      ...new Set(products.map((p) => p.category).filter(Boolean)),
+    ];
+    return ["all", ...uniqueCategories];
+  }, [products]);
+
+  // Filter and sort products
+  const filteredAndSortedProducts = useMemo(() => {
+    let filtered = products.filter((product) => {
+      const matchesSearch =
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesCategory =
+        selectedCategory === "all" || product.category === selectedCategory;
+
+      const matchesStock =
+        stockFilter === "all" ||
+        (stockFilter === "low" &&
+          (product.current_stock || 0) <= (product.low_stock_threshold || 0)) ||
+        (stockFilter === "out" && (product.current_stock || 0) === 0) ||
+        (stockFilter === "good" &&
+          (product.current_stock || 0) > (product.low_stock_threshold || 0));
+
+      return matchesSearch && matchesCategory && matchesStock;
+    });
+
+    // Sort products
+    filtered.sort((a, b) => {
+      let aValue: any, bValue: any;
+
+      switch (sortBy) {
+        case "name":
+          aValue = a.name?.toLowerCase() || "";
+          bValue = b.name?.toLowerCase() || "";
+          break;
+        case "category":
+          aValue = a.category?.toLowerCase() || "";
+          bValue = b.category?.toLowerCase() || "";
+          break;
+        case "stock":
+          aValue = a.current_stock || 0;
+          bValue = b.current_stock || 0;
+          break;
+        case "price":
+          aValue = a.price || 0;
+          bValue = b.price || 0;
+          break;
+        case "value":
+          aValue = (a.current_stock || 0) * (a.price || 0);
+          bValue = (b.current_stock || 0) * (b.price || 0);
+          break;
+        default:
+          aValue = a.name?.toLowerCase() || "";
+          bValue = b.name?.toLowerCase() || "";
+      }
+
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [products, searchTerm, selectedCategory, stockFilter, sortBy, sortOrder]);
+
+  // Paginated products
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedProducts.slice(
+      startIndex,
+      startIndex + itemsPerPage
+    );
+  }, [filteredAndSortedProducts, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
+
+  // Category distribution for pie chart
+  const categoryData = useMemo(() => {
+    const distribution: Record<string, number> = {};
+    products.forEach((p) => {
+      if (p.category) {
+        distribution[p.category] = (distribution[p.category] || 0) + 1;
+      }
+    });
+
+    return Object.entries(distribution).map(([name, value]) => ({
+      name,
+      value,
+      fill: `hsl(${Math.random() * 360}, 70%, 50%)`,
+    }));
+  }, [products]);
+
+  // Stock status distribution
+  const stockStatusData = useMemo(() => {
+    const good = products.filter(
+      (p) => (p.current_stock || 0) > (p.low_stock_threshold || 0)
+    ).length;
+    const low = products.filter(
+      (p) =>
+        (p.current_stock || 0) <= (p.low_stock_threshold || 0) &&
+        (p.current_stock || 0) > 0
+    ).length;
+    const out = products.filter((p) => (p.current_stock || 0) === 0).length;
+
+    return [
+      { name: "Good Stock", value: good, fill: "#22C55E" },
+      { name: "Low Stock", value: low, fill: "#F59E0B" },
+      { name: "Out of Stock", value: out, fill: "#EF4444" },
+    ].filter((item) => item.value > 0);
+  }, [products]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -592,35 +595,45 @@ export default function Products() {
     if (!form.name || !form.category || !form.price) {
       toast({
         title: "Validation Error",
-        description:
-          "Please fill in all required fields (name, category, price)",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      if (editProduct) {
-        await productsAPI.update(editProduct.id, form);
+      setLoading(true);
+
+      const productData = {
+        name: form.name!,
+        sku: form.sku || `SKU-${Date.now()}`,
+        description: form.description || "",
+        category: form.category!,
+        category_id: null, // We'll need to implement category lookup later
+        price: Number(form.price!) || 0,
+        cost: Number(form.cost || form.price! * 0.7) || 0,
+        current_stock: Number(form.current_stock || 0),
+        low_stock_threshold: Number(form.low_stock_threshold || 10),
+        max_stock_level: 1000,
+        unit: form.unit || "pcs",
+        barcode: form.barcode || null,
+        supplier_id: form.supplier_id || null,
+        reorder_level: 0,
+        reorder_quantity: 0,
+        location: null,
+      };
+
+      if (selectedProduct) {
+        // Update existing product
+        await productsAPI.update(selectedProduct.id, productData);
         toast({
           title: "Success",
           description: "Product updated successfully",
         });
         setIsEditDialogOpen(false);
       } else {
-        const productData = {
-          sku: form.barcode || `SKU-${Date.now()}`,
-          name: form.name,
-          category: form.category,
-          price: form.price,
-          cost: form.price * 0.7, // Assume 30% margin if cost not provided
-          stock: form.current_stock || 0,
-          minStock: form.low_stock_threshold || 10,
-          supplierId: form.supplier_id || null,
-          description: `${form.name} - ${form.category}`,
-        };
-
-        await productsAPI.create(productData as any);
+        // Create new product
+        await productsAPI.create(productData);
         toast({
           title: "Success",
           description: "Product created successfully",
@@ -628,39 +641,52 @@ export default function Products() {
         setIsAddDialogOpen(false);
       }
 
+      // Reload products from API
+      await loadProducts();
       setForm({
         name: "",
         category: "",
         current_stock: 0,
         low_stock_threshold: 10,
         price: 0,
+        cost: 0,
         supplier_id: "",
+        sku: "",
+        description: "",
+        unit: "pcs",
         barcode: "",
       });
-
-      await fetchData();
+      setSelectedProduct(null);
     } catch (error) {
-      console.error("Failed to save product:", error);
       toast({
         title: "Error",
         description: "Failed to save product. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!deleteProduct) return;
+    if (!selectedProduct) return;
 
     try {
-      await productsAPI.delete(deleteProduct.id);
+      setLoading(true);
+
+      // Delete product via API
+      await productsAPI.delete(selectedProduct.id);
+
+      // Reload products from API
+      await loadProducts();
+
       toast({
         title: "Success",
         description: "Product deleted successfully",
       });
+
       setIsDeleteDialogOpen(false);
-      setDeleteProduct(null);
-      await fetchData();
+      setSelectedProduct(null);
     } catch (error) {
       console.error("Failed to delete product:", error);
       toast({
@@ -668,612 +694,586 @@ export default function Products() {
         description: "Failed to delete product. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const openEditDialog = (product: Product) => {
-    setEditProduct(product);
+  const openEditDialog = (product: ProductWithSupplier) => {
+    setSelectedProduct(product);
     setForm({
-      name: product.name,
-      category: product.category,
-      current_stock: product.current_stock,
-      low_stock_threshold: product.low_stock_threshold,
-      price: product.price,
-      supplier_id: product.supplier_id,
+      name: product.name || "",
+      category: product.category || "",
+      current_stock: product.current_stock || 0,
+      low_stock_threshold: product.low_stock_threshold || 10,
+      price: product.price || 0,
+      cost: product.cost || 0,
+      supplier_id: product.supplier_id || "",
+      sku: product.sku || "",
+      description: product.description || "",
+      unit: product.unit || "pcs",
       barcode: product.barcode || "",
     });
     setIsEditDialogOpen(true);
   };
 
-  const openDeleteDialog = (product: Product) => {
-    setDeleteProduct(product);
-    setIsDeleteDialogOpen(true);
+  const getStockStatusBadge = (product: ProductWithSupplier) => {
+    const stock = product.current_stock || 0;
+    const threshold = product.low_stock_threshold || 0;
+
+    if (stock === 0) {
+      return <Badge variant="destructive">Out of Stock</Badge>;
+    } else if (stock <= threshold) {
+      return (
+        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+          Low Stock
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="secondary" className="bg-green-100 text-green-800">
+          In Stock
+        </Badge>
+      );
+    }
   };
 
-  // Filter products
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.supplier_name &&
-        product.supplier_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory =
-      selectedCategory === "all" || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const exportToCSV = () => {
+    const csvData = products.map((p) => ({
+      SKU: p.sku,
+      Name: p.name,
+      Category: p.category,
+      "Current Stock": p.current_stock,
+      "Low Stock Threshold": p.low_stock_threshold,
+      "Price (₹)": p.price,
+      "Cost (₹)": p.cost,
+      Supplier: p.supplier_name,
+      "Stock Value (₹)": (p.current_stock || 0) * (p.price || 0),
+    }));
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+    const csv = [
+      Object.keys(csvData[0]).join(","),
+      ...csvData.map((row) => Object.values(row).join(",")),
+    ].join("\n");
 
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedCategory]);
-
-  const categories = [...new Set(products.map((p) => p.category))];
-  const lowStockProducts = products.filter(
-    (p) => p.current_stock <= p.low_stock_threshold
-  );
-
-  if (loading) {
-    return (
-      <div className="p-4 md:p-6 lg:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Products
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Loading your product inventory...
-            </p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="p-6">
-              <div className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded mb-3"></div>
-                <div className="h-8 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded"></div>
-              </div>
-            </Card>
-          ))}
-        </div>
-        <div className="h-96 bg-gray-100 rounded-lg animate-pulse"></div>
-      </div>
-    );
-  }
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `products-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+  };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 bg-gradient-to-br from-background to-muted/20 min-h-screen">
+    <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-gradient-to-br from-background to-muted/20 min-h-screen">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Products
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <Package2 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
+            <span className="break-words">Product Inventory</span>
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your inventory • {products.length} products •{" "}
-            {lowStockProducts.length} low stock
+          <p className="text-muted-foreground text-sm lg:text-base mt-1">
+            Manage your product catalog and inventory levels
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {/* Export Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Download className="h-4 w-4" />
-                Export
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem
-                onClick={() => exportProductsToCSV(filteredProducts)}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Export as CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => exportProductsToExcel(filteredProducts)}
-              >
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Export as Excel
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => exportProductsToJSON(filteredProducts)}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Export as JSON
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => exportProductsToPDF(filteredProducts)}
-              >
-                <FileImage className="mr-2 h-4 w-4" />
-                Export as PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Import Button */}
-          <Dialog
-            open={isImportDialogOpen}
-            onOpenChange={setIsImportDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                Import
-              </Button>
-            </DialogTrigger>
-          </Dialog>
-
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <Button
-            onClick={fetchData}
             variant="outline"
-            className="flex items-center gap-2"
+            onClick={exportToCSV}
+            className="flex items-center justify-center gap-2 text-sm"
+            size="sm"
           >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
+            <Download className="h-4 w-4" />
+            <span className="hidden xs:inline">Export</span>
           </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Add Product
-              </Button>
-            </DialogTrigger>
-          </Dialog>
+          <Button
+            onClick={() => setIsAddDialogOpen(true)}
+            className="flex items-center justify-center gap-2 text-sm"
+            size="sm"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Product</span>
+          </Button>
         </div>
       </div>
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <Card className="relative p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-background to-blue-50/50 overflow-hidden">
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">
                 Total Products
               </p>
-              <p className="text-3xl font-bold text-foreground">
-                {products.length}
+              <p className="text-lg sm:text-2xl font-bold">
+                {productStats.total}
               </p>
             </div>
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
-              <Package className="h-8 w-8 text-white" />
-            </div>
+            <Package className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
           </div>
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-600"></div>
         </Card>
 
-        <Card className="relative p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-background to-red-50/50 overflow-hidden">
+        <Card className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Low Stock
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">
+                Low Stock Items
               </p>
-              <p className="text-3xl font-bold text-foreground">
-                {lowStockProducts.length}
+              <p className="text-lg sm:text-2xl font-bold text-yellow-600">
+                {productStats.lowStock}
               </p>
             </div>
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg">
-              <AlertTriangle className="h-8 w-8 text-white" />
-            </div>
+            <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 flex-shrink-0" />
           </div>
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-red-600"></div>
         </Card>
 
-        <Card className="relative p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-background to-green-50/50 overflow-hidden">
+        <Card className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Categories
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">
+                Out of Stock
               </p>
-              <p className="text-3xl font-bold text-foreground">
-                {categories.length}
+              <p className="text-lg sm:text-2xl font-bold text-red-600">
+                {productStats.outOfStock}
               </p>
             </div>
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 shadow-lg">
-              <Grid3x3 className="h-8 w-8 text-white" />
-            </div>
+            <Package className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 flex-shrink-0" />
           </div>
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-green-600"></div>
         </Card>
 
-        <Card className="relative p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-background to-purple-50/50 overflow-hidden">
+        <Card className="p-4 sm:p-6 col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">
                 Total Value
               </p>
-              <p className="text-3xl font-bold text-foreground">
-                ₹
-                {products
-                  .reduce(
-                    (sum, product) =>
-                      sum +
-                      (product.price || 0) *
-                        (product.stock || product.current_stock || 0),
-                    0
-                  )
-                  .toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+              <p className="text-lg sm:text-2xl font-bold text-green-600">
+                ₹{(productStats.totalValue / 100000).toFixed(1)}L
               </p>
             </div>
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg">
-              <DollarSign className="h-8 w-8 text-white" />
-            </div>
+            <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 flex-shrink-0" />
           </div>
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-purple-600"></div>
         </Card>
       </div>
-      {/* Filters */}
-      <Card className="p-6 shadow-lg">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+        <Card className="p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-4">
+            Category Distribution
+          </h3>
+          <div className="h-48 sm:h-64">
+            {typeof window !== "undefined" && (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={isMobile ? 30 : 50}
+                    outerRadius={isMobile ? 60 : 80}
+                    dataKey="value"
+                    label={({ name, value }) =>
+                      isMobile ? `${value}` : `${name}: ${value}`
+                    }
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </Card>
+
+        <Card className="p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-4">
+            Stock Status Overview
+          </h3>
+          <div className="h-48 sm:h-64">
+            {typeof window !== "undefined" && (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stockStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: isMobile ? 10 : 12 }}
+                    angle={isMobile ? -45 : 0}
+                    textAnchor={isMobile ? "end" : "middle"}
+                  />
+                  <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {stockStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Filters and Search */}
+      <Card className="p-4 sm:p-6">
+        <div className="flex flex-col space-y-4 mb-4 sm:mb-6">
+          <div className="w-full">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search products by name, category, or barcode..."
+                placeholder="Search products, categories, or SKUs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-background/50"
+                className="pl-9"
               />
             </div>
           </div>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            onClick={fetchData}
-            variant="outline"
-            size="sm"
-            className="shrink-0"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </Card>
-      {/* Products Table */}
-      <Card className="shadow-lg">
-        <div className="p-4 md:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Products Inventory</h3>
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md md:hidden"
+
+          <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:gap-2">
+            <Select
+              value={selectedCategory}
+              onValueChange={setSelectedCategory}
             >
-              <Plus className="h-4 w-4" />
-            </Button>
+              <SelectTrigger className="w-full sm:w-[140px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category === "all" ? "All Categories" : category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={stockFilter} onValueChange={setStockFilter}>
+              <SelectTrigger className="w-full sm:w-[120px]">
+                <SelectValue placeholder="Stock" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stock</SelectItem>
+                <SelectItem value="good">Good Stock</SelectItem>
+                <SelectItem value="low">Low Stock</SelectItem>
+                <SelectItem value="out">Out of Stock</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="flex gap-2">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="flex-1 sm:w-[120px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="category">Category</SelectItem>
+                  <SelectItem value="stock">Stock</SelectItem>
+                  <SelectItem value="price">Price</SelectItem>
+                  <SelectItem value="value">Value</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() =>
+                  setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                }
+                className="flex-shrink-0"
+              >
+                <ArrowUpDown className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Mobile Card View */}
-        <div className="block md:hidden px-4 pb-4 space-y-4">
-          {filteredProducts.length === 0 ? (
-            <div className="text-center py-12">
-              <Package className="h-16 w-16 text-muted-foreground/60 mx-auto mb-4" />
-              <p className="text-lg font-medium text-muted-foreground mb-1">
-                No products found
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Try adjusting your search filters
-              </p>
-            </div>
-          ) : (
-            filteredProducts.map((product) => (
-              <Card
-                key={product.id}
-                className="p-4 border hover:shadow-md transition-shadow"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h4 className="font-semibold text-lg">{product.name}</h4>
-                    <Badge
-                      variant="outline"
-                      className="mt-1 bg-blue-50 text-blue-700 border-blue-200"
-                    >
-                      {product.category}
-                    </Badge>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-xl">
-                      ₹{product.price?.toFixed(2)}
-                    </p>
-                    <Badge
-                      variant={
-                        product.current_stock <= product.low_stock_threshold
-                          ? "destructive"
-                          : "default"
-                      }
-                      className={
-                        product.current_stock <= product.low_stock_threshold
-                          ? "bg-red-100 text-red-800"
-                          : "bg-green-100 text-green-800"
-                      }
-                    >
-                      {product.current_stock <= product.low_stock_threshold
-                        ? "Low Stock"
-                        : "In Stock"}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Stock</p>
-                    <p
-                      className={`font-semibold ${
-                        product.current_stock <= product.low_stock_threshold
-                          ? "text-red-600"
-                          : "text-green-600"
-                      }`}
-                    >
-                      {product.current_stock}{" "}
-                      {product.current_stock <= product.low_stock_threshold && (
-                        <AlertTriangle className="inline h-4 w-4 ml-1" />
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Supplier</p>
-                    <p className="font-medium">
-                      {product.supplier_name || "N/A"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setEditProduct(product);
-                      setForm(product);
-                      setIsEditDialogOpen(true);
-                    }}
-                    className="hover:bg-blue-50 hover:text-blue-600"
-                  >
-                    <Edit2 className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setDeleteProduct(product);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                    className="hover:bg-red-50 hover:text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
-                  </Button>
+        <div className="block lg:hidden">
+          <div className="space-y-3">
+            {paginatedProducts.length === 0 ? (
+              <Card className="p-8">
+                <div className="text-center text-muted-foreground">
+                  <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-1">No products found</p>
+                  <p className="text-sm">
+                    Try adjusting your search or filter criteria
+                  </p>
                 </div>
               </Card>
-            ))
-          )}
+            ) : (
+              paginatedProducts.map((product) => (
+                <Card
+                  key={product.id}
+                  className="p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0 pr-3">
+                      <h3 className="font-semibold text-sm leading-tight mb-1 break-words">
+                        {product.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Barcode className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{product.sku}</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {getStockStatusBadge(product)}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setIsViewDialogOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => openEditDialog(product)}
+                          >
+                            <Edit2 className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs">
+                        {product.category}
+                      </Badge>
+                      {product.supplier_name && (
+                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Building2 className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate max-w-20">
+                            {product.supplier_name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="text-center">
+                        <p className="text-muted-foreground text-xs">Stock</p>
+                        <p className="font-semibold text-sm">
+                          {product.current_stock || 0}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-muted-foreground text-xs">Price</p>
+                        <p className="font-semibold text-sm">
+                          ₹{(product.price || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-muted-foreground text-xs">Value</p>
+                        <p className="font-semibold text-sm text-green-600">
+                          ₹
+                          {(
+                            (product.current_stock || 0) * (product.price || 0)
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
         </div>
 
         {/* Desktop Table View */}
-        <div className="hidden md:block">
-          <div className="rounded-lg border border-border/50 overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 border-b hover:bg-muted/50">
-                  <TableHead className="font-semibold w-[200px] px-6 py-4 text-left">
-                    Name
-                  </TableHead>
-                  <TableHead className="font-semibold w-[120px] px-6 py-4 text-left">
-                    Category
-                  </TableHead>
-                  <TableHead className="font-semibold w-[80px] px-6 py-4 text-center">
-                    Stock
-                  </TableHead>
-                  <TableHead className="font-semibold w-[100px] px-6 py-4 text-right">
-                    Price
-                  </TableHead>
-                  <TableHead className="font-semibold w-[150px] px-6 py-4 text-left">
-                    Supplier
-                  </TableHead>
-                  <TableHead className="font-semibold w-[100px] px-6 py-4 text-center">
-                    Status
-                  </TableHead>
-                  <TableHead className="font-semibold w-[100px] px-6 py-4 text-right">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12">
-                      <div className="flex flex-col items-center">
-                        <Package className="h-16 w-16 text-muted-foreground/60 mb-4" />
-                        <p className="text-lg font-medium text-muted-foreground mb-1">
-                          No products found
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Try adjusting your search filters
-                        </p>
+        <div className="hidden lg:block rounded-md border overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Stock</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Value</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedProducts.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="font-medium">{product.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {product.sku}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedProducts.map((product) => (
-                    <TableRow
-                      key={product.id}
-                      className="hover:bg-muted/30 transition-colors border-b last:border-b-0"
-                    >
-                      <TableCell className="font-medium px-6 py-4">
-                        {product.name}
-                      </TableCell>
-                      <TableCell className="px-6 py-4">
-                        <Badge
-                          variant="outline"
-                          className="bg-blue-50 text-blue-700 border-blue-200"
-                        >
-                          {product.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <span
-                            className={`font-medium ${
-                              product.current_stock <=
-                              product.low_stock_threshold
-                                ? "text-red-600"
-                                : "text-green-600"
-                            }`}
-                          >
-                            {product.current_stock}
-                          </span>
-                          {product.current_stock <=
-                            product.low_stock_threshold && (
-                            <AlertTriangle className="h-4 w-4 text-red-500" />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium text-right px-6 py-4">
-                        ₹{product.price.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="truncate px-6 py-4">
-                        {product.supplier_name}
-                      </TableCell>
-                      <TableCell className="text-center px-6 py-4">
-                        <Badge
-                          variant={
-                            product.current_stock <= product.low_stock_threshold
-                              ? "destructive"
-                              : "secondary"
-                          }
-                          className={
-                            product.current_stock <= product.low_stock_threshold
-                              ? "bg-red-100 text-red-800 hover:bg-red-200"
-                              : "bg-green-100 text-green-800 hover:bg-green-200"
-                          }
-                        >
-                          {product.current_stock <= product.low_stock_threshold
-                            ? "Low Stock"
-                            : "In Stock"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right px-6 py-4">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => openEditDialog(product)}
-                            className="hover:bg-blue-50 hover:text-blue-600 h-8 w-8 p-0"
-                            title="Edit product"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => openDeleteDialog(product)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
-                            title="Delete product"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          {/* Pagination Controls */}
-          {filteredProducts.length > itemsPerPage && (
-            <div className="flex items-center justify-between px-6 py-4 border-t">
-              <div className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to{" "}
-                {Math.min(endIndex, filteredProducts.length)} of{" "}
-                {filteredProducts.length} entries
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(1, prev - 1))
-                  }
-                  disabled={currentPage === 1}
-                  className="h-8"
-                >
-                  Previous
-                </Button>
-                <div className="flex items-center gap-1">
-                  {[...Array(totalPages)].map((_, index) => {
-                    const pageNumber = index + 1;
-                    // Show first page, last page, current page, and pages around current
-                    if (
-                      pageNumber === 1 ||
-                      pageNumber === totalPages ||
-                      (pageNumber >= currentPage - 2 &&
-                        pageNumber <= currentPage + 2)
-                    ) {
-                      return (
-                        <Button
-                          key={pageNumber}
-                          variant={
-                            currentPage === pageNumber ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() => setCurrentPage(pageNumber)}
-                          className={`h-8 w-8 p-0 ${
-                            currentPage === pageNumber
-                              ? "bg-primary text-primary-foreground"
-                              : ""
-                          }`}
-                        >
-                          {pageNumber}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{product.category}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="font-medium">
+                        {product.current_stock || 0}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Min: {product.low_stock_threshold || 0}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="font-medium">
+                        ₹{(product.price || 0).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Cost: ₹{(product.cost || 0).toLocaleString()}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-green-600">
+                      ₹
+                      {(
+                        (product.current_stock || 0) * (product.price || 0)
+                      ).toLocaleString()}
+                    </div>
+                  </TableCell>
+                  <TableCell>{getStockStatusBadge(product)}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreVertical className="h-4 w-4" />
                         </Button>
-                      );
-                    } else if (
-                      pageNumber === currentPage - 3 ||
-                      pageNumber === currentPage + 3
-                    ) {
-                      return (
-                        <span key={pageNumber} className="px-1">
-                          ...
-                        </span>
-                      );
-                    }
-                    return null;
-                  })}
-                </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setIsViewDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => openEditDialog(product)}
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Pagination */}
+        {/* Pagination */}
+        <div className="flex flex-col sm:flex-row items-center justify-between pt-6 mt-6 border-t gap-4">
+          <div className="text-sm text-muted-foreground order-2 sm:order-1">
+            Showing {paginatedProducts.length} of{" "}
+            {filteredAndSortedProducts.length} products
+          </div>
+          {totalPages > 1 ? (
+            <div className="flex flex-col xs:flex-row gap-3 items-center order-1 sm:order-2">
+              <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                  }
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(1)}
+                  className="px-3 py-2 hidden xs:flex"
+                >
+                  First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  className="px-4 py-2 min-w-[80px]"
+                >
+                  <span className="hidden sm:inline">Previous</span>
+                  <span className="sm:hidden">Prev</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={currentPage === totalPages}
-                  className="h-8"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  className="px-4 py-2 min-w-[80px]"
                 >
                   Next
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(totalPages)}
+                  className="px-3 py-2 hidden xs:flex"
+                >
+                  Last
+                </Button>
               </div>
+              <div className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded-md">
+                <span className="text-sm text-muted-foreground">Page</span>
+                <span className="text-sm font-semibold min-w-[20px] text-center">
+                  {currentPage}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  of {totalPages}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded-md order-1 sm:order-2">
+              <span className="text-sm text-muted-foreground">Page 1 of 1</span>
             </div>
           )}
         </div>
-      </Card>{" "}
+      </Card>
+
       {/* Add/Edit Product Dialog */}
       <Dialog
         open={isAddDialogOpen || isEditDialogOpen}
@@ -1281,123 +1281,210 @@ export default function Products() {
           if (!open) {
             setIsAddDialogOpen(false);
             setIsEditDialogOpen(false);
-            setEditProduct(null);
+            setSelectedProduct(null);
             setForm({
               name: "",
               category: "",
               current_stock: 0,
               low_stock_threshold: 10,
               price: 0,
+              cost: 0,
               supplier_id: "",
-              barcode: "",
+              sku: "",
+              description: "",
             });
           }
         }}
       >
-        <DialogContent className="max-w-md shadow-2xl">
+        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto mx-4">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              {editProduct ? "Edit Product" : "Add New Product"}
+            <DialogTitle className="text-lg sm:text-xl">
+              {selectedProduct ? "Edit Product" : "Add New Product"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Name *</label>
-              <Input
-                value={form.name || ""}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Product name"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Category *
-              </label>
-              <Input
-                value={form.category || ""}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                placeholder="Product category"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Current Stock
-                </label>
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="name" className="text-sm font-medium">
+                  Product Name *
+                </Label>
                 <Input
-                  type="number"
-                  value={form.current_stock || 0}
-                  onChange={(e) =>
-                    setForm({ ...form, current_stock: Number(e.target.value) })
-                  }
-                  min="0"
+                  id="name"
+                  value={form.name || ""}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Enter product name"
+                  required
+                  className="text-sm"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Low Stock Alert
-                </label>
+
+              <div className="space-y-2">
+                <Label htmlFor="sku" className="text-sm font-medium">
+                  SKU
+                </Label>
                 <Input
+                  id="sku"
+                  value={form.sku || ""}
+                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                  placeholder="Product SKU"
+                  className="text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category" className="text-sm font-medium">
+                  Category *
+                </Label>
+                <Select
+                  value={form.category}
+                  onValueChange={(value) =>
+                    setForm({ ...form, category: value })
+                  }
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories
+                      .filter((c) => c !== "all")
+                      .map((category) => (
+                        <SelectItem
+                          key={category}
+                          value={category}
+                          className="text-sm"
+                        >
+                          {category}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="supplier" className="text-sm font-medium">
+                  Supplier
+                </Label>
+                <Select
+                  value={form.supplier_id}
+                  onValueChange={(value) =>
+                    setForm({ ...form, supplier_id: value })
+                  }
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Select supplier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((supplier) => (
+                      <SelectItem
+                        key={supplier.id}
+                        value={supplier.id.toString()}
+                        className="text-sm"
+                      >
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="price" className="text-sm font-medium">
+                  Selling Price (₹) *
+                </Label>
+                <Input
+                  id="price"
                   type="number"
-                  value={form.low_stock_threshold || 0}
+                  value={form.price || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, price: parseFloat(e.target.value) || 0 })
+                  }
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  required
+                  className="text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cost" className="text-sm font-medium">
+                  Cost Price (₹)
+                </Label>
+                <Input
+                  id="cost"
+                  type="number"
+                  value={form.cost || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, cost: parseFloat(e.target.value) || 0 })
+                  }
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  className="text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="current_stock" className="text-sm font-medium">
+                  Current Stock
+                </Label>
+                <Input
+                  id="current_stock"
+                  type="number"
+                  value={form.current_stock || ""}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      low_stock_threshold: Number(e.target.value),
+                      current_stock: parseInt(e.target.value) || 0,
                     })
                   }
+                  placeholder="0"
                   min="0"
+                  className="text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="low_stock_threshold"
+                  className="text-sm font-medium"
+                >
+                  Low Stock Threshold
+                </Label>
+                <Input
+                  id="low_stock_threshold"
+                  type="number"
+                  value={form.low_stock_threshold || ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      low_stock_threshold: parseInt(e.target.value) || 0,
+                    })
+                  }
+                  placeholder="10"
+                  min="0"
+                  className="text-sm"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Price</label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.price || 0}
+
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-sm font-medium">
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                value={form.description || ""}
                 onChange={(e) =>
-                  setForm({ ...form, price: Number(e.target.value) })
+                  setForm({ ...form, description: e.target.value })
                 }
-                min="0"
+                placeholder="Product description..."
+                rows={3}
+                className="text-sm"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Supplier *
-              </label>
-              <Select
-                value={form.supplier_id?.toString() || ""}
-                onValueChange={(value) =>
-                  setForm({ ...form, supplier_id: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select supplier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((supplier) => (
-                    <SelectItem
-                      key={supplier.id}
-                      value={supplier.id.toString()}
-                    >
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Barcode</label>
-              <Input
-                value={form.barcode || ""}
-                onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-                placeholder="Product barcode"
-              />
-            </div>
-            <div className="flex justify-end gap-3 pt-6 border-t">
+
+            <DialogFooter className="flex-col sm:flex-row gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -1405,156 +1492,159 @@ export default function Products() {
                   setIsAddDialogOpen(false);
                   setIsEditDialogOpen(false);
                 }}
-                className="hover:bg-gray-50"
+                className="w-full sm:w-auto text-sm"
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md"
-              >
-                {editProduct ? "Update" : "Create"} Product
+              <Button type="submit" className="w-full sm:w-auto text-sm">
+                {selectedProduct ? "Update Product" : "Create Product"}
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* View Product Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto mx-4">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">
+              Product Details
+            </DialogTitle>
+          </DialogHeader>
+          {selectedProduct && (
+            <div className="space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-base sm:text-lg break-words">
+                      {selectedProduct.name}
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      {selectedProduct.sku}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                      <span className="text-muted-foreground text-sm">
+                        Category:
+                      </span>
+                      <Badge variant="outline" className="w-fit">
+                        {selectedProduct.category}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                      <span className="text-muted-foreground text-sm">
+                        Supplier:
+                      </span>
+                      <span className="text-sm">
+                        {selectedProduct.supplier_name || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 items-start sm:items-center">
+                      <span className="text-muted-foreground text-sm">
+                        Status:
+                      </span>
+                      {getStockStatusBadge(selectedProduct)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <Card className="p-3 sm:p-4">
+                      <div className="text-center">
+                        <div className="text-xl sm:text-2xl font-bold text-blue-600">
+                          {selectedProduct.current_stock || 0}
+                        </div>
+                        <div className="text-xs sm:text-sm text-muted-foreground">
+                          Current Stock
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="p-3 sm:p-4">
+                      <div className="text-center">
+                        <div className="text-xl sm:text-2xl font-bold text-orange-600">
+                          {selectedProduct.low_stock_threshold || 0}
+                        </div>
+                        <div className="text-xs sm:text-sm text-muted-foreground">
+                          Min Stock
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <Card className="p-3 sm:p-4">
+                      <div className="text-center">
+                        <div className="text-lg sm:text-2xl font-bold text-green-600">
+                          ₹{(selectedProduct.price || 0).toLocaleString()}
+                        </div>
+                        <div className="text-xs sm:text-sm text-muted-foreground">
+                          Selling Price
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="p-3 sm:p-4">
+                      <div className="text-center">
+                        <div className="text-lg sm:text-2xl font-bold text-purple-600 break-all">
+                          ₹
+                          {(
+                            (selectedProduct.current_stock || 0) *
+                            (selectedProduct.price || 0)
+                          ).toLocaleString()}
+                        </div>
+                        <div className="text-xs sm:text-sm text-muted-foreground">
+                          Total Value
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+              </div>
+
+              {selectedProduct.description && (
+                <div>
+                  <h4 className="font-semibold mb-2 text-sm sm:text-base">
+                    Description
+                  </h4>
+                  <p className="text-muted-foreground text-sm break-words">
+                    {selectedProduct.description}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="max-w-md shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-red-600">
-              Delete Product
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-full bg-red-100">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-              <div>
-                <p className="font-medium">
-                  Are you sure you want to delete this product?
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  This action cannot be undone.
-                </p>
-              </div>
-            </div>
-            {deleteProduct && (
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="font-medium">{deleteProduct.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  Category: {deleteProduct.category}
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="flex justify-end gap-3 border-t pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
-              className="hover:bg-gray-50"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Product</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{selectedProduct?.name}"? This
+              action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleDelete}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-md"
+              className="bg-red-600 hover:bg-red-700"
             >
-              Delete Product
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      {/* Import Dialog */}
-      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="max-w-md shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Import Products
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">
-                Supported Formats
-              </h4>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• CSV files (.csv)</li>
-                <li>• Excel files (.xlsx, .xls)</li>
-                <li>• JSON files (.json)</li>
-              </ul>
-            </div>
-
-            <div className="bg-yellow-50 p-4 rounded-lg">
-              <h4 className="font-medium text-yellow-900 mb-2">
-                Required Columns
-              </h4>
-              <p className="text-sm text-yellow-800">
-                Name, Category, Price (required)
-                <br />
-                Stock, Min Stock, SKU (optional)
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Select File
-              </label>
-              <Input
-                type="file"
-                accept=".csv,.xlsx,.xls,.json"
-                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                className="cursor-pointer"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsImportDialogOpen(false);
-                  setImportFile(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  if (importFile) {
-                    importProductsFromCSV(
-                      importFile,
-                      () => {
-                        toast({
-                          title: "Success",
-                          description: "Products imported successfully",
-                        });
-                        setIsImportDialogOpen(false);
-                        setImportFile(null);
-                        fetchData();
-                      },
-                      (error) => {
-                        toast({
-                          title: "Import Error",
-                          description: error,
-                          variant: "destructive",
-                        });
-                      }
-                    );
-                  }
-                }}
-                disabled={!importFile}
-                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Import Products
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import api from "@/services/api";
 import {
   BarChart,
   Bar,
@@ -558,112 +559,67 @@ const ForecastPanel: React.FC<{ forecast: ForecastData[] }> = ({
 // Main Dashboard Component
 const StorageUtilizationDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
-
-  // Mock data
-  const mockData = {
-    totalCapacity: 50000,
-    currentOccupied: 42750,
-    rackUtilization: [
-      {
-        rackId: "A-001",
-        capacity: 1000,
-        occupied: 950,
-        status: "overfilled" as const,
-        location: "Zone A",
-        utilizationPercentage: 95,
-      },
-      {
-        rackId: "A-002",
-        capacity: 1000,
-        occupied: 800,
-        status: "near-full" as const,
-        location: "Zone A",
-        utilizationPercentage: 80,
-      },
-      {
-        rackId: "B-001",
-        capacity: 1200,
-        occupied: 600,
-        status: "available" as const,
-        location: "Zone B",
-        utilizationPercentage: 50,
-      },
-      {
-        rackId: "B-002",
-        capacity: 1200,
-        occupied: 1100,
-        status: "near-full" as const,
-        location: "Zone B",
-        utilizationPercentage: 92,
-      },
-      {
-        rackId: "C-001",
-        capacity: 800,
-        occupied: 200,
-        status: "available" as const,
-        location: "Zone C",
-        utilizationPercentage: 25,
-      },
-      {
-        rackId: "C-002",
-        capacity: 800,
-        occupied: 720,
-        status: "near-full" as const,
-        location: "Zone C",
-        utilizationPercentage: 90,
-      },
-    ],
-    heatMap: [
-      { x: 0, y: 0, utilization: 95, rackId: "A-001" },
-      { x: 1, y: 0, utilization: 80, rackId: "A-002" },
-      { x: 2, y: 0, utilization: 50, rackId: "B-001" },
-      { x: 3, y: 0, utilization: 92, rackId: "B-002" },
-      { x: 0, y: 1, utilization: 25, rackId: "C-001" },
-      { x: 1, y: 1, utilization: 90, rackId: "C-002" },
-      { x: 2, y: 1, utilization: 65, rackId: "D-001" },
-      { x: 3, y: 1, utilization: 40, rackId: "D-002" },
-      { x: 0, y: 2, utilization: 85, rackId: "E-001" },
-      { x: 1, y: 2, utilization: 30, rackId: "E-002" },
-      { x: 2, y: 2, utilization: 75, rackId: "F-001" },
-      { x: 3, y: 2, utilization: 55, rackId: "F-002" },
-    ],
-    inboundData: [
-      { date: "2025-07-15", inbound: 450, outbound: 0 },
-      { date: "2025-07-16", inbound: 520, outbound: 0 },
-      { date: "2025-07-17", inbound: 380, outbound: 0 },
-      { date: "2025-07-18", inbound: 620, outbound: 0 },
-      { date: "2025-07-19", inbound: 490, outbound: 0 },
-      { date: "2025-07-20", inbound: 410, outbound: 0 },
-      { date: "2025-07-21", inbound: 550, outbound: 0 },
-    ],
-    outboundData: [
-      { date: "2025-07-15", inbound: 0, outbound: 320 },
-      { date: "2025-07-16", inbound: 0, outbound: 410 },
-      { date: "2025-07-17", inbound: 0, outbound: 290 },
-      { date: "2025-07-18", inbound: 0, outbound: 480 },
-      { date: "2025-07-19", inbound: 0, outbound: 390 },
-      { date: "2025-07-20", inbound: 0, outbound: 350 },
-      { date: "2025-07-21", inbound: 0, outbound: 420 },
-    ],
+  const [data, setData] = useState<{
+    overview: any;
+    rackUtilization: RackUtilization[];
+    heatMap: HeatMapCell[];
+    inboundData: TrendData[];
+    outboundData: TrendData[];
+    kpiData: KPIData;
+    forecast: ForecastData[];
+  }>({
+    overview: { totalCapacity: 0, currentOccupied: 0 },
+    rackUtilization: [],
+    heatMap: [],
+    inboundData: [],
+    outboundData: [],
     kpiData: {
-      averageUtilization: 73,
-      underutilizedRacks: 28,
-      storageEfficiency: 8.7,
+      averageUtilization: 0,
+      underutilizedRacks: 0,
+      storageEfficiency: 0,
     },
-    forecast: [
-      { period: "Next Week", predictedUtilization: 87, confidence: 92 },
-      { period: "Next Month", predictedUtilization: 94, confidence: 78 },
-      { period: "Next Quarter", predictedUtilization: 82, confidence: 65 },
-    ],
-  };
+    forecast: [],
+  });
 
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    const loadData = async () => {
+      setLoading(true);
 
-    return () => clearTimeout(timer);
+      try {
+        // Load all data in parallel
+        const [
+          overviewResponse,
+          rackResponse,
+          heatMapResponse,
+          trendsResponse,
+          kpisResponse,
+          forecastResponse,
+        ] = await Promise.all([
+          api.storageUtilization.getOverview(),
+          api.storageUtilization.getRackUtilization(),
+          api.storageUtilization.getHeatMap(),
+          api.storageUtilization.getTrends(),
+          api.storageUtilization.getKPIs(),
+          api.storageUtilization.getForecast(),
+        ]);
+
+        setData({
+          overview: overviewResponse,
+          rackUtilization: rackResponse,
+          heatMap: heatMapResponse,
+          inboundData: trendsResponse.inboundData,
+          outboundData: trendsResponse.outboundData,
+          kpiData: kpisResponse,
+          forecast: forecastResponse,
+        });
+      } catch (error) {
+        console.error("Error loading storage utilization data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   if (loading) {
@@ -715,28 +671,28 @@ const StorageUtilizationDashboard: React.FC = () => {
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <OccupancyGauge
-          totalCapacity={mockData.totalCapacity}
-          currentOccupied={mockData.currentOccupied}
+          totalCapacity={data.overview.totalCapacity}
+          currentOccupied={data.overview.currentOccupied}
         />
-        <KPICards kpiData={mockData.kpiData} />
+        <KPICards kpiData={data.kpiData} />
       </div>
 
       {/* Charts and Heat Map Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <InventoryTrendsChart
-          inboundData={mockData.inboundData}
-          outboundData={mockData.outboundData}
+          inboundData={data.inboundData}
+          outboundData={data.outboundData}
         />
-        <WarehouseHeatMap heatMap={mockData.heatMap} />
+        <WarehouseHeatMap heatMap={data.heatMap} />
       </div>
 
       {/* Table and Forecast Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <RackUtilizationTable data={mockData.rackUtilization} />
+          <RackUtilizationTable data={data.rackUtilization} />
         </div>
         <div>
-          <ForecastPanel forecast={mockData.forecast} />
+          <ForecastPanel forecast={data.forecast} />
         </div>
       </div>
     </div>

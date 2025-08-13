@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Archive,
   Download,
   Search,
@@ -31,6 +37,10 @@ import {
   Eye,
   BarChart3,
   X,
+  DollarSign,
+  ShoppingCart,
+  RefreshCw,
+  Warehouse,
 } from "lucide-react";
 import {
   LineChart,
@@ -42,679 +52,842 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Area,
+  AreaChart,
 } from "recharts";
+import { useToast } from "@/hooks/use-toast";
+import { stockSummaryAPI } from "@/services/api1";
 
-// Mock stock data with movement history
-const mockStockData = [
-  {
-    id: "P001",
-    name: "NVIDIA GTX 1660 Super",
-    category: "Graphics Card",
-    currentStock: 10,
-    reorderLevel: 3,
-    maxStock: 50,
-    unit: "pcs",
-    costPrice: 17000,
-    sellingPrice: 18500,
-    supplier: "Tech Distributors",
-    lastRestocked: "2024-01-15",
-    expiryDate: null,
-    movements: [
-      { date: "2024-01-20", type: "Sale", quantity: -2, balance: 10 },
-      { date: "2024-01-18", type: "Purchase", quantity: +5, balance: 12 },
-      { date: "2024-01-15", type: "Sale", quantity: -3, balance: 7 },
-    ],
-  },
-  {
-    id: "P002",
-    name: "Corsair 650W PSU",
-    category: "Power Supply",
-    currentStock: 2,
-    reorderLevel: 5,
-    maxStock: 30,
-    unit: "pcs",
-    costPrice: 4800,
-    sellingPrice: 5200,
-    supplier: "Power Solutions",
-    lastRestocked: "2024-01-10",
-    expiryDate: null,
-    movements: [
-      { date: "2024-01-19", type: "Sale", quantity: -1, balance: 2 },
-      { date: "2024-01-17", type: "Sale", quantity: -2, balance: 3 },
-      { date: "2024-01-10", type: "Purchase", quantity: +8, balance: 5 },
-    ],
-  },
-  {
-    id: "P003",
-    name: "ASUS B450 Motherboard",
-    category: "Motherboard",
-    currentStock: 3,
-    reorderLevel: 4,
-    maxStock: 25,
-    unit: "pcs",
-    costPrice: 7000,
-    sellingPrice: 7800,
-    supplier: "Motherboard Mart",
-    lastRestocked: "2024-01-12",
-    expiryDate: null,
-    movements: [
-      { date: "2024-01-20", type: "Sale", quantity: -1, balance: 3 },
-      { date: "2024-01-16", type: "Sale", quantity: -2, balance: 4 },
-      { date: "2024-01-12", type: "Purchase", quantity: +6, balance: 6 },
-    ],
-  },
-  {
-    id: "P004",
-    name: "1TB Seagate HDD",
-    category: "Storage",
-    currentStock: 25,
-    reorderLevel: 8,
-    maxStock: 100,
-    unit: "pcs",
-    costPrice: 2900,
-    sellingPrice: 3200,
-    supplier: "Storage House",
-    lastRestocked: "2024-01-18",
-    expiryDate: null,
-    movements: [
-      { date: "2024-01-19", type: "Sale", quantity: -3, balance: 25 },
-      { date: "2024-01-18", type: "Purchase", quantity: +15, balance: 28 },
-      { date: "2024-01-14", type: "Sale", quantity: -5, balance: 13 },
-    ],
-  },
-  {
-    id: "P005",
-    name: "Thermal Paste",
-    category: "Accessories",
-    currentStock: 8,
-    reorderLevel: 10,
-    maxStock: 50,
-    unit: "tubes",
-    costPrice: 150,
-    sellingPrice: 200,
-    supplier: "Cooler World",
-    lastRestocked: "2024-01-05",
-    expiryDate: "2025-06-30",
-    movements: [
-      { date: "2024-01-19", type: "Sale", quantity: -2, balance: 8 },
-      { date: "2024-01-15", type: "Sale", quantity: -3, balance: 10 },
-      { date: "2024-01-05", type: "Purchase", quantity: +15, balance: 13 },
-    ],
-  },
-];
+interface StockMovement {
+  date: string;
+  type: "Purchase" | "Sale" | "Adjustment" | "Return";
+  quantity: number;
+  balance: number;
+  reference?: string;
+}
 
-// Mock demand forecast data
-const mockForecastData = [
-  { name: "Week 1", predicted: 35, actual: 32 },
-  { name: "Week 2", predicted: 42, actual: 38 },
-  { name: "Week 3", predicted: 38, actual: 35 },
-  { name: "Week 4", predicted: 45, actual: null },
-  { name: "Week 5", predicted: 40, actual: null },
-  { name: "Week 6", predicted: 48, actual: null },
-];
+interface StockItem {
+  id: string;
+  name: string;
+  category: string;
+  sku: string;
+  currentStock: number;
+  reorderLevel: number;
+  maxStock: number;
+  unit: string;
+  costPrice: number;
+  sellingPrice: number;
+  supplier: string;
+  lastRestocked: string;
+  expiryDate?: string;
+  location: string;
+  movements?: StockMovement[];
+  stockValue: number;
+  stockTurnover: number;
+  daysSinceLastMovement: number;
+}
 
+// Enhanced sample stock data
 export default function StockSummary() {
+  const { toast } = useToast();
+
+  // State for API data
+  const [stockData, setStockData] = useState<StockItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stockStats, setStockStats] = useState({
+    total: 0,
+    inStock: 0,
+    lowStock: 0,
+    outOfStock: 0,
+    totalValue: 0,
+    avgTurnover: 0
+  });
+  const [categories, setCategories] = useState<string[]>(["all"]);
+
+  // UI state
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [stockFilter, setStockFilter] = useState("all");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [showForecast, setShowForecast] = useState(false);
-  const [stockData, setStockData] = useState(mockStockData);
-  const [lowStockCount, setLowStockCount] = useState(0);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "low_stock" | "out_of_stock">("all");
+  const [sortBy, setSortBy] = useState<"name" | "value" | "stock" | "turnover" | "lastMovement">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<"summary" | "movements">("summary");
 
-  // Fetch real low stock count from API
-  useEffect(() => {
-    fetch("http://localhost:4000/api/alerts/low-stock")
-      .then((res) => res.json())
-      .then((data) => {
-        setLowStockCount(data.length);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch low stock alerts:", err);
-        setLowStockCount(0);
+  const itemsPerPage = 10;
+
+  // Fetch stock summary data
+  const fetchStockData = async () => {
+    try {
+      setLoading(true);
+      const response = await stockSummaryAPI.getStockSummary({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm,
+        category: categoryFilter,
+        stockFilter,
+        sortBy,
+        sortOrder
       });
-  }, []);
 
-  const categories = [
-    "all",
-    ...Array.from(new Set(stockData.map((p) => p.category))),
-  ];
-
-  const filteredStock = stockData.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      categoryFilter === "all" || product.category === categoryFilter;
-    const matchesStockLevel =
-      stockFilter === "all" ||
-      (stockFilter === "low" && product.currentStock <= product.reorderLevel) ||
-      (stockFilter === "out" && product.currentStock === 0) ||
-      (stockFilter === "normal" && product.currentStock > product.reorderLevel);
-    return matchesSearch && matchesCategory && matchesStockLevel;
-  });
-
-  const lowStockItems = stockData.filter(
-    (p) => p.currentStock <= p.reorderLevel
-  );
-  const outOfStockItems = stockData.filter((p) => p.currentStock === 0);
-  const expiringItems = stockData.filter((p) => {
-    if (!p.expiryDate) return false;
-    const today = new Date();
-    const expiry = new Date(p.expiryDate);
-    const daysDiff = Math.ceil(
-      (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    return daysDiff <= 30; // Expiring within 30 days
-  });
-
-  const totalStockValue = stockData.reduce(
-    (sum, p) => sum + p.currentStock * p.costPrice,
-    0
-  );
-
-  const getStockBadge = (product) => {
-    if (product.currentStock === 0) {
-      return <Badge variant="destructive">Out of Stock</Badge>;
-    } else if (product.currentStock <= product.reorderLevel) {
-      return <Badge variant="secondary">Low Stock</Badge>;
-    } else {
-      return <Badge variant="outline">In Stock</Badge>;
+      setStockData(response.items);
+      setStockStats(response.stats);
+      setCategories(["all", ...response.categories]);
+      
+    } catch (error) {
+      console.error("Error fetching stock data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load stock data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStockPercentage = (product) => {
-    return Math.round((product.currentStock / product.maxStock) * 100);
+  // Load data on component mount and when filters change
+  useEffect(() => {
+    fetchStockData();
+  }, [currentPage, searchTerm, categoryFilter, stockFilter, sortBy, sortOrder]);
+
+  // Filter and sort stock data (now done on backend, but keeping for pagination)
+  const filteredAndSortedStock = useMemo(() => {
+    return stockData; // Data is already filtered and sorted by the backend
+  }, [stockData]);
+
+  // Pagination
+  const totalPages = Math.ceil(stockStats.total / itemsPerPage);
+  const paginatedItems = filteredAndSortedStock;
+
+  // Stock level distribution for pie chart
+  const stockDistribution = useMemo(() => {
+    return [
+      { name: "In Stock", value: stockStats.inStock, fill: "#10B981" },
+      { name: "Low Stock", value: stockStats.lowStock, fill: "#F59E0B" },
+      { name: "Out of Stock", value: stockStats.outOfStock, fill: "#EF4444" },
+    ].filter((item) => item.value > 0);
+  }, [stockStats]);
+
+  // Category value distribution
+  const categoryValueData = useMemo(() => {
+    const categoryValues: Record<string, number> = {};
+    stockData.forEach((item) => {
+      categoryValues[item.category] =
+        (categoryValues[item.category] || 0) + item.stockValue;
+    });
+
+    return Object.entries(categoryValues)
+      .map(([category, value]) => ({ category, value }))
+      .sort((a, b) => b.value - a.value);
+  }, []);
+
+  // Stock movement trends (last 30 days)
+  const movementTrends = useMemo(() => {
+    const trends: Record<string, { in: number; out: number; date: string }> =
+      {};
+
+    // Generate last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split("T")[0];
+      trends[dateStr] = { in: 0, out: 0, date: dateStr };
+    }
+
+    // Aggregate movements
+    stockData.forEach((item) => {
+      if (item.movements) {
+        item.movements.forEach((movement) => {
+          if (trends[movement.date]) {
+            if (movement.quantity > 0) {
+              trends[movement.date].in += movement.quantity;
+            } else {
+              trends[movement.date].out += Math.abs(movement.quantity);
+            }
+          }
+        });
+      }
+    });
+
+    return Object.values(trends).map((trend) => ({
+      date: new Date(trend.date).toLocaleDateString("en", { weekday: "short" }),
+      stockIn: trend.in,
+      stockOut: trend.out,
+      net: trend.in - trend.out,
+    }));
+  }, []);
+
+  const getStockStatus = (item: StockItem) => {
+    if (item.currentStock === 0) {
+      return { status: "Out of Stock", color: "destructive", icon: X };
+    } else if (item.currentStock <= item.reorderLevel) {
+      return {
+        status: "Low Stock",
+        color: "secondary",
+        className: "bg-yellow-100 text-yellow-800",
+        icon: AlertTriangle,
+      };
+    } else {
+      return {
+        status: "In Stock",
+        color: "secondary",
+        className: "bg-green-100 text-green-800",
+        icon: Package,
+      };
+    }
   };
 
-  const exportSummary = () => {
-    console.log("Exporting stock summary");
+  const exportToCSV = () => {
+    const csvData = stockData.map((item) => ({
+      SKU: item.sku,
+      Name: item.name,
+      Category: item.category,
+      "Current Stock": item.currentStock,
+      "Reorder Level": item.reorderLevel,
+      "Max Stock": item.maxStock,
+      Unit: item.unit,
+      "Cost Price (₹)": item.costPrice,
+      "Selling Price (₹)": item.sellingPrice,
+      Supplier: item.supplier,
+      "Stock Value (₹)": item.stockValue,
+      "Turnover Ratio": item.stockTurnover,
+      Location: item.location,
+      "Last Restocked": item.lastRestocked,
+    }));
+
+    const csv = [
+      Object.keys(csvData[0]).join(","),
+      ...csvData.map((row) =>
+        Object.values(row)
+          .map((v) => `"${v}"`)
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `stock-summary-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden">
-      <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6 max-w-7xl">
-        {/* Page Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold truncate">
-              Stock Summary
-            </h1>
-            <p className="text-sm md:text-base text-muted-foreground">
-              Complete inventory overview and stock levels
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowForecast(!showForecast)}
-              className="md:size-lg w-full sm:w-auto"
-            >
-              <BarChart3 className="h-4 w-4 mr-2" />
-              <span className="sm:inline">
-                {showForecast ? "Hide" : "Show"} Forecast
-              </span>
-            </Button>
-            {/* <Button
-              variant="action"
-              size="sm"
-              onClick={exportSummary}
-              className="md:size-lg w-full sm:w-auto"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              <span className="sm:inline">Export Summary</span>
-            </Button> */}
-          </div>
+    <div className="p-4 md:p-6 space-y-6 bg-gradient-to-br from-background via-blue-50/10 to-purple-50/10 min-h-screen">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <Warehouse className="h-8 w-8 text-blue-500" />
+            Stock Summary
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Comprehensive inventory overview and movement analysis
+          </p>
         </div>
-
-        {/* Key Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
-          <Card className="p-3 md:p-4 shadow-soft">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="h-8 w-8 md:h-10 md:w-10 bg-gradient-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                <Package className="h-4 w-4 md:h-5 md:w-5 text-primary-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs md:text-sm text-muted-foreground truncate">
-                  Total Products
-                </p>
-                <p className="text-lg md:text-xl font-bold">
-                  {mockStockData.length}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-3 md:p-4 shadow-soft">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="h-8 w-8 md:h-10 md:w-10 bg-warning rounded-lg flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-warning-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs md:text-sm text-muted-foreground truncate">
-                  Low Stock
-                </p>
-                <p className="text-lg md:text-xl font-bold text-warning">
-                  {lowStockCount}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-3 md:p-4 shadow-soft">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="h-8 w-8 md:h-10 md:w-10 bg-destructive rounded-lg flex items-center justify-center flex-shrink-0">
-                <Package className="h-4 w-4 md:h-5 md:w-5 text-destructive-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs md:text-sm text-muted-foreground truncate">
-                  Out of Stock
-                </p>
-                <p className="text-lg md:text-xl font-bold text-destructive">
-                  {outOfStockItems.length}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-3 md:p-4 shadow-soft">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="h-8 w-8 md:h-10 md:w-10 bg-gradient-accent rounded-lg flex items-center justify-center flex-shrink-0">
-                <Calendar className="h-4 w-4 md:h-5 md:w-5 text-accent-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs md:text-sm text-muted-foreground truncate">
-                  Expiring Soon
-                </p>
-                <p className="text-lg md:text-xl font-bold">
-                  {expiringItems.length}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-3 md:p-4 shadow-soft col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="h-8 w-8 md:h-10 md:w-10 bg-gradient-success rounded-lg flex items-center justify-center flex-shrink-0">
-                <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-success-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs md:text-sm text-muted-foreground truncate">
-                  Total Value
-                </p>
-                <p className="text-lg md:text-xl font-bold">
-                  ₹{totalStockValue.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </Card>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={exportToCSV}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={() => fetchStockData()}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
+      </div>
 
-        {/* Demand Forecast */}
-        {showForecast && (
-          <Card className="p-4 md:p-6 shadow-soft">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4 md:mb-6">
-              <div>
-                <h3 className="text-base md:text-lg font-semibold">
-                  Demand Forecast (ML)
-                </h3>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  Predicted inventory demand for next 6 weeks
-                </p>
-              </div>
-              <Badge variant="secondary" className="self-start md:self-auto">
-                Forecast Model v2.1
-              </Badge>
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Total Items
+              </p>
+              <p className="text-2xl font-bold">{stockStats.total}</p>
+              <p className="text-xs text-muted-foreground mt-1">In inventory</p>
             </div>
-            <div className="w-full overflow-x-auto">
-              <ResponsiveContainer width="100%" height={250} minWidth={300}>
-                <LineChart data={mockForecastData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    contentStyle={{
-                      fontSize: "12px",
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="actual"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    name="Actual Demand"
-                    dot={{ r: 3 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="predicted"
-                    stroke="hsl(var(--accent))"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    name="Predicted Demand"
-                    dot={{ r: 3 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-        )}
-
-        {/* Alerts */}
-        {(lowStockItems.length > 0 || expiringItems.length > 0) && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-            {lowStockItems.length > 0 && (
-              <Card className="p-3 md:p-4 border-warning shadow-soft">
-                <div className="flex items-center gap-2 md:gap-3 mb-3">
-                  <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-warning flex-shrink-0" />
-                  <h3 className="font-semibold text-warning text-sm md:text-base">
-                    Low Stock Alert
-                  </h3>
-                </div>
-                <div className="space-y-2">
-                  {lowStockItems.map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex justify-between items-center gap-2"
-                    >
-                      <span className="text-xs md:text-sm truncate flex-1">
-                        {product.name}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="border-warning text-warning text-xs flex-shrink-0"
-                      >
-                        {product.currentStock} / {product.reorderLevel}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            {expiringItems.length > 0 && (
-              <Card className="p-3 md:p-4 border-destructive shadow-soft">
-                <div className="flex items-center gap-2 md:gap-3 mb-3">
-                  <Calendar className="h-4 w-4 md:h-5 md:w-5 text-destructive flex-shrink-0" />
-                  <h3 className="font-semibold text-destructive text-sm md:text-base">
-                    Expiring Soon
-                  </h3>
-                </div>
-                <div className="space-y-2">
-                  {expiringItems.map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex justify-between items-center gap-2"
-                    >
-                      <span className="text-xs md:text-sm truncate flex-1">
-                        {product.name}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="border-destructive text-destructive text-xs flex-shrink-0"
-                      >
-                        {new Date(product.expiryDate).toLocaleDateString()}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
+            <Package className="h-8 w-8 text-blue-500" />
           </div>
-        )}
+        </Card>
 
-        {/* Filters */}
-        <Card className="p-3 md:p-4 shadow-soft">
-          <div className="flex flex-col gap-3 md:flex-row md:gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Stock Alerts
+              </p>
+              <p className="text-2xl font-bold text-red-600">
+                {stockStats.lowStock + stockStats.outOfStock}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Need attention
+              </p>
+            </div>
+            <AlertTriangle className="h-8 w-8 text-red-500" />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Total Value
+              </p>
+              <p className="text-2xl font-bold text-green-600">
+                ₹{(stockStats.totalValue / 100000).toFixed(1)}L
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Inventory worth
+              </p>
+            </div>
+            <DollarSign className="h-8 w-8 text-green-500" />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Avg Turnover
+              </p>
+              <p className="text-2xl font-bold text-purple-600">
+                {stockStats.avgTurnover.toFixed(1)}x
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Annual ratio</p>
+            </div>
+            <BarChart3 className="h-8 w-8 text-purple-500" />
+          </div>
+        </Card>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Stock Status Distribution */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">
+            Stock Status Distribution
+          </h3>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={stockDistribution}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={30}
+                  outerRadius={70}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {stockDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* Category Value Distribution */}
+        <Card className="p-6 lg:col-span-2">
+          <h3 className="text-lg font-semibold mb-4">Value by Category</h3>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={categoryValueData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="category"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis
+                  tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                />
+                <Tooltip
+                  formatter={(value) => [
+                    `₹${(value as number).toLocaleString()}`,
+                    "Value",
+                  ]}
+                />
+                <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
+
+      {/* Movement Trends */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">
+          Stock Movement Trends (Last 7 Days)
+        </h3>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={movementTrends}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Area
+                type="monotone"
+                dataKey="stockIn"
+                stackId="1"
+                stroke="#10B981"
+                fill="#10B981"
+                fillOpacity={0.6}
+                name="Stock In"
+              />
+              <Area
+                type="monotone"
+                dataKey="stockOut"
+                stackId="2"
+                stroke="#EF4444"
+                fill="#EF4444"
+                fillOpacity={0.6}
+                name="Stock Out"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* Filters and Search */}
+      <Card className="p-6">
+        <div className="flex flex-col lg:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search products..."
+                placeholder="Search by name, SKU, or supplier..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 text-sm"
+                className="pl-9"
               />
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem
-                      key={category}
-                      value={category}
-                      className="capitalize"
-                    >
-                      {category === "all" ? "All Categories" : category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={stockFilter} onValueChange={setStockFilter}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Stock Levels</SelectItem>
-                  <SelectItem value="low">Low Stock</SelectItem>
-                  <SelectItem value="out">Out of Stock</SelectItem>
-                  <SelectItem value="normal">Normal Stock</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
-        </Card>
+
+          <div className="flex gap-2">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category === "all" ? "All Categories" : category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={stockFilter} onValueChange={(value) => setStockFilter(value as "all" | "in_stock" | "low_stock" | "out_of_stock")}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Stock Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="in_stock">In Stock</SelectItem>
+                <SelectItem value="low_stock">Low Stock</SelectItem>
+                <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as "name" | "value" | "stock" | "turnover" | "lastMovement")}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="stock">Stock Level</SelectItem>
+                <SelectItem value="value">Stock Value</SelectItem>
+                <SelectItem value="turnover">Turnover</SelectItem>
+                <SelectItem value="lastMovement">Last Movement</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              className="px-3"
+            >
+              {sortOrder === "asc" ? (
+                <TrendingUp className="h-4 w-4" />
+              ) : (
+                <TrendingDown className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
 
         {/* Stock Table */}
-        <Card className="shadow-soft overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item Details</TableHead>
+                <TableHead>Stock Levels</TableHead>
+                <TableHead>Pricing</TableHead>
+                <TableHead>Performance</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
                 <TableRow>
-                  <TableHead className="w-[200px]">Product</TableHead>
-                  <TableHead className="hidden sm:table-cell">
-                    Category
-                  </TableHead>
-                  <TableHead>Current Stock</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Stock Level
-                  </TableHead>
-                  <TableHead className="hidden lg:table-cell">
-                    Reorder Level
-                  </TableHead>
-                  <TableHead className="hidden lg:table-cell">
-                    Stock %
-                  </TableHead>
-                  <TableHead className="hidden xl:table-cell text-right">
-                    Value
-                  </TableHead>
-                  <TableHead className="hidden xl:table-cell">
-                    Last Restocked
-                  </TableHead>
-                  <TableHead className="hidden 2xl:table-cell">
-                    Expiry
-                  </TableHead>
-                  <TableHead className="w-[60px]">Actions</TableHead>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      <RefreshCw className="h-8 w-8 mx-auto mb-4 animate-spin" />
+                      <p className="text-lg font-medium">Loading stock data...</p>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStock.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium text-sm truncate max-w-[150px]">
-                          {product.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground sm:hidden">
-                          {product.category}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {product.id}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <Badge variant="outline" className="text-xs">
-                        {product.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium text-sm">
-                      <div>
-                        <span>
-                          {product.currentStock} {product.unit}
-                        </span>
-                        <div className="md:hidden">
-                          {getStockBadge(product)}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {getStockBadge(product)}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm">
-                      {product.reorderLevel}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <div className="flex items-center gap-2">
-                        <div className="w-12 lg:w-16 h-2 bg-muted rounded-full">
-                          <div
-                            className={`h-2 rounded-full ${
-                              getStockPercentage(product) <= 20
-                                ? "bg-destructive"
-                                : getStockPercentage(product) <= 40
-                                ? "bg-warning"
-                                : "bg-success"
-                            }`}
-                            style={{ width: `${getStockPercentage(product)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs">
-                          {getStockPercentage(product)}%
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden xl:table-cell font-medium text-sm text-right">
-                      ₹
-                      {(
-                        product.currentStock * product.costPrice
-                      ).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="hidden xl:table-cell text-sm">
-                      {new Date(product.lastRestocked).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="hidden 2xl:table-cell">
-                      {product.expiryDate ? (
-                        <span
-                          className={`text-xs ${
-                            expiringItems.includes(product)
-                              ? "text-destructive font-medium"
-                              : ""
-                          }`}
-                        >
-                          {new Date(product.expiryDate).toLocaleDateString()}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">
-                          N/A
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setSelectedProduct(product)}
-                        className="h-8 w-8"
-                      >
-                        <Eye className="h-3 w-3" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+              ) : paginatedItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      <Archive className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium mb-1">
+                        No stock items found
+                      </p>
+                      <p className="text-sm">
+                        Try adjusting your search or filter criteria
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedItems.map((item) => {
+                  const stockStatus = getStockStatus(item);
+                  const Icon = stockStatus.icon;
 
-        {/* Stock Movement History Modal */}
-        {selectedProduct && (
-          <Card className="fixed inset-4 z-50 bg-card shadow-2xl rounded-lg max-w-2xl mx-auto overflow-hidden">
-            <div className="p-4 md:p-6 border-b">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base md:text-lg font-semibold truncate">
-                    {selectedProduct.name}
-                  </h3>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    Stock Movement History
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSelectedProduct(null)}
-                  className="flex-shrink-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            <div className="p-4 md:p-6 max-h-96 overflow-y-auto">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-sm">Date</TableHead>
-                      <TableHead className="text-sm">Type</TableHead>
-                      <TableHead className="text-sm">Quantity</TableHead>
-                      <TableHead className="text-sm">Balance</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedProduct.movements.map((movement, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="text-xs md:text-sm">
-                          {new Date(movement.date).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              movement.type === "Purchase"
-                                ? "outline"
-                                : "secondary"
-                            }
-                            className="text-xs"
-                          >
-                            {movement.type}
+                  return (
+                    <TableRow key={item.id} className="hover:bg-muted/50">
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {item.sku}
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {item.category}
                           </Badge>
-                        </TableCell>
-                        <TableCell
-                          className={`font-medium text-sm ${
-                            movement.quantity > 0
-                              ? "text-success"
-                              : "text-destructive"
-                          }`}
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium">
+                            {item.currentStock} {item.unit}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Min: {item.reorderLevel} | Max: {item.maxStock}
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${
+                                item.currentStock === 0
+                                  ? "bg-red-500"
+                                  : item.currentStock <= item.reorderLevel
+                                  ? "bg-yellow-500"
+                                  : "bg-green-500"
+                              }`}
+                              style={{
+                                width: `${Math.min(
+                                  (item.currentStock / item.maxStock) * 100,
+                                  100
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">Cost:</span>
+                            <br />₹{item.costPrice.toLocaleString()}
+                          </div>
+                          <div className="text-sm font-medium text-green-600">
+                            <span className="text-muted-foreground text-xs">
+                              Selling:
+                            </span>
+                            <br />₹{item.sellingPrice.toLocaleString()}
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium text-green-600">
+                            ₹{item.stockValue.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Turnover: {item.stockTurnover}x
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Last move: {item.daysSinceLastMovement}d ago
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">
+                            {item.location}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {item.supplier}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Restocked:{" "}
+                            {new Date(item.lastRestocked).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          <Badge
+                            variant={stockStatus.color as any}
+                            className={stockStatus.className}
+                          >
+                            {stockStatus.status}
+                          </Badge>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedItem(item);
+                            setIsDetailsDialogOpen(true);
+                          }}
                         >
-                          {movement.quantity > 0 ? "+" : ""}
-                          {movement.quantity}
-                        </TableCell>
-                        <TableCell className="font-medium text-sm">
-                          {movement.balance}
-                        </TableCell>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {paginatedItems.length} of {stockStats.total}{" "}
+              items
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(currentPage - 1)}
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-2">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const page = i + 1;
+                  return (
+                    <Button
+                      key={page}
+                      variant={page === currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(currentPage + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Item Details Dialog */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Stock Item Details</DialogTitle>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-lg">
+                      {selectedItem.name}
+                    </h3>
+                    <p className="text-muted-foreground">{selectedItem.sku}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Card className="p-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {selectedItem.currentStock}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Current Stock
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="p-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          ₹{selectedItem.stockValue.toLocaleString()}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Total Value
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Category:</span>
+                      <Badge variant="outline">{selectedItem.category}</Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Supplier:</span>
+                      <span>{selectedItem.supplier}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Location:</span>
+                      <span>{selectedItem.location}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Reorder Level:
+                      </span>
+                      <span>
+                        {selectedItem.reorderLevel} {selectedItem.unit}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Turnover Ratio:
+                      </span>
+                      <span>{selectedItem.stockTurnover}x</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stock Movements */}
+              <div>
+                <h4 className="font-semibold mb-4">Recent Stock Movements</h4>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Balance</TableHead>
+                        <TableHead>Reference</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedItem.movements && selectedItem.movements.length > 0 ? (
+                        selectedItem.movements.map((movement, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            {new Date(movement.date).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                movement.type === "Purchase"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                              className={
+                                movement.type === "Purchase"
+                                  ? "bg-green-100 text-green-800"
+                                  : movement.type === "Sale"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }
+                            >
+                              {movement.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={
+                                movement.quantity > 0
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }
+                            >
+                              {movement.quantity > 0 ? "+" : ""}
+                              {movement.quantity}
+                            </span>
+                          </TableCell>
+                          <TableCell>{movement.balance}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {movement.reference || "—"}
+                          </TableCell>
+                        </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                            No movement data available
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
-          </Card>
-        )}
-      </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

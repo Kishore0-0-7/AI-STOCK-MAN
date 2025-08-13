@@ -1,102 +1,29 @@
 # AI Stock Management System - Backend API
 
-# AI Stock Management System - Backend API
-
-A comprehensive Node.js/Express backend API for the AI Stock Management System featuring MVC architecture, separate controllers, centralized database management, and complete REST API coverage.
-
-## 🏗️ Architecture
-
-```
-backend/
-├── server.js                 # Main server file
-├── package.json             # Dependencies and scripts
-├── README.md                # Documentation
-├── .gitignore               # Git ignore rules
-├── config/
-│   └── database.js         # Centralized database connection & table management
-├── routes/
-│   └── api.js             # Central API route definitions
-├── controllers/           # Business logic controllers
-│   ├── dashboardController.js    # Dashboard analytics & overview
-│   ├── productsController.js     # Product & inventory management
-│   ├── suppliersController.js    # Supplier management & performance
-│   ├── customersController.js    # Customer relationship management
-│   ├── billsController.js        # Bill processing & OCR simulation
-│   ├── reportsController.js      # Comprehensive reporting & exports
-│   ├── purchaseOrdersController.js # Purchase order workflows
-│   └── alertsController.js       # Alert management & generation
-└── uploads/               # File storage directory
-    └── bills/            # Bill upload storage
-```
+A comprehensive Express.js backend API for the AI Stock Management System with MySQL database integration.
 
 ## 🚀 Features
 
-### Core APIs
+- **Dashboard Analytics**: Complete dashboard metrics and KPIs
+- **Real-time Data**: Live stock movements and alerts
+- **Modular Architecture**: Clean separation of concerns
+- **Error Handling**: Comprehensive error handling and validation
+- **Security**: Rate limiting, CORS, helmet security headers
+- **Database**: MySQL with connection pooling
+- **Logging**: Request logging and error tracking
 
-- **Dashboard API** - Real-time analytics, trends, and KPIs
-- **Products API** - Complete inventory management with stock tracking
-- **Suppliers API** - Supplier management with performance metrics
-- **Customers API** - Customer relationship management
-- **Purchase Orders API** - Order processing and management
-- **Bills API** - Bill upload, OCR processing, and management
-- **Reports API** - Comprehensive reporting and data export
-- **Alerts API** - Real-time stock alerts and notifications
+## 📋 Prerequisites
 
-### Advanced Features
+- Node.js (v16 or higher)
+- MySQL (v8.0 or higher)
+- npm or yarn package manager
 
-- **File Upload Support** - Multer integration for bill/receipt uploads
-- **OCR Simulation** - Mock OCR processing for bill data extraction
-- **Stock Movement Tracking** - Complete audit trail for inventory changes
-- **Performance Analytics** - Supplier and customer performance metrics
-- **Export Functionality** - CSV export for reports and data
-- **Real-time Statistics** - Dynamic dashboard with live data
-- **Pagination Support** - Efficient data handling for large datasets
-- **Search & Filtering** - Advanced querying capabilities
-
-## 📁 Project Structure
-
-```
-backend/
-├── server_final.cjs          # Main server file with all routes
-├── package.json              # Dependencies and scripts
-├── config/
-│   └── db.cjs               # MySQL database configuration
-├── routes/
-│   ├── dashboard.cjs        # Dashboard analytics endpoints
-│   ├── reports.cjs          # Reporting and export endpoints
-│   ├── products_enhanced.cjs # Product management with inventory
-│   ├── suppliers_enhanced.cjs # Supplier management and performance
-│   ├── customers_enhanced.cjs # Customer relationship management
-│   ├── purchase_orders.cjs  # Purchase order processing
-│   ├── bills_enhanced.cjs   # Bill processing with OCR simulation
-│   └── alerts.cjs          # Alert management system
-├── uploads/
-│   └── bills/              # Uploaded bill files storage
-└── schema/
-    └── *.sql               # Database schema files
-```
-
-### Automated Setup (Recommended)
-
-1. **Run the setup script**
-
-   ```bash
-   cd backend/
-   ./setup.sh
-   ```
-
-   This will automatically:
-
-   - Install all dependencies
-   - Create the MySQL database
-   - Verify your environment
-
-### Manual Installation
+## 🛠️ Installation
 
 1. **Clone and navigate to backend directory**
 
    ```bash
-   cd backend/
+   cd backend
    ```
 
 2. **Install dependencies**
@@ -105,297 +32,285 @@ backend/
    npm install
    ```
 
-3. **Database Setup**
+3. **Environment Setup**
 
    ```bash
-   # Create MySQL database
-   mysql -u root -p
-   CREATE DATABASE ai_stock_management;
-   exit
+   cp .env.example .env
    ```
 
-4. **Configure Database Connection**
+   Edit `.env` file with your configuration:
 
-   - Open `config/database.js`
-   - Update the database credentials:
+   ```env
+   NODE_ENV=development
+   PORT=5000
 
-   ```javascript
-   const dbConfig = {
-     host: "localhost",
-     user: "root",
-     password: "your_password_here", // Update this
-     database: "ai_stock_management",
-     // ... other settings
-   };
+   # Database Configuration
+   DB_HOST=localhost
+   DB_USER=root
+   DB_PASSWORD=your_password
+   DB_NAME=ai_stock_management
+   DB_PORT=3306
+
+   # JWT Configuration
+   JWT_SECRET=your-super-secret-jwt-key
+   JWT_EXPIRES_IN=7d
+
+   # CORS Configuration
+   CORS_ORIGIN=http://localhost:5173
+   ```
+
+4. **Database Setup**
+
+   Make sure your MySQL database is running and execute the schema:
+
+   ```bash
+   mysql -u root -p ai_stock_management < ../database/ai_stock_management_schema.sql
    ```
 
 5. **Start the server**
 
-   ```bash
-   # Development mode with auto-restart
-   npm run dev
+   Development mode:
 
-   # Production mode
+   ```bash
+   npm run dev
+   ```
+
+   Production mode:
+
+   ```bash
    npm start
    ```
 
-## 🔌 API Endpoints
+## 🌐 API Endpoints
 
-### Dashboard API (`/api/dashboard`)
+### Dashboard Endpoints
 
-- `GET /overview` - Dashboard overview statistics
-- `GET /activity` - Recent activity feed
-- `GET /trends` - Stock trends and analytics
-- `GET /alerts` - Active alerts and notifications
-- `GET /forecast` - Demand forecasting data
+| Method | Endpoint                              | Description                |
+| ------ | ------------------------------------- | -------------------------- |
+| GET    | `/api/v1/dashboard/overview`          | Dashboard overview metrics |
+| GET    | `/api/v1/dashboard/activity`          | Recent user activities     |
+| GET    | `/api/v1/dashboard/trends`            | Trends data for charts     |
+| GET    | `/api/v1/dashboard/stock-summary`     | Stock summary by category  |
+| GET    | `/api/v1/dashboard/alerts`            | Active alerts              |
+| GET    | `/api/v1/dashboard/stock-movements`   | Recent stock movements     |
+| GET    | `/api/v1/dashboard/sales-metrics`     | Sales analytics            |
+| GET    | `/api/v1/dashboard/purchase-metrics`  | Purchase analytics         |
+| GET    | `/api/v1/dashboard/warehouse-metrics` | Warehouse utilization      |
+| GET    | `/api/v1/dashboard/quality-metrics`   | Quality control metrics    |
+| POST   | `/api/v1/dashboard/activity`          | Log user activity          |
 
-### Products API (`/api/products`)
+### Products Endpoints
 
-- `GET /` - List all products with pagination
-- `GET /:id` - Get product details with stock history
-- `POST /` - Create new product
-- `PUT /:id` - Update product information
-- `DELETE /:id` - Delete product
-- `POST /:id/stock-movement` - Add stock movement
-- `GET /stats/summary` - Product statistics
-- `GET /stats/by-category` - Category-wise analysis
-- `GET /low-stock` - Low stock products
+| Method | Endpoint                      | Description                  |
+| ------ | ----------------------------- | ---------------------------- |
+| GET    | `/api/v1/products`            | Get all products             |
+| GET    | `/api/v1/products/low-stock`  | Get low stock products       |
+| GET    | `/api/v1/products/categories` | Get product categories       |
+| GET    | `/api/v1/products/:id`        | Get product by ID            |
+| POST   | `/api/v1/products`            | Create new product           |
+| PUT    | `/api/v1/products/:id`        | Update product               |
+| DELETE | `/api/v1/products/:id`        | Delete product (soft delete) |
 
-### Suppliers API (`/api/suppliers`)
+### Alerts Endpoints
 
-- `GET /` - List all suppliers with statistics
-- `GET /:id` - Get supplier details with products/orders
-- `POST /` - Create new supplier
-- `PUT /:id` - Update supplier information
-- `DELETE /:id` - Delete/deactivate supplier
-- `GET /:id/performance` - Supplier performance metrics
-- `GET /stats/summary` - Supplier statistics
-- `GET /stats/top-performers` - Top performing suppliers
-
-### Customers API (`/api/customers`)
-
-- `GET /` - List all customers with statistics
-- `GET /:id` - Get customer details with order history
-- `POST /` - Create new customer
-- `PUT /:id` - Update customer information
-- `DELETE /:id` - Delete/deactivate customer
-- `GET /search` - Search customers (for forms)
-- `GET /stats/summary` - Customer statistics
-- `GET /stats/top-customers` - Top customers by spending
-
-### Bills API (`/api/bills`)
-
-- `GET /` - List all bills with pagination
-- `GET /:id` - Get bill details with items
-- `POST /upload` - Upload bill for OCR processing
-- `POST /process-extracted` - Process OCR extracted data
-- `PATCH /:id/status` - Update bill status
-- `DELETE /:id` - Delete bill
-- `GET /stats/summary` - Bills processing statistics
-
-### Reports API (`/api/reports`)
-
-- `GET /sales` - Sales reports with filtering
-- `GET /trends` - Sales trends analysis
-- `GET /categories` - Category-wise sales analysis
-- `GET /suppliers` - Supplier performance reports
-- `GET /export` - Export reports as CSV
-
-### Purchase Orders API (`/api/purchase-orders`)
-
-- `GET /` - List all purchase orders
-- `GET /:id` - Get purchase order details
-- `POST /` - Create new purchase order
-- `PUT /:id` - Update purchase order
-- `DELETE /:id` - Delete purchase order
-- `PATCH /:id/status` - Update order status
-
-### Alerts API (`/api/alerts`)
-
-- `GET /` - List all alerts
-- `POST /` - Create new alert
-- `PUT /:id` - Update alert
-- `DELETE /:id` - Delete alert
-- `PATCH /:id/status` - Update alert status
-
-## 🗄 Database Schema
-
-The system uses MySQL with the following main tables:
-
-### Core Tables
-
-- **products** - Product catalog with inventory tracking
-- **suppliers** - Supplier information and contact details
-- **customers** - Customer relationship management
-- **purchase_orders** - Purchase order management
-- **purchase_order_items** - Line items for orders
-- **bills** - Bill/invoice management with OCR data
-- **bill_items** - Line items from processed bills
-- **stock_movements** - Complete inventory movement audit trail
-- **alerts** - Alert management system
-
-### Features
-
-- **Auto-incrementing IDs** for all primary keys
-- **Foreign key constraints** for data integrity
-- **Indexes** for optimized query performance
-- **JSON columns** for flexible data storage (OCR results)
-- **Timestamps** for audit tracking
-- **Status enums** for workflow management
-
-## 🔧 Configuration Options
+| Method | Endpoint                            | Description                         |
+| ------ | ----------------------------------- | ----------------------------------- |
+| GET    | `/api/v1/alerts`                    | Get all alerts                      |
+| GET    | `/api/v1/alerts/stats`              | Get alert statistics                |
+| GET    | `/api/v1/alerts/:id`                | Get alert by ID                     |
+| POST   | `/api/v1/alerts`                    | Create new alert                    |
+| POST   | `/api/v1/alerts/generate-low-stock` | Auto-generate low stock alerts      |
+| PUT    | `/api/v1/alerts/:id`                | Update alert (acknowledge, resolve) |
+| DELETE | `/api/v1/alerts/:id`                | Delete/dismiss alert                |
 
 ### Query Parameters
 
-Most list endpoints support:
+Most GET endpoints support these query parameters:
 
-- `page` - Page number for pagination (default: 1)
-- `limit` - Items per page (default: 50)
-- `search` - Search across relevant fields
-- `status` - Filter by status
-- `category` - Filter by category
-- `sortBy` - Sort field
-- `sortOrder` - Sort direction (asc/desc)
+- `limit` (number): Maximum number of results (1-100, default: 10)
+- `period` (number): Time period in days (1-365, default: 30)
+- `type` (string): Filter by type
+- `priority` (string): Filter by priority (low, medium, high, critical)
+- `status` (string): Filter by status
+- `category` (string): Filter by category
 
-### File Upload
+### Example Requests
 
-Bills API supports file uploads:
+**Get Dashboard Overview:**
 
-- **Supported formats**: Images (JPG, PNG, PDF)
-- **Maximum size**: 10MB
-- **Storage**: Local filesystem (`uploads/bills/`)
-- **OCR processing**: Simulated extraction with confidence scores
-
-## 📊 Response Formats
-
-### Standard List Response
-
-```json
-{
-  "items": [...],
-  "pagination": {
-    "page": 1,
-    "limit": 50,
-    "total": 150,
-    "pages": 3
-  }
-}
+```bash
+curl http://localhost:5000/api/v1/dashboard/overview
 ```
 
-### Standard Success Response
+**Get Active Alerts with Filters:**
+
+```bash
+curl "http://localhost:5000/api/v1/dashboard/alerts?limit=20&priority=high&type=low_stock"
+```
+
+**Get Sales Metrics for Last 7 Days:**
+
+```bash
+curl "http://localhost:5000/api/v1/dashboard/sales-metrics?period=7"
+```
+
+**Log User Activity:**
+
+```bash
+curl -X POST http://localhost:5000/api/v1/dashboard/activity \
+  -H "Content-Type: application/json" \
+  -d '{
+    "activity_type": "create",
+    "table_name": "products",
+    "description": "Created new product",
+    "user_name": "John Doe",
+    "user_role": "admin"
+  }'
+```
+
+## 📊 Response Format
+
+All API responses follow this format:
+
+**Success Response:**
 
 ```json
 {
   "success": true,
-  "message": "Operation completed successfully",
-  "data": {...}
+  "data": {...},
+  "timestamp": "2024-01-13T10:30:00.000Z"
 }
 ```
 
-### Error Response
+**Error Response:**
 
 ```json
 {
-  "error": "Error description",
-  "code": "ERROR_CODE",
-  "details": {...}
+  "success": false,
+  "message": "Error description",
+  "timestamp": "2024-01-13T10:30:00.000Z",
+  "path": "/api/v1/dashboard/overview",
+  "method": "GET"
 }
 ```
 
-## 🔍 Testing
+**Validation Error:**
 
-### Health Check
-
-```bash
-curl http://localhost:4000/health
+```json
+{
+  "success": false,
+  "message": "Validation error",
+  "errors": [
+    {
+      "field": "user_name",
+      "message": "user_name is required",
+      "type": "any.required"
+    }
+  ],
+  "timestamp": "2024-01-13T10:30:00.000Z"
+}
 ```
 
-### API Documentation
+## 🏗️ Project Structure
 
-Visit http://localhost:4000/ for interactive API documentation with all available endpoints and examples.
-
-## 🚦 Error Handling
-
-The API includes comprehensive error handling:
-
-- **Validation errors** (400) - Invalid request data
-- **Authentication errors** (401) - Unauthorized access
-- **Authorization errors** (403) - Insufficient permissions
-- **Not found errors** (404) - Resource not found
-- **Server errors** (500) - Internal server errors
-
-## 📈 Performance Features
-
-- **Connection pooling** for database efficiency
-- **Query optimization** with proper indexing
-- **Pagination** for large datasets
-- **Compression middleware** for reduced bandwidth
-- **Rate limiting** for API protection
-- **Caching strategies** for frequently accessed data
+```
+backend/
+├── config/
+│   └── database.js          # Database configuration
+├── controllers/
+│   └── dashboardController.js # Dashboard business logic
+├── middleware/
+│   ├── errorHandler.js       # Error handling middleware
+│   └── validation.js         # Input validation
+├── routes/
+│   └── dashboard.js          # Dashboard routes
+├── .env.example             # Environment template
+├── package.json            # Dependencies
+├── server.js              # Main application file
+└── README.md             # This file
+```
 
 ## 🔒 Security Features
 
-- **CORS configuration** for cross-origin requests
-- **Input validation** and sanitization
-- **SQL injection protection** via parameterized queries
-- **File upload validation** for security
-- **Error message sanitization** to prevent information leakage
+- **Rate Limiting**: 100 requests per 15 minutes per IP
+- **CORS**: Configurable cross-origin resource sharing
+- **Helmet**: Security headers
+- **Input Validation**: Joi schema validation
+- **SQL Injection Protection**: Parameterized queries
+- **Error Handling**: No sensitive data in error responses
 
-## 🔄 Development Workflow
+## 📈 Health Check
 
-### Development Mode
-
-```bash
-npm run dev  # Auto-restart on file changes
-```
-
-### Production Mode
+Check if the server is running:
 
 ```bash
-npm start    # Standard production server
+curl http://localhost:5000/health
 ```
 
-### Code Quality
+Response:
+
+```json
+{
+  "status": "OK",
+  "timestamp": "2024-01-13T10:30:00.000Z",
+  "uptime": 3600,
+  "environment": "development"
+}
+```
+
+## 🧪 Testing
+
+Run tests (when available):
 
 ```bash
-npm run lint     # ESLint checking
-npm run format   # Prettier formatting
-npm test         # Run test suite
+npm test
 ```
 
-## 🤝 Integration with Frontend
+## 📝 Logging
 
-This backend is designed to work seamlessly with the React frontend:
+The application uses Morgan for HTTP request logging:
 
-- **CORS enabled** for localhost:3000 and localhost:5173
-- **RESTful API design** following standard conventions
-- **JSON responses** compatible with frontend data structures
-- **File upload support** for bill scanning features
-- **Real-time data** for dashboard updates
-- **Export functionality** for reporting features
+- Development: Detailed colored logs
+- Production: Common log format
 
-## 📝 Development Notes
+## 🚀 Deployment
 
-### Adding New Endpoints
+For production deployment:
 
-1. Create route file in `routes/` directory
-2. Implement CRUD operations with proper error handling
-3. Add route to `server_final.cjs`
-4. Update API documentation
-5. Test endpoints with sample data
+1. Set `NODE_ENV=production`
+2. Use a process manager like PM2
+3. Set up reverse proxy with Nginx
+4. Use environment variables for sensitive data
+5. Enable SSL/HTTPS
 
-### Database Changes
+## 🤝 Contributing
 
-1. Create migration scripts for schema changes
-2. Update existing route handlers if needed
-3. Test data integrity and relationships
-4. Update API documentation for new fields
+1. Follow the existing code structure
+2. Add validation for new endpoints
+3. Handle errors appropriately
+4. Add documentation for new endpoints
+5. Test your changes
 
-### File Upload Features
+## 📄 License
 
-1. Configure multer for specific file types
-2. Implement file validation and security checks
-3. Add cleanup routines for old files
-4. Consider cloud storage for production
+MIT License - see LICENSE file for details.
 
-This backend provides a solid foundation for the AI Stock Management System with room for future enhancements like authentication, real-time notifications, advanced analytics, and third-party integrations.
+## 🆘 Support
+
+For support or questions:
+
+- Check the database connection
+- Verify environment variables
+- Check server logs for errors
+- Ensure MySQL service is running
+
+## 🔮 Future Enhancements
+
+- Authentication and authorization
+- File upload endpoints
+- WebSocket for real-time updates
+- API versioning
+- Caching layer
+- Automated tests
+- API documentation with Swagger
+- Docker containerization

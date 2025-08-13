@@ -1,24 +1,20 @@
-import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
+import { useState, useMemo, useEffect } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { purchaseOrdersAPI } from "@/services/api1";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -32,23 +28,46 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+// Chart imports
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  BarChart,
+  Bar,
+} from "recharts";
 import {
   Plus,
   Search,
   Edit2,
   Trash2,
-  Package,
   Eye,
-  RefreshCw,
   Calendar,
   Truck,
   Check,
@@ -57,1828 +76,1446 @@ import {
   AlertCircle,
   Filter,
   MoreVertical,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
+  ShoppingCart,
+  Package,
+  DollarSign,
+  FileText,
+  Download,
+  Building,
+  User,
+  Star,
+  TrendingUp,
+  RefreshCw,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import {
-  purchaseOrdersAPI,
-  suppliersAPI,
-  productsAPI,
-  PurchaseOrder,
-  PurchaseOrderItem,
-  Supplier,
-  Product,
-} from "@/services/api";
 
-const PurchaseOrders = () => {
+// Types
+interface PurchaseOrderItem {
+  id: string;
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
+
+interface PurchaseOrder {
+  id: string;
+  order_number: string;
+  supplier_id: string;
+  supplier_name: string;
+  total_amount: number;
+  order_date: string;
+  expected_delivery_date?: string;
+  actual_delivery_date?: string;
+  status: "pending" | "approved" | "shipped" | "received" | "cancelled";
+  priority: "low" | "medium" | "high";
+  notes?: string;
+  item_count: number; // Number of items in the order
+  items_received: number; // Number of items received
+  created_by?: string;
+  payment_terms?: string;
+  delivery_address?: string;
+  approved_by?: string;
+  approved_at?: string;
+  created_at: string;
+  updated_at: string;
+  items: PurchaseOrderItem[]; // Add the items property
+}
+
+// Sample data
+const samplePurchaseOrders: PurchaseOrder[] = [
+  {
+    id: "po-001",
+    order_number: "PO-2024-001",
+    supplier_id: "sup-001",
+    supplier_name: "SteelWorks Industries",
+    total_amount: 1800000,
+    order_date: "2024-01-20",
+    expected_delivery_date: "2024-01-27",
+    status: "approved",
+    priority: "high",
+    notes: "Urgent requirement for iron casting blocks",
+    created_by: "Manufacturing Manager",
+    item_count: 1,
+    items_received: 0,
+    created_at: "2024-01-20T00:00:00Z",
+    updated_at: "2024-01-20T00:00:00Z",
+    items: [
+      {
+        id: "item-001",
+        product_id: "prod-001",
+        product_name: "Iron Casting Blocks - Grade A",
+        quantity: 120,
+        unit_price: 15000,
+        total_price: 1800000,
+      },
+    ],
+  },
+  {
+    id: "po-002",
+    order_number: "PO-2024-002",
+    supplier_id: "sup-002",
+    supplier_name: "MetalCraft Co",
+    total_amount: 36000,
+    order_date: "2024-01-18",
+    expected_delivery_date: "2024-01-25",
+    actual_delivery_date: "2024-01-24",
+    status: "received",
+    priority: "medium",
+    notes: "Monthly aluminum alloy restocking",
+    created_by: "Procurement Team",
+    item_count: 1,
+    items_received: 1,
+    created_at: "2024-01-18T00:00:00Z",
+    updated_at: "2024-01-24T00:00:00Z",
+    items: [
+      {
+        id: "item-002",
+        product_id: "prod-002",
+        product_name: "Aluminum Alloy Bars - 6061",
+        quantity: 80,
+        unit_price: 450,
+        total_price: 36000,
+      },
+    ],
+  },
+  {
+    id: "po-003",
+    order_number: "PO-2024-003",
+    supplier_id: "sup-003",
+    supplier_name: "Bronze Masters Ltd",
+    total_amount: 170000,
+    order_date: "2024-01-22",
+    expected_delivery_date: "2024-01-29",
+    status: "shipped",
+    priority: "medium",
+    notes: "Bronze ingots for marine applications",
+    created_by: "Marine Projects Lead",
+    item_count: 1,
+    items_received: 0,
+    created_at: "2024-01-22T00:00:00Z",
+    updated_at: "2024-01-22T00:00:00Z",
+    items: [
+      {
+        id: "item-003",
+        product_id: "prod-003",
+        product_name: "Bronze Ingots - Phosphor Bronze",
+        quantity: 200,
+        unit_price: 850,
+        total_price: 170000,
+      },
+    ],
+  },
+  {
+    id: "po-004",
+    order_number: "PO-2024-004",
+    supplier_id: "sup-004",
+    supplier_name: "Carbon Steel Works",
+    total_amount: 27500,
+    order_date: "2024-01-15",
+    expected_delivery_date: "2024-01-22",
+    status: "pending",
+    priority: "low",
+    notes: "Quarterly steel billets stock replenishment",
+    created_by: "Steel Department Head",
+    item_count: 1,
+    items_received: 0,
+    created_at: "2024-01-15T00:00:00Z",
+    updated_at: "2024-01-15T00:00:00Z",
+    items: [
+      {
+        id: "item-004",
+        product_id: "prod-004",
+        product_name: "Steel Billets - Carbon Steel",
+        quantity: 500,
+        unit_price: 55,
+        total_price: 27500,
+      },
+    ],
+  },
+  {
+    id: "po-005",
+    order_number: "PO-2024-005",
+    supplier_id: "sup-005",
+    supplier_name: "Naval Brass Co",
+    total_amount: 86400,
+    order_date: "2024-01-19",
+    expected_delivery_date: "2024-01-26",
+    status: "cancelled",
+    priority: "medium",
+    notes: "Cancelled due to specification change",
+    created_by: "Marine Engineering",
+    item_count: 1,
+    items_received: 0,
+    created_at: "2024-01-19T00:00:00Z",
+    updated_at: "2024-01-19T00:00:00Z",
+    items: [
+      {
+        id: "item-005",
+        product_id: "prod-005",
+        product_name: "Brass Rods - Naval Brass",
+        quantity: 120,
+        unit_price: 720,
+        total_price: 86400,
+      },
+    ],
+  },
+];
+
+const sampleSuppliers = [
+  { id: "sup-001", name: "SteelWorks Industries" },
+  { id: "sup-002", name: "MetalCraft Co" },
+  { id: "sup-003", name: "Bronze Masters Ltd" },
+  { id: "sup-004", name: "Carbon Steel Works" },
+  { id: "sup-005", name: "Naval Brass Co" },
+];
+
+const sampleProducts = [
+  { id: "prod-001", name: "Iron Casting Blocks - Grade A", price: 15000 },
+  { id: "prod-002", name: "Aluminum Alloy Bars - 6061", price: 450 },
+  { id: "prod-003", name: "Bronze Ingots - Phosphor Bronze", price: 850 },
+  { id: "prod-004", name: "Steel Billets - Carbon Steel", price: 55 },
+  { id: "prod-005", name: "Brass Rods - Naval Brass", price: 720 },
+];
+
+export default function PurchaseOrders() {
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+
+  // State management
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewLoading, setViewLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<string>("total_amount");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [pendingStatusChange, setPendingStatusChange] = useState<{
-    orderId: string;
-    newStatus: string;
-    oldStatus: string;
-  } | null>(null);
-  const [isStatusChangeDialogOpen, setIsStatusChangeDialogOpen] =
-    useState(false);
-  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(
-    null
-  );
-  const [orderItems, setOrderItems] = useState<PurchaseOrderItem[]>([]);
-
-  // Form states
-  const [formData, setFormData] = useState({
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [form, setForm] = useState<Partial<PurchaseOrder>>({
     supplier_id: "",
-    status: "pending" as const,
-    items: [] as Array<{
-      product_id: string;
-      quantity: number;
-      unit_price: number;
-    }>,
+    expected_delivery_date: "",
+    priority: "medium",
+    notes: "",
+    items: [],
   });
 
-  const { toast } = useToast();
+  const itemsPerPage = isMobile ? 8 : 12;
 
+  // Load purchase orders from API
   useEffect(() => {
-    fetchData();
-  }, []);
+    const loadPurchaseOrders = async () => {
+      try {
+        setLoading(true);
+        console.log("🛒 Loading Purchase Orders from API...");
+        
+        const response = await purchaseOrdersAPI.getAll({
+          page: 1,
+          limit: 100, // Load all orders for now
+          search: "",
+          status: "all",
+          priority: "all",
+          supplier: "all",
+          sortBy: "order_date",
+          sortOrder: "desc"
+        });
 
-  useEffect(() => {
-    filterAndSortOrders();
-  }, [purchaseOrders, searchTerm, selectedStatuses, sortBy, sortOrder]);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [ordersResponse, suppliersResponse, productsResponse] =
-        await Promise.all([
-          purchaseOrdersAPI.getAll(),
-          suppliersAPI.getAll(),
-          productsAPI.getAll(),
-        ]);
-
-      setPurchaseOrders(
-        (ordersResponse as any)?.orders || ordersResponse || []
-      );
-      setSuppliers(
-        (suppliersResponse as any)?.suppliers || suppliersResponse || []
-      );
-      console.log(
-        "Loaded suppliers:",
-        (suppliersResponse as any)?.suppliers || suppliersResponse || []
-      );
-      setProducts(
-        (productsResponse as any)?.products || productsResponse || []
-      );
-      console.log(
-        "Loaded products:",
-        (productsResponse as any)?.products || productsResponse || []
-      );
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch purchase orders data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterAndSortOrders = () => {
-    let filtered = purchaseOrders;
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (order) =>
-          String(order.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.supplier?.name
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply status filter
-    if (selectedStatuses.length > 0) {
-      filtered = filtered.filter((order) =>
-        selectedStatuses.includes(order.status)
-      );
-    }
-
-    // Apply sorting
-    const sorted = [...filtered].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortBy) {
-        case "supplier":
-          aValue = (a.supplier?.name || a.supplier_name || "").toLowerCase();
-          bValue = (b.supplier?.name || b.supplier_name || "").toLowerCase();
-          break;
-        case "total_amount":
-          aValue = a.totalAmount || a.total_amount || 0;
-          bValue = b.totalAmount || b.total_amount || 0;
-          break;
-        case "id":
-          aValue = Number(a.id) || 0;
-          bValue = Number(b.id) || 0;
-          break;
-        default:
-          return 0;
+        console.log("✅ Purchase Orders API response:", response);
+        
+        // Handle direct response (not wrapped in success/data)
+        if (response && response.orders) {
+          console.log("✅ Purchase Orders loaded:", response.orders);
+          // Map the API response to include items array if missing
+          const ordersWithItems = response.orders.map(order => ({
+            ...order,
+            items: (order as any).items || [] // Ensure items array exists
+          })) as PurchaseOrder[];
+          setPurchaseOrders(ordersWithItems || []);
+          
+          toast({
+            title: "Success",
+            description: `Loaded ${response.orders?.length || 0} purchase orders`,
+          });
+        } else {
+          console.error("❌ Failed to load purchase orders: Invalid response structure", response);
+          toast({
+            title: "Error",
+            description: "Invalid response from server",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("❌ Error loading purchase orders:", error);
+        toast({
+          title: "Error",
+          description: "Failed to connect to server",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
-
-      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    setFilteredOrders(sorted);
-  };
-
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(field);
-      setSortOrder("asc");
-    }
-  };
-
-  const getSortIcon = (field: string) => {
-    if (sortBy !== field) {
-      return <ArrowUpDown className="h-4 w-4" />;
-    }
-    return sortOrder === "asc" ? (
-      <ArrowUp className="h-4 w-4" />
-    ) : (
-      <ArrowDown className="h-4 w-4" />
-    );
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      draft: { color: "bg-gray-100 text-gray-800", icon: Clock },
-      pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
-      approved: { color: "bg-blue-100 text-blue-800", icon: Check },
-      shipped: { color: "bg-purple-100 text-purple-800", icon: Truck },
-      received: { color: "bg-green-100 text-green-800", icon: Package },
-      completed: { color: "bg-green-100 text-green-800", icon: Check },
-      cancelled: { color: "bg-red-100 text-red-800", icon: X },
     };
 
-    const config =
-      statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-    const Icon = config.icon;
+    loadPurchaseOrders();
+  }, [toast]);
+
+  // Statistics calculations
+  const orderStats = useMemo(() => {
+    const total = purchaseOrders.length;
+    const pending = purchaseOrders.filter(po => po.status === "pending").length;
+    const approved = purchaseOrders.filter(po => po.status === "approved").length;
+    const shipped = purchaseOrders.filter(po => po.status === "shipped").length;
+    const received = purchaseOrders.filter(po => po.status === "received").length;
+    const cancelled = purchaseOrders.filter(po => po.status === "cancelled").length;
+    const totalValue = purchaseOrders
+      .filter(po => po.status !== "cancelled")
+      .reduce((sum, po) => sum + po.total_amount, 0);
+    const avgOrderValue = totalValue / Math.max(total - cancelled, 1);
+
+    return {
+      total,
+      pending,
+      approved,
+      shipped,
+      received,
+      cancelled,
+      totalValue,
+      avgOrderValue,
+      activeOrders: approved + shipped,
+      completedOrders: received,
+    };
+  }, [purchaseOrders]);
+
+  // Filter orders
+  const filteredOrders = useMemo(() => {
+    return purchaseOrders
+      .filter(order => {
+        const matchesSearch = 
+          order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.supplier_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        const matchesStatus = statusFilter === "all" || order.status === statusFilter;
+        const matchesPriority = priorityFilter === "all" || order.priority === priorityFilter;
+
+        return matchesSearch && matchesStatus && matchesPriority;
+      })
+      .sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime());
+  }, [purchaseOrders, searchTerm, statusFilter, priorityFilter]);
+
+  // Paginated orders
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredOrders.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredOrders, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+
+  // Chart data
+  const statusDistribution = useMemo(() => {
+    const colors = {
+      pending: "#f59e0b",
+      approved: "#3b82f6", 
+      shipped: "#8b5cf6",
+      received: "#10b981",
+      cancelled: "#ef4444",
+    };
+
+    return Object.entries(orderStats)
+      .filter(([key]) => ["pending", "approved", "shipped", "received", "cancelled"].includes(key))
+      .map(([status, count]) => ({
+        name: status.charAt(0).toUpperCase() + status.slice(1),
+        value: count as number,
+        fill: colors[status as keyof typeof colors],
+      }))
+      .filter(item => item.value > 0);
+  }, [orderStats]);
+
+  const monthlyTrends = useMemo(() => {
+    const monthlyData: Record<string, { orders: number; value: number }> = {};
+
+    purchaseOrders.forEach(order => {
+      const month = new Date(order.order_date).toLocaleString("default", { month: "short" });
+      if (!monthlyData[month]) {
+        monthlyData[month] = { orders: 0, value: 0 };
+      }
+      monthlyData[month].orders++;
+      if (order.status !== "cancelled") {
+        monthlyData[month].value += order.total_amount;
+      }
+    });
+
+    return Object.entries(monthlyData).map(([month, data]) => ({
+      month,
+      orders: data.orders,
+      value: Math.round(data.value / 1000),
+    }));
+  }, [purchaseOrders]);
+
+  // Helper functions
+  const getStatusBadge = (status: string) => {
+    const configs = {
+      pending: { variant: "secondary" as const, className: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+      approved: { variant: "default" as const, className: "bg-blue-100 text-blue-800 border-blue-200" },
+      shipped: { variant: "secondary" as const, className: "bg-purple-100 text-purple-800 border-purple-200" },
+      received: { variant: "secondary" as const, className: "bg-green-100 text-green-800 border-green-200" },
+      cancelled: { variant: "destructive" as const, className: "" },
+    };
+
+    const config = configs[status as keyof typeof configs] || configs.pending;
 
     return (
-      <Badge className={`${config.color} flex items-center gap-1`}>
-        <Icon size={12} />
+      <Badge variant={config.variant} className={config.className}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
 
-  const getNextStatus = (
-    currentStatus: string
-  ): { nextStatus: string; buttonText: string } | null => {
-    const statusFlow = {
-      pending: { nextStatus: "approved", buttonText: "Approve" },
-      approved: { nextStatus: "shipped", buttonText: "Mark as Shipped" },
-      shipped: { nextStatus: "received", buttonText: "Mark as Received" },
-      received: { nextStatus: "completed", buttonText: "Mark as Completed" },
-      completed: null,
-      cancelled: null,
+  const getPriorityBadge = (priority: string) => {
+    const configs = {
+      low: { className: "bg-gray-100 text-gray-800 border-gray-200" },
+      medium: { className: "bg-blue-100 text-blue-800 border-blue-200" },
+      high: { className: "bg-red-100 text-red-800 border-red-200" },
     };
 
-    return statusFlow[currentStatus as keyof typeof statusFlow] || null;
+    const config = configs[priority as keyof typeof configs] || configs.medium;
+
+    return (
+      <Badge variant="secondary" className={config.className}>
+        {priority.charAt(0).toUpperCase() + priority.slice(1)}
+      </Badge>
+    );
   };
 
-  const handleCreateOrder = async (e: React.FormEvent) => {
+  const getStatusIcon = (status: string) => {
+    const icons = {
+      pending: <Clock className="h-4 w-4" />,
+      approved: <Check className="h-4 w-4" />,
+      shipped: <Truck className="h-4 w-4" />,
+      received: <Package className="h-4 w-4" />,
+      cancelled: <X className="h-4 w-4" />,
+    };
+    return icons[status as keyof typeof icons] || <AlertCircle className="h-4 w-4" />;
+  };
+
+  const formatCurrency = (amount: number) => {
+    if (amount >= 100000) {
+      return `₹${(amount / 100000).toFixed(1)}L`;
+    } else if (amount >= 1000) {
+      return `₹${(amount / 1000).toFixed(1)}K`;
+    }
+    return `₹${amount.toLocaleString()}`;
+  };
+
+  // Event handlers
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.supplier_id || formData.items.length === 0) {
+    if (!form.supplier_id || !form.items || form.items.length === 0) {
       toast({
-        title: "Error",
-        description: "Please select a supplier and add items",
+        title: "Validation Error",
+        description: "Please select a supplier and add at least one item",
         variant: "destructive",
       });
       return;
     }
 
-    // Check if all items have valid product_id and quantities
-    const invalidItems = formData.items.some(
-      (item) =>
-        !item.product_id ||
-        !item.quantity ||
-        item.quantity <= 0 ||
-        !item.unit_price ||
-        item.unit_price <= 0
-    );
-
-    if (invalidItems) {
-      toast({
-        title: "Error",
-        description:
-          "Please ensure all items have valid products, quantities, and prices",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const total_amount = formData.items.reduce(
-        (sum, item) => sum + item.quantity * item.unit_price,
-        0
-      );
-
-      // Format data according to backend API expectations
-      const orderData = {
-        supplierId: formData.supplier_id,
-        expectedDate: null, // Optional field
-        notes: null, // Optional field
-        items: formData.items.map((item) => ({
-          productId: item.product_id,
-          quantity: item.quantity,
-          unitPrice: item.unit_price,
-        })),
-      };
-
-      console.log("Sending order data:", orderData);
-
-      await purchaseOrdersAPI.create(orderData);
-
-      toast({
-        title: "Success",
-        description: "Purchase order created successfully",
-      });
-
-      setIsCreateDialogOpen(false);
-      setIsCreateSheetOpen(false);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      console.error("Error creating purchase order:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create purchase order",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleStatusChangeRequest = (orderId: string, newStatus: string) => {
-    const order = purchaseOrders.find((o) => o.id === orderId);
-    if (order) {
-      setPendingStatusChange({
-        orderId,
-        newStatus,
-        oldStatus: order.status,
-      });
-      setIsStatusChangeDialogOpen(true);
-    }
-  };
-
-  const handleConfirmStatusChange = async () => {
-    if (!pendingStatusChange) return;
+    const orderData: PurchaseOrder = {
+      id: selectedOrder?.id || `po-${Date.now()}`,
+      order_number: selectedOrder?.order_number || `PO-2024-${String(purchaseOrders.length + 1).padStart(3, "0")}`,
+      supplier_id: form.supplier_id!,
+      supplier_name: sampleSuppliers.find(s => s.id === form.supplier_id)?.name || "Unknown Supplier",
+      total_amount: form.items?.reduce((sum, item) => sum + item.total_price, 0) || 0,
+      order_date: selectedOrder?.order_date || new Date().toISOString().split("T")[0],
+      expected_delivery_date: form.expected_delivery_date,
+      status: selectedOrder?.status || "pending",
+      priority: form.priority as "low" | "medium" | "high",
+      notes: form.notes,
+      items: form.items || [],
+      item_count: form.items?.length || 0,
+      items_received: selectedOrder?.items_received || 0,
+      created_by: "Current User",
+      created_at: selectedOrder?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
     try {
-      await purchaseOrdersAPI.updateStatus(
-        pendingStatusChange.orderId,
-        pendingStatusChange.newStatus
-      );
-      toast({
-        title: "Success",
-        description: `Order status updated to ${pendingStatusChange.newStatus}`,
-      });
-      fetchData();
-      setIsStatusChangeDialogOpen(false);
-      setPendingStatusChange(null);
-    } catch (error) {
-      console.error("Error updating status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update order status",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
-    try {
-      await purchaseOrdersAPI.updateStatus(orderId, newStatus);
-      toast({
-        title: "Success",
-        description: `Order status updated to ${newStatus}`,
-      });
-      fetchData();
-    } catch (error) {
-      console.error("Error updating status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update order status",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteOrder = async (orderId: string) => {
-    if (!confirm("Are you sure you want to delete this purchase order?")) {
-      return;
-    }
-
-    try {
-      await purchaseOrdersAPI.delete(orderId);
-      toast({
-        title: "Success",
-        description: "Purchase order deleted successfully",
-      });
-      fetchData();
-    } catch (error) {
-      console.error("Error deleting purchase order:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete purchase order",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleViewOrder = async (order: PurchaseOrder) => {
-    try {
-      setViewLoading(true);
-      console.log("Fetching order details for:", order.id);
-      const orderDetails = await purchaseOrdersAPI.getById(order.id);
-      console.log("Order details received:", orderDetails);
-      setSelectedOrder(orderDetails);
-      setOrderItems(orderDetails.items || []);
-
-      // Better responsive handling - use media query instead of window.innerWidth
-      const isMobile = window.matchMedia("(max-width: 640px)").matches;
-      if (isMobile) {
-        setIsViewSheetOpen(true);
+      if (selectedOrder) {
+        setPurchaseOrders(prev => prev.map(po => po.id === selectedOrder.id ? orderData : po));
+        toast({ title: "Success", description: "Purchase order updated successfully" });
+        setIsEditDialogOpen(false);
       } else {
-        setIsViewDialogOpen(true);
+        setPurchaseOrders(prev => [...prev, orderData]);
+        toast({ title: "Success", description: "Purchase order created successfully" });
+        setIsCreateDialogOpen(false);
       }
+
+      setForm({
+        supplier_id: "",
+        expected_delivery_date: "",
+        priority: "medium",
+        notes: "",
+        items: [],
+      });
+      setSelectedOrder(null);
     } catch (error) {
-      console.error("Error fetching order details:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch order details",
+        description: "Failed to save purchase order",
         variant: "destructive",
       });
-    } finally {
-      setViewLoading(false);
     }
   };
 
-  const addOrderItem = () => {
-    setFormData((prev) => ({
-      ...prev,
-      items: [...prev.items, { product_id: "", quantity: 1, unit_price: 0 }],
-    }));
-  };
+  const handleDelete = () => {
+    if (!selectedOrder) return;
 
-  const removeOrderItem = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index),
-    }));
-  };
-
-  const updateOrderItem = (index: number, field: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      items: prev.items.map((item, i) =>
-        i === index ? { ...item, [field]: value } : item
-      ),
-    }));
-  };
-
-  // Helper function to close all view dialogs/sheets
-  const closeViewDialogs = () => {
-    setIsViewDialogOpen(false);
-    setIsViewSheetOpen(false);
+    setPurchaseOrders(prev => prev.filter(po => po.id !== selectedOrder.id));
+    toast({ title: "Success", description: "Purchase order deleted successfully" });
+    setIsDeleteDialogOpen(false);
     setSelectedOrder(null);
-    setOrderItems([]);
   };
 
-  const resetForm = () => {
-    setFormData({
-      supplier_id: "",
-      status: "pending",
-      items: [],
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading purchase orders...</span>
-      </div>
+  const updateOrderStatus = (orderId: string, newStatus: string) => {
+    setPurchaseOrders(prev =>
+      prev.map(po =>
+        po.id === orderId
+          ? {
+              ...po,
+              status: newStatus as any,
+              actual_delivery_date: newStatus === "received" 
+                ? new Date().toISOString().split("T")[0] 
+                : po.actual_delivery_date,
+            }
+          : po
+      )
     );
-  }
+    toast({ title: "Success", description: `Order status updated to ${newStatus}` });
+  };
+
+  const openEditDialog = (order: PurchaseOrder) => {
+    setSelectedOrder(order);
+    setForm({
+      supplier_id: order.supplier_id,
+      expected_delivery_date: order.expected_delivery_date,
+      priority: order.priority,
+      notes: order.notes,
+      items: order.items,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const exportToCSV = () => {
+    const csvData = purchaseOrders.map(po => ({
+      "Order Number": po.order_number,
+      "Supplier": po.supplier_name,
+      "Order Date": po.order_date,
+      "Expected Delivery": po.expected_delivery_date || "",
+      "Status": po.status,
+      "Priority": po.priority,
+      "Total Amount (₹)": po.total_amount,
+      "Items Count": po.items.length,
+    }));
+
+    const csv = [
+      Object.keys(csvData[0]).join(","),
+      ...csvData.map(row => Object.values(row).map(v => `"${v}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `purchase-orders-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      <div className="space-y-3 sm:space-y-6 p-3 sm:p-6 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
-              Purchase Orders
-            </h1>
-            <p className="text-muted-foreground text-xs sm:text-sm">
-              Manage supplier orders and procurement
-            </p>
-          </div>
-
-          {/* Mobile and Desktop Create Button */}
-          <div className="w-full sm:w-auto">
-            {/* Desktop Dialog */}
-            <div className="hidden sm:block">
-              <Dialog
-                open={isCreateDialogOpen}
-                onOpenChange={setIsCreateDialogOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button className="w-full sm:w-auto">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Order
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create New Purchase Order</DialogTitle>
-                    <DialogDescription>
-                      Create a new purchase order for supplier procurement
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateOrder} className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Supplier
-                        </label>
-                        <Select
-                          value={formData.supplier_id}
-                          onValueChange={(value) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              supplier_id: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select supplier" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {suppliers && suppliers.length > 0 ? (
-                              suppliers.map((supplier) => (
-                                <SelectItem
-                                  key={supplier.id}
-                                  value={String(supplier.id)}
-                                >
-                                  {supplier.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="" disabled>
-                                No suppliers available
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Status
-                        </label>
-                        <Select
-                          value={formData.status}
-                          onValueChange={(value) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              status: value as any,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="approved">Approved</SelectItem>
-                            <SelectItem value="shipped">Shipped</SelectItem>
-                            <SelectItem value="received">Received</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="block text-sm font-medium">
-                          Order Items
-                        </label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={addOrderItem}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add Item
-                        </Button>
-                      </div>
-
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {formData.items.map((item, index) => (
-                          <div
-                            key={index}
-                            className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end p-3 border rounded"
-                          >
-                            <div>
-                              <label className="block text-xs font-medium mb-1">
-                                Product
-                              </label>
-                              <Select
-                                value={item.product_id}
-                                onValueChange={(value) =>
-                                  updateOrderItem(index, "product_id", value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select product" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {products && products.length > 0 ? (
-                                    products.map((product) => (
-                                      <SelectItem
-                                        key={product.id}
-                                        value={String(product.id)}
-                                      >
-                                        {product.name}
-                                      </SelectItem>
-                                    ))
-                                  ) : (
-                                    <SelectItem value="" disabled>
-                                      No products available
-                                    </SelectItem>
-                                  )}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium mb-1">
-                                Quantity
-                              </label>
-                              <Input
-                                type="number"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateOrderItem(
-                                    index,
-                                    "quantity",
-                                    parseInt(e.target.value) || 0
-                                  )
-                                }
-                                min="1"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium mb-1">
-                                Unit Price
-                              </label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={item.unit_price}
-                                onChange={(e) =>
-                                  updateOrderItem(
-                                    index,
-                                    "unit_price",
-                                    parseFloat(e.target.value) || 0
-                                  )
-                                }
-                                min="0"
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeOrderItem(index)}
-                              className="w-full sm:w-auto"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="ml-1 sm:hidden">Remove</span>
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-
-                      {formData.items.length > 0 && (
-                        <div className="mt-2 p-3 bg-gray-50 rounded">
-                          <strong className="text-lg">
-                            Total: ₹
-                            {formData.items
-                              .reduce(
-                                (sum, item) =>
-                                  sum + item.quantity * item.unit_price,
-                                0
-                              )
-                              .toFixed(2)}
-                          </strong>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsCreateDialogOpen(false);
-                          resetForm();
-                        }}
-                        className="w-full sm:w-auto"
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" className="w-full sm:w-auto">
-                        Create Order
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {/* Mobile Sheet */}
-            <div className="sm:hidden">
-              <Sheet
-                open={isCreateSheetOpen}
-                onOpenChange={setIsCreateSheetOpen}
-              >
-                <SheetTrigger asChild>
-                  <Button className="w-full">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Order
-                  </Button>
-                </SheetTrigger>
-                <SheetContent
-                  side="bottom"
-                  className="h-[90vh] overflow-y-auto"
-                >
-                  <SheetHeader>
-                    <SheetTitle>Create New Purchase Order</SheetTitle>
-                    <SheetDescription>
-                      Create a new purchase order for supplier procurement
-                    </SheetDescription>
-                  </SheetHeader>
-                  <form onSubmit={handleCreateOrder} className="space-y-4 mt-4">
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Supplier
-                        </label>
-                        <Select
-                          value={formData.supplier_id}
-                          onValueChange={(value) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              supplier_id: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select supplier" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {suppliers && suppliers.length > 0 ? (
-                              suppliers.map((supplier) => (
-                                <SelectItem
-                                  key={supplier.id}
-                                  value={String(supplier.id)}
-                                >
-                                  {supplier.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="" disabled>
-                                No suppliers available
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Status
-                        </label>
-                        <Select
-                          value={formData.status}
-                          onValueChange={(value) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              status: value as any,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="approved">Approved</SelectItem>
-                            <SelectItem value="shipped">Shipped</SelectItem>
-                            <SelectItem value="received">Received</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="block text-sm font-medium">
-                          Order Items
-                        </label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={addOrderItem}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add Item
-                        </Button>
-                      </div>
-
-                      <div className="space-y-3 max-h-64 overflow-y-auto">
-                        {formData.items.map((item, index) => (
-                          <div
-                            key={index}
-                            className="space-y-2 p-3 border rounded"
-                          >
-                            <div>
-                              <label className="block text-xs font-medium mb-1">
-                                Product
-                              </label>
-                              <Select
-                                value={item.product_id}
-                                onValueChange={(value) =>
-                                  updateOrderItem(index, "product_id", value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select product" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {products && products.length > 0 ? (
-                                    products.map((product) => (
-                                      <SelectItem
-                                        key={product.id}
-                                        value={String(product.id)}
-                                      >
-                                        {product.name}
-                                      </SelectItem>
-                                    ))
-                                  ) : (
-                                    <SelectItem value="" disabled>
-                                      No products available
-                                    </SelectItem>
-                                  )}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-xs font-medium mb-1">
-                                  Quantity
-                                </label>
-                                <Input
-                                  type="number"
-                                  value={item.quantity}
-                                  onChange={(e) =>
-                                    updateOrderItem(
-                                      index,
-                                      "quantity",
-                                      parseInt(e.target.value) || 0
-                                    )
-                                  }
-                                  min="1"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium mb-1">
-                                  Unit Price
-                                </label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={item.unit_price}
-                                  onChange={(e) =>
-                                    updateOrderItem(
-                                      index,
-                                      "unit_price",
-                                      parseFloat(e.target.value) || 0
-                                    )
-                                  }
-                                  min="0"
-                                />
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeOrderItem(index)}
-                              className="w-full"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Remove Item
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-
-                      {formData.items.length > 0 && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded">
-                          <strong className="text-lg">
-                            Total: ₹
-                            {formData.items
-                              .reduce(
-                                (sum, item) =>
-                                  sum + item.quantity * item.unit_price,
-                                0
-                              )
-                              .toFixed(2)}
-                          </strong>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col space-y-2 pt-4">
-                      <Button type="submit" className="w-full">
-                        Create Order
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsCreateSheetOpen(false);
-                          resetForm();
-                        }}
-                        className="w-full"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                </SheetContent>
-              </Sheet>
-            </div>
+    <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-gradient-to-br from-background to-muted/20 min-h-screen">
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-3">
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-500" />
+            <p className="text-muted-foreground">Loading purchase orders...</p>
           </div>
         </div>
+      )}
 
-        {/* Filters */}
-        <Card className="p-3 sm:p-4">
-          <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search orders..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 text-sm"
-                />
-              </div>
+      {/* Main Content - Only show when not loading */}
+      {!loading && (
+        <>
+          {/* Header */}
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 sm:gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <ShoppingCart className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
+                <span className="break-words">Purchase Orders</span>
+              </h1>
+              <p className="text-muted-foreground text-sm lg:text-base mt-1">
+                Manage purchase orders and supplier relationships • {orderStats.total} orders total
+              </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full sm:w-auto justify-start"
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    <span className="truncate">
-                      {selectedStatuses.length === 0
-                        ? "All Statuses"
-                        : selectedStatuses.length === 1
-                        ? `${
-                            selectedStatuses[0].charAt(0).toUpperCase() +
-                            selectedStatuses[0].slice(1)
-                          }`
-                        : `${selectedStatuses.length} selected`}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                  {[
-                    { value: "draft", label: "Draft" },
-                    { value: "pending", label: "Pending" },
-                    { value: "approved", label: "Approved" },
-                    { value: "shipped", label: "Shipped" },
-                    { value: "received", label: "Received" },
-                    { value: "completed", label: "Completed" },
-                    { value: "cancelled", label: "Cancelled" },
-                  ].map((status) => (
-                    <DropdownMenuItem
-                      key={status.value}
-                      className="flex items-center space-x-2 cursor-pointer"
-                      onSelect={(e) => e.preventDefault()}
-                    >
-                      <Checkbox
-                        checked={selectedStatuses.includes(status.value)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedStatuses([
-                              ...selectedStatuses,
-                              status.value,
-                            ]);
-                          } else {
-                            setSelectedStatuses(
-                              selectedStatuses.filter((s) => s !== status.value)
-                            );
-                          }
-                        }}
-                      />
-                      <span>{status.label}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full sm:w-auto justify-start"
-                  >
-                    <ArrowUpDown className="h-4 w-4 mr-2" />
-                    <span className="truncate">
-                      {(() => {
-                        const currentValue = `${sortBy}_${sortOrder}`;
-                        switch (currentValue) {
-                          case "supplier_asc":
-                            return "Supplier: A-Z";
-                          case "supplier_desc":
-                            return "Supplier: Z-A";
-                          case "id_asc":
-                            return "ID: Low-High";
-                          case "id_desc":
-                            return "ID: High-Low";
-                          case "total_amount_asc":
-                            return "Amount: Low-High";
-                          case "total_amount_desc":
-                            return "Amount: High-Low";
-                          default:
-                            return "Sort by";
-                        }
-                      })()}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortBy("total_amount");
-                      setSortOrder("asc");
-                    }}
-                    className="cursor-pointer"
-                  >
-                    Amount: Low to High
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortBy("total_amount");
-                      setSortOrder("desc");
-                    }}
-                    className="cursor-pointer"
-                  >
-                    Amount: High to Low
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortBy("supplier");
-                      setSortOrder("asc");
-                    }}
-                    className="cursor-pointer"
-                  >
-                    Supplier: A-Z
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortBy("supplier");
-                      setSortOrder("desc");
-                    }}
-                    className="cursor-pointer"
-                  >
-                    Supplier: Z-A
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortBy("id");
-                      setSortOrder("asc");
-                    }}
-                    className="cursor-pointer"
-                  >
-                    Order ID: Low to High
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortBy("id");
-                      setSortOrder("desc");
-                    }}
-                    className="cursor-pointer"
-                  >
-                    Order ID: High to Low
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchData}
-                className="w-full sm:w-auto justify-center"
-              >
-                <RefreshCw className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={exportToCSV}
+            className="flex items-center justify-center gap-2 text-sm"
+            size="sm"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden xs:inline">Export</span>
+          </Button>
+          <Button
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="flex items-center justify-center gap-2 text-sm"
+            size="sm"
+          >
+            <Plus className="h-4 w-4" />
+            <span>New Order</span>
+          </Button>
+        </div>
+      </div>
+      {/* Stats Overview */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Pending</p>
+              <div className="flex items-center space-x-2">
+                <p className="text-2xl font-bold text-amber-600">{orderStats.pending}</p>
+                <div className="p-1 bg-amber-100 rounded-full">
+                  <Clock className="h-3 w-3 text-amber-600" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Need approval</p>
             </div>
           </div>
         </Card>
 
-        {/* Orders Table - Desktop */}
-        <div className="hidden md:block">
-          <Card>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead
-                      className="cursor-pointer hover:bg-gray-50 select-none"
-                      onClick={() => handleSort("id")}
-                    >
-                      <div className="flex items-center justify-between">
-                        Order ID
-                        {getSortIcon("id")}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-gray-50 select-none"
-                      onClick={() => handleSort("supplier")}
-                    >
-                      <div className="flex items-center justify-between">
-                        Supplier
-                        {getSortIcon("supplier")}
-                      </div>
-                    </TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-gray-50 select-none"
-                      onClick={() => handleSort("total_amount")}
-                    >
-                      <div className="flex items-center justify-between">
-                        Total Amount
-                        {getSortIcon("total_amount")}
-                      </div>
-                    </TableHead>
-                    <TableHead>Created At</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredOrders.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
-                        <Package className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                        <p className="text-gray-500">
-                          No purchase orders found
-                        </p>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredOrders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">
-                          #{String(order.id).slice(-8)}
-                        </TableCell>
-                        <TableCell>
-                          {order.supplier?.name ||
-                            order.supplier_name ||
-                            "Unknown Supplier"}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={order.status}
-                            onValueChange={(newStatus) =>
-                              handleStatusChangeRequest(order.id, newStatus)
-                            }
-                          >
-                            <SelectTrigger className="w-[140px] h-9 border-2">
-                              <SelectValue>
-                                <div className="flex items-center">
-                                  {getStatusBadge(order.status)}
-                                </div>
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem
-                                value="draft"
-                                className="cursor-pointer"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  {getStatusBadge("draft")}
-                                  <span className="text-sm">Draft</span>
-                                </div>
-                              </SelectItem>
-                              <SelectItem
-                                value="pending"
-                                className="cursor-pointer"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  {getStatusBadge("pending")}
-                                  <span className="text-sm">Pending</span>
-                                </div>
-                              </SelectItem>
-                              <SelectItem
-                                value="approved"
-                                className="cursor-pointer"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  {getStatusBadge("approved")}
-                                  <span className="text-sm">Approved</span>
-                                </div>
-                              </SelectItem>
-                              <SelectItem
-                                value="shipped"
-                                className="cursor-pointer"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  {getStatusBadge("shipped")}
-                                  <span className="text-sm">Shipped</span>
-                                </div>
-                              </SelectItem>
-                              <SelectItem
-                                value="received"
-                                className="cursor-pointer"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  {getStatusBadge("received")}
-                                  <span className="text-sm">Received</span>
-                                </div>
-                              </SelectItem>
-                              <SelectItem
-                                value="completed"
-                                className="cursor-pointer"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  {getStatusBadge("completed")}
-                                  <span className="text-sm">Completed</span>
-                                </div>
-                              </SelectItem>
-                              <SelectItem
-                                value="cancelled"
-                                className="cursor-pointer"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  {getStatusBadge("cancelled")}
-                                  <span className="text-sm">Cancelled</span>
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <span className="mr-1">₹</span>
-                            {(
-                              order.totalAmount ||
-                              order.total_amount ||
-                              0
-                            ).toFixed(2)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center text-sm text-gray-500">
-                            <Calendar className="h-4 w-4 mr-1" />
-                            {new Date(
-                              order.created_at || order.createdAt
-                            ).toLocaleDateString()}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewOrder(order)}
-                              disabled={viewLoading}
-                            >
-                              {viewLoading ? (
-                                <RefreshCw className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </Button>
-
-                            {(() => {
-                              const nextStatus = getNextStatus(order.status);
-                              if (nextStatus) {
-                                return (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleUpdateStatus(
-                                        order.id,
-                                        nextStatus.nextStatus
-                                      )
-                                    }
-                                    title={nextStatus.buttonText}
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </Button>
-                                );
-                              }
-                              return null;
-                            })()}
-
-                            {(order.status === "pending" ||
-                              order.status === "approved") && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteOrder(order.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
-        </div>
-
-        {/* Orders Cards - Mobile */}
-        <div className="md:hidden space-y-2">
-          {filteredOrders.length === 0 ? (
-            <Card className="p-6 text-center">
-              <Package className="h-6 w-6 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm text-gray-500">No purchase orders found</p>
-            </Card>
-          ) : (
-            filteredOrders.map((order) => (
-              <Card key={order.id} className="p-3">
-                <div className="space-y-2">
-                  {/* Header */}
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">
-                        PO-{String(order.id).padStart(6, "0")}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate">
-                        {order.supplier?.name ||
-                          order.supplier_name ||
-                          "Unknown Supplier"}
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
-                      {getStatusBadge(order.status)}
-                    </div>
-                  </div>
-
-                  {/* Details - Compact */}
-                  <div className="flex justify-between items-center text-xs">
-                    <div className="flex items-center">
-                      <span className="mr-1 text-gray-400">₹</span>
-                      <span className="font-medium">
-                        {(order.totalAmount || order.total_amount || 0).toFixed(
-                          0
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <Calendar className="h-3 w-3 mr-1 text-gray-400" />
-                      <span>
-                        {new Date(
-                          order.created_at || order.createdAt
-                        ).toLocaleDateString("en-GB", {
-                          day: "2-digit",
-                          month: "short",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions - Compact */}
-                  <div className="flex gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewOrder(order)}
-                      disabled={viewLoading}
-                      className="flex-1 text-xs h-7"
-                    >
-                      {viewLoading ? (
-                        <RefreshCw className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <>
-                          <Eye className="h-3 w-3 mr-1" />
-                          View
-                        </>
-                      )}
-                    </Button>
-                    {(() => {
-                      const nextStatus = getNextStatus(order.status);
-                      if (nextStatus) {
-                        return (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() =>
-                              handleUpdateStatus(
-                                order.id,
-                                nextStatus.nextStatus
-                              )
-                            }
-                            className="flex-1 text-xs h-7"
-                          >
-                            <Check className="h-3 w-3 mr-1" />
-                            {nextStatus.buttonText
-                              .replace("Mark as ", "")
-                              .replace("Mark ", "")}
-                          </Button>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
-                </div>
-              </Card>
-            ))
-          )}
-        </div>
-
-        {/* View Order Dialog - Desktop */}
-        <div className="hidden sm:block">
-          <Dialog
-            open={isViewDialogOpen}
-            onOpenChange={(open) => {
-              if (!open) closeViewDialogs();
-            }}
-          >
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Purchase Order Details</DialogTitle>
-                <DialogDescription>
-                  {selectedOrder && (
-                    <>
-                      Order #
-                      {selectedOrder.orderNumber ||
-                        `PO-${String(selectedOrder.id).padStart(6, "0")}`}{" "}
-                      -{" "}
-                      {selectedOrder?.supplier?.name ||
-                        selectedOrder?.supplier_name ||
-                        "Unknown Supplier"}
-                    </>
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-
-              {viewLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="h-8 w-8 animate-spin mr-2" />
-                  <span>Loading order details...</span>
-                </div>
-              ) : selectedOrder ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-semibold mb-2">Order Information</h4>
-                      <div className="space-y-1 text-sm">
-                        <p>
-                          <strong>ID:</strong> {selectedOrder.id}
-                        </p>
-                        <p>
-                          <strong>Supplier:</strong>{" "}
-                          {selectedOrder.supplier?.name ||
-                            selectedOrder.supplier_name ||
-                            "Unknown Supplier"}
-                        </p>
-                        <p>
-                          <strong>Status:</strong>{" "}
-                          {getStatusBadge(selectedOrder.status)}
-                        </p>
-                        <p>
-                          <strong>Created:</strong>{" "}
-                          {new Date(
-                            selectedOrder.created_at || selectedOrder.createdAt
-                          ).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold mb-2">Financial Summary</h4>
-                      <div className="space-y-1 text-sm">
-                        <p>
-                          <strong>Total Amount:</strong> ₹
-                          {(
-                            selectedOrder.totalAmount ||
-                            selectedOrder.total_amount ||
-                            0
-                          ).toFixed(2)}
-                        </p>
-                        <p>
-                          <strong>Items Count:</strong> {orderItems.length}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {orderItems.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold mb-2">Order Items</h4>
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Product</TableHead>
-                              <TableHead>Quantity</TableHead>
-                              <TableHead>Unit Price</TableHead>
-                              <TableHead>Subtotal</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {orderItems.map((item) => (
-                              <TableRow key={item.id}>
-                                <TableCell>
-                                  <div>
-                                    <div className="font-medium">
-                                      {item.product?.name ||
-                                        item.product_name ||
-                                        "Unknown Product"}
-                                    </div>
-                                    {item.product?.sku && (
-                                      <div className="text-sm text-gray-500">
-                                        SKU: {item.product.sku}
-                                      </div>
-                                    )}
-                                    {item.product?.category && (
-                                      <div className="text-sm text-gray-500">
-                                        {item.product.category}
-                                      </div>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>{item.quantity}</TableCell>
-                                <TableCell>
-                                  ₹
-                                  {(
-                                    item.unitPrice ||
-                                    item.unit_price ||
-                                    0
-                                  ).toFixed(2)}
-                                </TableCell>
-                                <TableCell>
-                                  ₹
-                                  {(
-                                    item.totalPrice ||
-                                    item.subtotal ||
-                                    item.quantity *
-                                      (item.unitPrice || item.unit_price || 0)
-                                  ).toFixed(2)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col sm:flex-row justify-between gap-3">
-                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                      {(() => {
-                        const nextStatus = getNextStatus(selectedOrder.status);
-                        if (nextStatus) {
-                          return (
-                            <Button
-                              onClick={() => {
-                                handleUpdateStatus(
-                                  selectedOrder.id,
-                                  nextStatus.nextStatus
-                                );
-                                closeViewDialogs();
-                              }}
-                            >
-                              {nextStatus.buttonText}
-                            </Button>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => closeViewDialogs()}
-                    >
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-8">
-                  <AlertCircle className="h-8 w-8 text-gray-400 mr-2" />
-                  <span className="text-gray-500">No order selected</span>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* View Order Sheet - Mobile */}
-        <div className="sm:hidden">
-          <Sheet
-            open={isViewSheetOpen}
-            onOpenChange={(open) => {
-              if (!open) closeViewDialogs();
-            }}
-          >
-            <SheetContent
-              side="bottom"
-              className="h-[85vh] max-h-[85vh] overflow-y-auto"
-            >
-              <SheetHeader className="pb-3">
-                <SheetTitle className="text-lg">
-                  Purchase Order Details
-                </SheetTitle>
-                <SheetDescription className="text-sm">
-                  {selectedOrder && (
-                    <>
-                      Order #
-                      {selectedOrder.orderNumber ||
-                        `PO-${String(selectedOrder.id).padStart(6, "0")}`}{" "}
-                      -{" "}
-                      {selectedOrder?.supplier?.name ||
-                        selectedOrder?.supplier_name ||
-                        "Unknown Supplier"}
-                    </>
-                  )}
-                </SheetDescription>
-              </SheetHeader>
-
-              {viewLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="h-8 w-8 animate-spin mr-2" />
-                  <span>Loading order details...</span>
-                </div>
-              ) : selectedOrder ? (
-                <div className="space-y-4 mt-4">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold mb-2">Order Information</h4>
-                      <div className="bg-gray-50 p-3 rounded space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">ID:</span>
-                          <span className="font-mono">{selectedOrder.id}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Supplier:</span>
-                          <span>
-                            {selectedOrder.supplier?.name ||
-                              selectedOrder.supplier_name ||
-                              "Unknown Supplier"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Status:</span>
-                          {getStatusBadge(selectedOrder.status)}
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Created:</span>
-                          <span>
-                            {new Date(
-                              selectedOrder.created_at ||
-                                selectedOrder.createdAt
-                            ).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold mb-2">Financial Summary</h4>
-                      <div className="bg-gray-50 p-3 rounded space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Total Amount:</span>
-                          <span className="font-semibold text-lg">
-                            ₹
-                            {(
-                              selectedOrder.totalAmount ||
-                              selectedOrder.total_amount ||
-                              0
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Items Count:</span>
-                          <span>{orderItems.length}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {orderItems.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold mb-2">Order Items</h4>
-                      <div className="space-y-3">
-                        {orderItems.map((item) => (
-                          <div key={item.id} className="bg-gray-50 p-3 rounded">
-                            <div className="mb-2">
-                              <div className="font-medium">
-                                {item.product?.name ||
-                                  item.product_name ||
-                                  "Unknown Product"}
-                              </div>
-                              {item.product?.sku && (
-                                <div className="text-sm text-gray-500">
-                                  SKU: {item.product.sku}
-                                </div>
-                              )}
-                              {item.product?.category && (
-                                <div className="text-sm text-gray-500">
-                                  Category: {item.product.category}
-                                </div>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-3 gap-2 text-sm">
-                              <div>
-                                <div className="text-gray-600">Quantity</div>
-                                <div className="font-medium">
-                                  {item.quantity}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-gray-600">Unit Price</div>
-                                <div className="font-medium">
-                                  ₹
-                                  {(
-                                    item.unitPrice ||
-                                    item.unit_price ||
-                                    0
-                                  ).toFixed(2)}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-gray-600">Total</div>
-                                <div className="font-medium">
-                                  ₹
-                                  {(
-                                    item.totalPrice ||
-                                    item.subtotal ||
-                                    item.quantity *
-                                      (item.unitPrice || item.unit_price || 0)
-                                  ).toFixed(2)}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col space-y-2 pt-4">
-                    {(() => {
-                      const nextStatus = getNextStatus(selectedOrder.status);
-                      if (nextStatus) {
-                        return (
-                          <Button
-                            onClick={() => {
-                              handleUpdateStatus(
-                                selectedOrder.id,
-                                nextStatus.nextStatus
-                              );
-                              setIsViewSheetOpen(false);
-                            }}
-                            className="w-full"
-                          >
-                            {nextStatus.buttonText}
-                          </Button>
-                        );
-                      }
-                      return null;
-                    })()}
-                    <Button
-                      variant="outline"
-                      onClick={() => closeViewDialogs()}
-                      className="w-full"
-                    >
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-8 mt-4">
-                  <AlertCircle className="h-8 w-8 text-gray-400 mr-2" />
-                  <span className="text-gray-500">No order selected</span>
-                </div>
-              )}
-            </SheetContent>
-          </Sheet>
-        </div>
-
-        {/* Status Change Confirmation Dialog */}
-        <Dialog
-          open={isStatusChangeDialogOpen}
-          onOpenChange={setIsStatusChangeDialogOpen}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Confirm Status Change</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to change the order status from{" "}
-                <span className="font-semibold">
-                  {pendingStatusChange?.oldStatus}
-                </span>{" "}
-                to{" "}
-                <span className="font-semibold">
-                  {pendingStatusChange?.newStatus}
-                </span>
-                ?
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex justify-between items-center mt-6">
-              <div className="flex items-center space-x-4">
-                <div className="text-sm">
-                  <span className="text-gray-500">From:</span>{" "}
-                  {pendingStatusChange &&
-                    getStatusBadge(pendingStatusChange.oldStatus)}
-                </div>
-                <ArrowUp className="h-4 w-4 text-gray-400" />
-                <div className="text-sm">
-                  <span className="text-gray-500">To:</span>{" "}
-                  {pendingStatusChange &&
-                    getStatusBadge(pendingStatusChange.newStatus)}
+        <Card className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Active</p>
+              <div className="flex items-center space-x-2">
+                <p className="text-2xl font-bold text-blue-600">{orderStats.activeOrders}</p>
+                <div className="p-1 bg-blue-100 rounded-full">
+                  <Truck className="h-3 w-3 text-blue-600" />
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground">In progress</p>
             </div>
-            <div className="flex justify-end space-x-2 mt-6">
+          </div>
+        </Card>
+
+        <Card className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Total Value</p>
+              <div className="flex items-center space-x-2">
+                <p className="text-xl sm:text-2xl font-bold text-green-600">
+                  {formatCurrency(orderStats.totalValue)}
+                </p>
+                <div className="p-1 bg-green-100 rounded-full">
+                  <DollarSign className="h-3 w-3 text-green-600" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">This month</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Completed</p>
+              <div className="flex items-center space-x-2">
+                <p className="text-2xl font-bold text-purple-600">{orderStats.completedOrders}</p>
+                <div className="p-1 bg-purple-100 rounded-full">
+                  <Package className="h-3 w-3 text-purple-600" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Received</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 h-10">
+          <TabsTrigger value="overview" className="text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="orders" className="text-sm">Orders</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-sm">Analytics</TabsTrigger>
+        </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-4 sm:space-y-6 mt-6">
+          {/* Quick Actions */}
+          <Card className="p-4 sm:p-6">
+            <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <Button
                 variant="outline"
-                onClick={() => {
-                  setIsStatusChangeDialogOpen(false);
-                  setPendingStatusChange(null);
-                }}
+                className="h-auto p-4 flex flex-col items-center gap-3"
+                onClick={() => setIsCreateDialogOpen(true)}
               >
-                Cancel
+                <Plus className="h-6 w-6 text-blue-500" />
+                <span className="text-sm font-medium">Create Order</span>
               </Button>
               <Button
-                onClick={handleConfirmStatusChange}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                variant="outline"
+                className="h-auto p-4 flex flex-col items-center gap-3"
+                onClick={() => setActiveTab("orders")}
               >
-                <Check className="h-4 w-4 mr-2" />
-                Confirm Change
+                <Eye className="h-6 w-6 text-green-500" />
+                <span className="text-sm font-medium">View Orders</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto p-4 flex flex-col items-center gap-3"
+                onClick={exportToCSV}
+              >
+                <Download className="h-6 w-6 text-purple-500" />
+                <span className="text-sm font-medium">Export Data</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto p-4 flex flex-col items-center gap-3"
+                onClick={() => setActiveTab("analytics")}
+              >
+                <TrendingUp className="h-6 w-6 text-amber-500" />
+                <span className="text-sm font-medium">Analytics</span>
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </Card>
+
+          {/* Recent Orders */}
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Recent Orders</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveTab("orders")}
+                className="text-blue-500"
+              >
+                View All
+                <ArrowUpRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {purchaseOrders.slice(0, 3).map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h4 className="font-semibold text-foreground truncate">
+                        {order.order_number}
+                      </h4>
+                      {getStatusBadge(order.status)}
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">{order.supplier_name}</p>
+                    <p className="text-sm font-medium text-green-600 mt-1">
+                      {formatCurrency(order.total_amount)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setIsViewDialogOpen(true);
+                    }}
+                    className="ml-4"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Orders Tab */}
+        <TabsContent value="orders" className="space-y-4 sm:space-y-6 mt-6">
+          {/* Search and Filters */}
+          <Card className="p-4 sm:p-6">
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search orders by number, supplier, or notes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Filter by Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="shipped">Shipped</SelectItem>
+                    <SelectItem value="received">Received</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Filter by Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priority</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </Card>
+
+          {/* Orders Grid/List */}
+          <div className="grid gap-4 sm:gap-6">
+            {paginatedOrders.length === 0 ? (
+              <Card className="p-8 text-center">
+                <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">No orders found</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Try adjusting your search or filter criteria
+                </p>
+                <Button onClick={() => setIsCreateDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Order
+                </Button>
+              </Card>
+            ) : (
+              paginatedOrders.map((order) => (
+                <Card key={order.id} className="p-4 sm:p-6 hover:shadow-md transition-all duration-200">
+                  <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          {getStatusIcon(order.status)}
+                          <h4 className="text-lg font-semibold truncate">
+                            {order.order_number}
+                          </h4>
+                          {order.priority === "high" && (
+                            <Star className="h-4 w-4 text-red-500 fill-current flex-shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate mb-2">{order.supplier_name}</p>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(order.status)}
+                          {getPriorityBadge(order.priority)}
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setIsViewDialogOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditDialog(order)}>
+                            <Edit2 className="h-4 w-4 mr-2" />
+                            Edit Order
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {order.status === "pending" && (
+                            <DropdownMenuItem
+                              onClick={() => updateOrderStatus(order.id, "approved")}
+                            >
+                              <Check className="h-4 w-4 mr-2" />
+                              Approve
+                            </DropdownMenuItem>
+                          )}
+                          {order.status === "approved" && (
+                            <DropdownMenuItem
+                              onClick={() => updateOrderStatus(order.id, "shipped")}
+                            >
+                              <Truck className="h-4 w-4 mr-2" />
+                              Ship
+                            </DropdownMenuItem>
+                          )}
+                          {order.status === "shipped" && (
+                            <DropdownMenuItem
+                              onClick={() => updateOrderStatus(order.id, "received")}
+                            >
+                              <Package className="h-4 w-4 mr-2" />
+                              Receive
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Amount and Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Amount</p>
+                        <p className="text-xl font-bold text-green-600">
+                          {formatCurrency(order.total_amount)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Items</p>
+                        <p className="text-lg font-semibold">
+                          {order.item_count || 0} item{(order.item_count || 0) !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Avg per Item</p>
+                        <p className="text-lg font-semibold">
+                          {order.item_count > 0 ? formatCurrency(Math.round(order.total_amount / order.item_count)) : formatCurrency(0)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground mb-1">Order Date</p>
+                        <p className="font-medium">{new Date(order.order_date).toLocaleDateString()}</p>
+                      </div>
+                      {order.expected_delivery_date && (
+                        <div>
+                          <p className="text-muted-foreground mb-1">Expected Delivery</p>
+                          <p className="font-medium">
+                            {new Date(order.expected_delivery_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
+                      {order.actual_delivery_date && (
+                        <div>
+                          <p className="text-muted-foreground mb-1">Actual Delivery</p>
+                          <p className="font-medium text-green-600">
+                            {new Date(order.actual_delivery_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <span className="text-sm text-muted-foreground">
+                        Created by: {order.created_by || "Unknown"}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setIsViewDialogOpen(true);
+                        }}
+                        className="text-primary"
+                      >
+                        View Details
+                        <ArrowUpRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {paginatedOrders.length} of {filteredOrders.length} orders
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground px-2">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+         {/* Analytics Tab */}
+         <TabsContent value="analytics" className="space-y-4 mt-4">
+           {/* Status Distribution Chart */}
+           <Card className="p-4">
+             <h3 className="text-sm font-semibold text-slate-900 mb-4">Order Status Distribution</h3>
+             <div className="h-48">
+               <ResponsiveContainer width="100%" height="100%">
+                 <PieChart>
+                   <Pie
+                     data={statusDistribution}
+                     cx="50%"
+                     cy="50%"
+                     innerRadius={30}
+                     outerRadius={60}
+                     dataKey="value"
+                     label={false}
+                   >
+                     {statusDistribution.map((entry, index) => (
+                       <Cell key={`cell-${index}`} fill={entry.fill} />
+                     ))}
+                   </Pie>
+                   <Tooltip formatter={(value, name) => [`${value} orders`, name]} />
+                 </PieChart>
+               </ResponsiveContainer>
+             </div>
+             <div className="grid grid-cols-2 gap-2 mt-4">
+               {statusDistribution.map((item) => (
+                 <div key={item.name} className="flex items-center gap-2 text-xs">
+                   <div
+                     className="w-3 h-3 rounded-full"
+                     style={{ backgroundColor: item.fill }}
+                   />
+                   <span className="text-slate-600">{item.name}:</span>
+                   <span className="font-medium">{item.value}</span>
+                 </div>
+               ))}
+             </div>
+           </Card>
+
+           {/* Monthly Trends */}
+           <Card className="p-4">
+             <h3 className="text-sm font-semibold text-slate-900 mb-4">Monthly Trends</h3>
+             <div className="h-48">
+               <ResponsiveContainer width="100%" height="100%">
+                 <LineChart data={monthlyTrends}>
+                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                   <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#64748b" />
+                   <YAxis tick={{ fontSize: 12 }} stroke="#64748b" />
+                   <Tooltip 
+                     formatter={(value, name) => [
+                       name === "value" ? `₹${value}K` : value,
+                       name === "value" ? "Value" : "Orders"
+                     ]}
+                     contentStyle={{
+                       backgroundColor: "white",
+                       border: "1px solid #e2e8f0",
+                       borderRadius: "8px",
+                     }}
+                   />
+                   <Line
+                     type="monotone"
+                     dataKey="orders"
+                     stroke="#3b82f6"
+                     strokeWidth={2}
+                     dot={{ r: 4 }}
+                   />
+                   <Line
+                     type="monotone"
+                     dataKey="value"
+                     stroke="#10b981"
+                     strokeWidth={2}
+                     dot={{ r: 4 }}
+                   />
+                 </LineChart>
+               </ResponsiveContainer>
+             </div>
+             <div className="flex justify-center gap-4 mt-4 text-xs">
+               <div className="flex items-center gap-2">
+                 <div className="w-3 h-3 rounded-full bg-blue-500" />
+                 <span className="text-slate-600">Orders</span>
+               </div>
+               <div className="flex items-center gap-2">
+                 <div className="w-3 h-3 rounded-full bg-green-500" />
+                 <span className="text-slate-600">Value (K)</span>
+               </div>
+             </div>
+           </Card>
+
+           {/* Key Metrics */}
+           <div className="grid grid-cols-2 gap-3">
+             <Card className="p-4 text-center">
+               <div className="text-2xl font-bold text-blue-600 mb-1">
+                 {formatCurrency(orderStats.avgOrderValue)}
+               </div>
+               <div className="text-xs text-slate-600">Average Order Value</div>
+               <div className="flex items-center justify-center gap-1 mt-1">
+                 <ArrowUpRight className="h-3 w-3 text-green-500" />
+                 <span className="text-xs text-green-600">+12%</span>
+               </div>
+             </Card>
+
+             <Card className="p-4 text-center">
+               <div className="text-2xl font-bold text-green-600 mb-1">
+                 {Math.round((orderStats.received / orderStats.total) * 100)}%
+               </div>
+               <div className="text-xs text-slate-600">Completion Rate</div>
+               <div className="flex items-center justify-center gap-1 mt-1">
+                 <ArrowUpRight className="h-3 w-3 text-green-500" />
+                 <span className="text-xs text-green-600">+5%</span>
+               </div>
+             </Card>
+           </div>
+         </TabsContent>
+       </Tabs>
+
+     {/* Create/Edit Order Dialog */}
+     <Dialog
+       open={isCreateDialogOpen || isEditDialogOpen}
+       onOpenChange={(open) => {
+         if (!open) {
+           setIsCreateDialogOpen(false);
+           setIsEditDialogOpen(false);
+           setSelectedOrder(null);
+           setForm({
+             supplier_id: "",
+             expected_delivery_date: "",
+             priority: "medium",
+             notes: "",
+             items: [],
+           });
+         }
+       }}
+     >
+       <DialogContent className="max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+         <DialogHeader>
+           <DialogTitle>
+             {selectedOrder ? "Edit Purchase Order" : "Create Purchase Order"}
+           </DialogTitle>
+         </DialogHeader>
+         <form onSubmit={handleSubmit} className="space-y-4">
+           <div className="space-y-4">
+             <div className="space-y-2">
+               <Label htmlFor="supplier">Supplier *</Label>
+               <Select
+                 value={form.supplier_id}
+                 onValueChange={(value) => setForm({ ...form, supplier_id: value })}
+               >
+                 <SelectTrigger>
+                   <SelectValue placeholder="Select supplier" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   {sampleSuppliers.map((supplier) => (
+                     <SelectItem key={supplier.id} value={supplier.id}>
+                       <div className="flex items-center gap-2">
+                         <Building className="h-4 w-4" />
+                         {supplier.name}
+                       </div>
+                     </SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+             </div>
+
+             <div className="space-y-2">
+               <Label htmlFor="expected_delivery_date">Expected Delivery Date</Label>
+               <Input
+                 id="expected_delivery_date"
+                 type="date"
+                 value={form.expected_delivery_date || ""}
+                 onChange={(e) =>
+                   setForm({ ...form, expected_delivery_date: e.target.value })
+                 }
+               />
+             </div>
+
+             <div className="space-y-2">
+               <Label htmlFor="priority">Priority</Label>
+               <Select
+                 value={form.priority}
+                 onValueChange={(value) =>
+                   setForm({ ...form, priority: value as "low" | "medium" | "high" })
+                 }
+               >
+                 <SelectTrigger>
+                   <SelectValue />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="low">
+                     <div className="flex items-center gap-2">
+                       <div className="w-2 h-2 rounded-full bg-gray-400" />
+                       Low Priority
+                     </div>
+                   </SelectItem>
+                   <SelectItem value="medium">
+                     <div className="flex items-center gap-2">
+                       <div className="w-2 h-2 rounded-full bg-blue-400" />
+                       Medium Priority
+                     </div>
+                   </SelectItem>
+                   <SelectItem value="high">
+                     <div className="flex items-center gap-2">
+                       <div className="w-2 h-2 rounded-full bg-red-400" />
+                       High Priority
+                     </div>
+                   </SelectItem>
+                 </SelectContent>
+               </Select>
+             </div>
+
+             <div className="space-y-2">
+               <Label htmlFor="notes">Notes</Label>
+               <Textarea
+                 id="notes"
+                 value={form.notes || ""}
+                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                 placeholder="Additional notes for this order..."
+                 rows={3}
+               />
+             </div>
+
+             {/* Simplified Items Section */}
+             <div className="space-y-2">
+               <Label>Order Items</Label>
+               <div className="p-4 border border-dashed border-slate-300 rounded-lg bg-slate-50 text-center">
+                 <Package className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                 <p className="text-sm text-slate-600 mb-2">Add items to your order</p>
+                 <Button
+                   type="button"
+                   variant="outline"
+                   size="sm"
+                   onClick={() => {
+                     toast({
+                       title: "Coming Soon",
+                       description: "Item management will be available in the next update",
+                     });
+                   }}
+                 >
+                   <Plus className="h-4 w-4 mr-2" />
+                   Add Items
+                 </Button>
+               </div>
+             </div>
+           </div>
+
+           <DialogFooter className="flex gap-2">
+             <Button
+               type="button"
+               variant="outline"
+               onClick={() => {
+                 setIsCreateDialogOpen(false);
+                 setIsEditDialogOpen(false);
+               }}
+               className="flex-1"
+             >
+               Cancel
+             </Button>
+             <Button type="submit" className="flex-1">
+               {selectedOrder ? "Update" : "Create"}
+             </Button>
+           </DialogFooter>
+         </form>
+       </DialogContent>
+     </Dialog>
+
+     {/* View Order Dialog */}
+     <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+       <DialogContent className="max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+         <DialogHeader>
+           <DialogTitle>Order Details</DialogTitle>
+         </DialogHeader>
+         {selectedOrder && (
+           <div className="space-y-4">
+             {/* Header Info */}
+             <div className="text-center p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+               <h3 className="text-lg font-bold text-slate-900">{selectedOrder.order_number}</h3>
+               <p className="text-sm text-slate-600">{selectedOrder.supplier_name}</p>
+               <div className="flex items-center justify-center gap-2 mt-2">
+                 {getStatusBadge(selectedOrder.status)}
+                 {getPriorityBadge(selectedOrder.priority)}
+               </div>
+             </div>
+
+             {/* Amount */}
+             <div className="text-center p-4 border rounded-lg">
+               <div className="text-2xl font-bold text-green-600 mb-1">
+                 {formatCurrency(selectedOrder.total_amount)}
+               </div>
+               <div className="text-sm text-slate-600">
+                 {selectedOrder.items?.length || 0} item{(selectedOrder.items?.length || 0) !== 1 ? "s" : ""} • 
+                 Avg {selectedOrder.items?.length ? formatCurrency(Math.round(selectedOrder.total_amount / selectedOrder.items.length)) : formatCurrency(0)}
+               </div>
+             </div>
+
+             {/* Dates */}
+             <div className="space-y-3">
+               <div className="flex justify-between py-2 border-b">
+                 <span className="text-sm text-slate-600">Order Date:</span>
+                 <span className="text-sm font-medium">
+                   {new Date(selectedOrder.order_date).toLocaleDateString()}
+                 </span>
+               </div>
+               {selectedOrder.expected_delivery_date && (
+                 <div className="flex justify-between py-2 border-b">
+                   <span className="text-sm text-slate-600">Expected Delivery:</span>
+                   <span className="text-sm font-medium">
+                     {new Date(selectedOrder.expected_delivery_date).toLocaleDateString()}
+                   </span>
+                 </div>
+               )}
+               {selectedOrder.actual_delivery_date && (
+                 <div className="flex justify-between py-2 border-b">
+                   <span className="text-sm text-slate-600">Actual Delivery:</span>
+                   <span className="text-sm font-medium text-green-600">
+                     {new Date(selectedOrder.actual_delivery_date).toLocaleDateString()}
+                   </span>
+                 </div>
+               )}
+               {selectedOrder.created_by && (
+                 <div className="flex justify-between py-2 border-b">
+                   <span className="text-sm text-slate-600">Created By:</span>
+                   <span className="text-sm font-medium">{selectedOrder.created_by}</span>
+                 </div>
+               )}
+             </div>
+
+             {/* Items */}
+             <div className="space-y-2">
+               <h4 className="font-medium text-slate-900">Order Items</h4>
+               <div className="space-y-2">
+                 {(selectedOrder.items || []).map((item) => (
+                   <div key={item.id} className="p-3 bg-slate-50 rounded-lg">
+                     <div className="flex justify-between items-start mb-2">
+                       <div className="font-medium text-sm text-slate-900 flex-1">
+                         {item.product_name}
+                       </div>
+                       <div className="text-sm font-bold text-green-600 ml-2">
+                         {formatCurrency(item.total_price)}
+                       </div>
+                     </div>
+                     <div className="flex justify-between text-xs text-slate-600">
+                       <span>Qty: {item.quantity}</span>
+                       <span>Unit: {formatCurrency(item.unit_price)}</span>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+
+             {/* Notes */}
+             {selectedOrder.notes && (
+               <div className="space-y-2">
+                 <h4 className="font-medium text-slate-900">Notes</h4>
+                 <p className="text-sm text-slate-600 p-3 bg-slate-50 rounded-lg">
+                   {selectedOrder.notes}
+                 </p>
+               </div>
+             )}
+
+             {/* Actions */}
+             <div className="flex gap-2 pt-4">
+               <Button
+                 variant="outline"
+                 onClick={() => openEditDialog(selectedOrder)}
+                 className="flex-1"
+               >
+                 <Edit2 className="h-4 w-4 mr-2" />
+                 Edit
+               </Button>
+               {selectedOrder.status === "pending" && (
+                 <Button
+                   onClick={() => {
+                     updateOrderStatus(selectedOrder.id, "approved");
+                     setIsViewDialogOpen(false);
+                   }}
+                   className="flex-1"
+                 >
+                   <Check className="h-4 w-4 mr-2" />
+                   Approve
+                 </Button>
+               )}
+               {selectedOrder.status === "approved" && (
+                 <Button
+                   onClick={() => {
+                     updateOrderStatus(selectedOrder.id, "shipped");
+                     setIsViewDialogOpen(false);
+                   }}
+                   className="flex-1"
+                 >
+                   <Truck className="h-4 w-4 mr-2" />
+                   Ship
+                 </Button>
+               )}
+               {selectedOrder.status === "shipped" && (
+                 <Button
+                   onClick={() => {
+                     updateOrderStatus(selectedOrder.id, "received");
+                     setIsViewDialogOpen(false);
+                   }}
+                   className="flex-1"
+                 >
+                   <Package className="h-4 w-4 mr-2" />
+                   Receive
+                 </Button>
+               )}
+             </div>
+           </div>
+         )}
+       </DialogContent>
+     </Dialog>
+
+     {/* Delete Confirmation Dialog */}
+     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+       <AlertDialogContent className="mx-4">
+         <AlertDialogHeader>
+           <AlertDialogTitle>Delete Purchase Order</AlertDialogTitle>
+           <AlertDialogDescription>
+             Are you sure you want to delete purchase order "{selectedOrder?.order_number}"? 
+             This action cannot be undone.
+           </AlertDialogDescription>
+         </AlertDialogHeader>
+         <AlertDialogFooter>
+           <AlertDialogCancel>Cancel</AlertDialogCancel>
+           <AlertDialogAction
+             onClick={handleDelete}
+             className="bg-red-600 hover:bg-red-700"
+           >
+             Delete
+           </AlertDialogAction>
+         </AlertDialogFooter>
+       </AlertDialogContent>
+     </AlertDialog>
+        </>
+      )}
     </div>
   );
-};
-
-export default PurchaseOrders;
+}

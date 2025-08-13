@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import api from "@/services/api";
 import {
   BarChart,
   Bar,
@@ -48,6 +49,7 @@ interface CustomerDispatch {
   name: string;
   quantity: number;
   value: number;
+  orders: number;
   color: string;
   type: "Customer" | "Work Order";
 }
@@ -61,6 +63,7 @@ interface PendingOrder {
   status: "Ready" | "Processing" | "Delayed" | "Quality Check";
   priority: "High" | "Medium" | "Low";
   orderType: "Customer Order" | "Work Order" | "Transfer Order";
+  totalValue: number;
 }
 
 interface OnTimeMetrics {
@@ -93,143 +96,48 @@ const OutboundDashboard: React.FC = () => {
     "#06b6d4",
   ];
 
-  // Load sample data
+  // Load data from APIs
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        // Load all data in parallel
+        const [
+          metricsResponse,
+          customerResponse,
+          ordersResponse,
+          onTimeResponse,
+        ] = await Promise.all([
+          api.outbound.getMetrics(),
+          api.outbound.getCustomerData(),
+          api.outbound.getPendingOrders(),
+          api.outbound.getOnTimeMetrics(),
+        ]);
 
-      // Sample metrics
-      setMetrics({
-        totalDispatchedToday: 892,
-        totalDispatchedMonth: 23456,
-        todayGrowth: 15.2,
-        monthGrowth: 11.7,
-        onTimeRate: 92.3,
-      });
+        // Set metrics
+        setMetrics(metricsResponse);
 
-      // Sample customer/work order data
-      setCustomerData([
-        {
-          name: "Tata Motors",
-          quantity: 320,
-          value: 890000,
-          color: COLORS[0],
-          type: "Customer",
-        },
-        {
-          name: "Bajaj Auto",
-          quantity: 280,
-          value: 720000,
-          color: COLORS[1],
-          type: "Customer",
-        },
-        {
-          name: "WO-2025-045",
-          quantity: 190,
-          value: 580000,
-          color: COLORS[2],
-          type: "Work Order",
-        },
-        {
-          name: "Mahindra & Mahindra",
-          quantity: 145,
-          value: 420000,
-          color: COLORS[3],
-          type: "Customer",
-        },
-        {
-          name: "WO-2025-032",
-          quantity: 120,
-          value: 340000,
-          color: COLORS[4],
-          type: "Work Order",
-        },
-        {
-          name: "Others",
-          quantity: 89,
-          value: 245000,
-          color: COLORS[5],
-          type: "Customer",
-        },
-      ]);
+        // Set customer data with colors
+        const customersWithColors = customerResponse.map(
+          (customer: any, index: number) => ({
+            ...customer,
+            color: COLORS[index % COLORS.length],
+          })
+        );
+        setCustomerData(customersWithColors);
 
-      // Sample pending orders
-      setPendingOrders([
-        {
-          id: "SO-2025-156",
-          orderNumber: "SO-2025-156",
-          customer: "Hero MotoCorp",
-          dueDate: "2025-08-15",
-          quantity: 450,
-          status: "Ready",
-          priority: "High",
-          orderType: "Customer Order",
-        },
-        {
-          id: "WO-2025-078",
-          orderNumber: "WO-2025-078",
-          customer: "Internal Production",
-          dueDate: "2025-08-16",
-          quantity: 200,
-          status: "Processing",
-          priority: "Medium",
-          orderType: "Work Order",
-        },
-        {
-          id: "SO-2025-149",
-          orderNumber: "SO-2025-149",
-          customer: "TVS Motor Company",
-          dueDate: "2025-08-14",
-          quantity: 300,
-          status: "Delayed",
-          priority: "High",
-          orderType: "Customer Order",
-        },
-        {
-          id: "TO-2025-023",
-          orderNumber: "TO-2025-023",
-          customer: "Warehouse B Transfer",
-          dueDate: "2025-08-17",
-          quantity: 150,
-          status: "Quality Check",
-          priority: "Low",
-          orderType: "Transfer Order",
-        },
-        {
-          id: "SO-2025-161",
-          orderNumber: "SO-2025-161",
-          customer: "Royal Enfield",
-          dueDate: "2025-08-18",
-          quantity: 250,
-          status: "Ready",
-          priority: "Medium",
-          orderType: "Customer Order",
-        },
-        {
-          id: "WO-2025-081",
-          orderNumber: "WO-2025-081",
-          customer: "Assembly Line 3",
-          dueDate: "2025-08-15",
-          quantity: 180,
-          status: "Processing",
-          priority: "High",
-          orderType: "Work Order",
-        },
-      ]);
+        // Set pending orders
+        setPendingOrders(ordersResponse);
 
-      // Sample on-time metrics
-      setOnTimeData([
-        { period: "Week 1", onTime: 89, delayed: 11, rate: 89.0 },
-        { period: "Week 2", onTime: 94, delayed: 6, rate: 94.0 },
-        { period: "Week 3", onTime: 91, delayed: 9, rate: 91.0 },
-        { period: "Week 4", onTime: 93, delayed: 7, rate: 93.0 },
-        { period: "Current", onTime: 92, delayed: 8, rate: 92.3 },
-      ]);
-
-      setLoading(false);
+        // Set on-time metrics
+        setOnTimeData(onTimeResponse);
+      } catch (error) {
+        console.error("Error loading outbound data:", error);
+        // Keep default empty states on error
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadData();

@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {
+  stockOutAPI,
+  productsAPI,
+  type StockOutRequest,
+  type StockOutMetrics,
+  type StockOutDashboardData,
+  type StockOutItem,
+} from "@/services/api";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -80,66 +88,7 @@ import {
   Package,
 } from "lucide-react";
 
-// Types
-interface StockOutItem {
-  id: string;
-  itemCode: string;
-  itemName: string;
-  category: string;
-  quantityRequested: number;
-  quantityAllocated: number;
-  quantityDispatched: number;
-  unit: string;
-  status:
-    | "pending"
-    | "allocated"
-    | "dispatched"
-    | "partially-dispatched"
-    | "cancelled";
-  priority: "low" | "medium" | "high" | "urgent";
-  requestDate: string;
-  requiredDate: string;
-  dispatchDate?: string;
-  destination: string;
-  requestedBy: string;
-  notes?: string;
-  trackingNumber?: string;
-  estimatedValue: number;
-}
-
-interface StockOutRequest {
-  id: string;
-  requestNumber: string;
-  requestDate: string;
-  requiredDate: string;
-  requestedBy: string;
-  department: string;
-  destination: string;
-  status:
-    | "draft"
-    | "submitted"
-    | "approved"
-    | "processing"
-    | "completed"
-    | "cancelled";
-  priority: "low" | "medium" | "high" | "urgent";
-  totalItems: number;
-  totalValue: number;
-  items: StockOutItem[];
-  approvedBy?: string;
-  processedBy?: string;
-  notes?: string;
-}
-
-interface StockOutMetrics {
-  totalRequestsToday: number;
-  totalItemsDispatched: number;
-  totalValueDispatched: number;
-  pendingRequests: number;
-  completionRate: number;
-  averageProcessingTime: number;
-}
-
+// Keep only the DashboardData interface since it's not in the API
 interface DashboardData {
   categoryBreakdown: { name: string; value: number; count: number }[];
   statusDistribution: { name: string; value: number; color: string }[];
@@ -179,6 +128,10 @@ const StockOutManagement: React.FC = () => {
   const [selectedRequest, setSelectedRequest] =
     useState<StockOutRequest | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<StockOutRequest | null>(
+    null
+  );
   const [newRequest, setNewRequest] = useState<Partial<StockOutRequest>>({
     requestedBy: "",
     department: "",
@@ -188,6 +141,10 @@ const StockOutManagement: React.FC = () => {
     notes: "",
     items: [],
   });
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<string>("");
+  const [itemQuantity, setItemQuantity] = useState<number>(1);
+  const [requestItems, setRequestItems] = useState<StockOutItem[]>([]);
 
   const itemsPerPage = 10;
   const CHART_COLORS = [
@@ -199,190 +156,198 @@ const StockOutManagement: React.FC = () => {
     "#82CA9D",
   ];
 
-  // Mock data generation
-  const generateMockData = () => {
-    setLoading((prev) => ({ ...prev, requests: true, metrics: true }));
+  // Load data from API
+  const loadStockOutData = async () => {
+    setLoading({ requests: true, metrics: true, creating: false });
 
-    setTimeout(() => {
-      // Generate mock stock out requests
-      const mockRequests: StockOutRequest[] = [
-        {
-          id: "SOD-2025-001",
-          requestNumber: "SOD-2025-001",
-          requestDate: "2025-08-13",
-          requiredDate: "2025-08-15",
-          requestedBy: "John Doe",
-          department: "Production",
-          destination: "Factory Floor A",
-          status: "processing",
-          priority: "high",
-          totalItems: 3,
-          totalValue: 125000,
-          approvedBy: "Manager Smith",
-          items: [
-            {
-              id: "item-1",
-              itemCode: "STL-001",
-              itemName: "Steel Rod 12mm",
-              category: "Raw Materials",
-              quantityRequested: 100,
-              quantityAllocated: 100,
-              quantityDispatched: 50,
-              unit: "pcs",
-              status: "partially-dispatched",
-              priority: "high",
-              requestDate: "2025-08-13",
-              requiredDate: "2025-08-15",
-              destination: "Factory Floor A",
-              requestedBy: "John Doe",
-              estimatedValue: 50000,
-              trackingNumber: "TRK-001",
-            },
-            {
-              id: "item-2",
-              itemCode: "CEM-002",
-              itemName: "Cement Bag 50kg",
-              category: "Building Materials",
-              quantityRequested: 50,
-              quantityAllocated: 50,
-              quantityDispatched: 0,
-              unit: "bags",
-              status: "allocated",
-              priority: "medium",
-              requestDate: "2025-08-13",
-              requiredDate: "2025-08-15",
-              destination: "Factory Floor A",
-              requestedBy: "John Doe",
-              estimatedValue: 25000,
-            },
-          ],
-        },
-        {
-          id: "SOD-2025-002",
-          requestNumber: "SOD-2025-002",
-          requestDate: "2025-08-12",
-          requiredDate: "2025-08-14",
-          requestedBy: "Jane Smith",
-          department: "Maintenance",
-          destination: "Warehouse B",
-          status: "completed",
-          priority: "medium",
-          totalItems: 2,
-          totalValue: 75000,
-          approvedBy: "Manager Brown",
-          processedBy: "Operator Wilson",
-          items: [
-            {
-              id: "item-3",
-              itemCode: "BLT-003",
-              itemName: "Bolt M12x50",
-              category: "Hardware",
-              quantityRequested: 200,
-              quantityAllocated: 200,
-              quantityDispatched: 200,
-              unit: "pcs",
-              status: "dispatched",
-              priority: "medium",
-              requestDate: "2025-08-12",
-              requiredDate: "2025-08-14",
-              dispatchDate: "2025-08-13",
-              destination: "Warehouse B",
-              requestedBy: "Jane Smith",
-              estimatedValue: 40000,
-              trackingNumber: "TRK-002",
-            },
-          ],
-        },
-        {
-          id: "SOD-2025-003",
-          requestNumber: "SOD-2025-003",
-          requestDate: "2025-08-13",
-          requiredDate: "2025-08-16",
-          requestedBy: "Mike Johnson",
-          department: "Quality Control",
-          destination: "QC Lab",
-          status: "submitted",
-          priority: "urgent",
-          totalItems: 1,
-          totalValue: 15000,
-          items: [
-            {
-              id: "item-4",
-              itemCode: "TST-004",
-              itemName: "Testing Equipment",
-              category: "Equipment",
-              quantityRequested: 1,
-              quantityAllocated: 0,
-              quantityDispatched: 0,
-              unit: "unit",
-              status: "pending",
-              priority: "urgent",
-              requestDate: "2025-08-13",
-              requiredDate: "2025-08-16",
-              destination: "QC Lab",
-              requestedBy: "Mike Johnson",
-              estimatedValue: 15000,
-            },
-          ],
-        },
-      ];
+    try {
+      // Load requests, metrics, and dashboard data in parallel
+      const [requestsResult, metricsResult, dashboardResult] =
+        await Promise.all([
+          stockOutAPI.getRequests({ page: currentPage, limit: itemsPerPage }),
+          stockOutAPI.getMetrics(),
+          stockOutAPI.getDashboardData(),
+        ]);
 
-      setStockOutRequests(mockRequests);
+      if (requestsResult.success && requestsResult.data) {
+        setStockOutRequests(requestsResult.data.requests);
+      }
 
-      // Generate metrics
-      const mockMetrics: StockOutMetrics = {
-        totalRequestsToday: 5,
-        totalItemsDispatched: 450,
-        totalValueDispatched: 2850000,
-        pendingRequests: 8,
-        completionRate: 87.5,
-        averageProcessingTime: 2.4,
-      };
+      if (metricsResult.success && metricsResult.data) {
+        setMetrics(metricsResult.data);
+      }
 
-      setMetrics(mockMetrics);
-
-      // Generate dashboard data
-      const mockDashboardData: DashboardData = {
-        categoryBreakdown: [
-          { name: "Raw Materials", value: 1200000, count: 15 },
-          { name: "Building Materials", value: 800000, count: 12 },
-          { name: "Hardware", value: 450000, count: 8 },
-          { name: "Equipment", value: 300000, count: 5 },
-          { name: "Tools", value: 100000, count: 3 },
-        ],
-        statusDistribution: [
-          { name: "Completed", value: 45, color: "#10b981" },
-          { name: "Processing", value: 25, color: "#3b82f6" },
-          { name: "Pending", value: 20, color: "#f59e0b" },
-          { name: "Cancelled", value: 10, color: "#ef4444" },
-        ],
-        dispatchTrends: [
-          { date: "2025-08-07", dispatched: 120, value: 480000 },
-          { date: "2025-08-08", dispatched: 150, value: 520000 },
-          { date: "2025-08-09", dispatched: 90, value: 380000 },
-          { date: "2025-08-10", dispatched: 200, value: 650000 },
-          { date: "2025-08-11", dispatched: 175, value: 590000 },
-          { date: "2025-08-12", dispatched: 220, value: 720000 },
-          { date: "2025-08-13", dispatched: 180, value: 610000 },
-        ],
-        topDestinations: [
-          { name: "Factory Floor A", count: 25, value: 850000 },
-          { name: "Warehouse B", count: 18, value: 620000 },
-          { name: "Production Line 1", count: 15, value: 480000 },
-          { name: "QC Lab", count: 12, value: 380000 },
-          { name: "Maintenance Shop", count: 10, value: 320000 },
-        ],
-      };
-
-      setDashboardData(mockDashboardData);
+      if (dashboardResult.success && dashboardResult.data) {
+        setDashboardData(dashboardResult.data as DashboardData);
+      }
+    } catch (error) {
+      console.error("Error loading stock out data:", error);
+    } finally {
       setLoading({ requests: false, metrics: false, creating: false });
-    }, 1500);
+    }
+  };
+
+  // Load available products
+  const loadAvailableProducts = async () => {
+    try {
+      const products = await productsAPI.getAll();
+      setAvailableProducts(products.filter((p) => p.current_stock > 0));
+    } catch (error) {
+      console.error("Error loading products:", error);
+    }
+  };
+
+  // Add item to request
+  const addItemToRequest = () => {
+    if (!selectedProduct || itemQuantity <= 0) return;
+
+    const product = availableProducts.find((p) => p.id === selectedProduct);
+    if (!product) return;
+
+    if (itemQuantity > product.current_stock) {
+      alert(`Only ${product.current_stock} units available in stock`);
+      return;
+    }
+
+    const newItem: StockOutItem = {
+      id: `item-${Date.now()}`,
+      itemCode: product.sku || product.id,
+      itemName: product.name,
+      category: product.category || "General",
+      quantityRequested: itemQuantity,
+      quantityAllocated: 0,
+      quantityDispatched: 0,
+      unit: product.unit || "pcs",
+      status: "pending",
+      priority:
+        (newRequest.priority as "low" | "medium" | "high" | "urgent") ||
+        "medium",
+      requestDate: new Date().toISOString().split("T")[0],
+      requiredDate: newRequest.requiredDate || "",
+      destination: newRequest.destination || "",
+      requestedBy: newRequest.requestedBy || "",
+      notes: `${product.name} - ${itemQuantity} ${product.unit || "pcs"}`,
+      estimatedValue: (product.price || 0) * itemQuantity,
+    };
+
+    setRequestItems((prev) => [...prev, newItem]);
+    setSelectedProduct("");
+    setItemQuantity(1);
+  };
+
+  // Remove item from request
+  const removeItemFromRequest = (itemId: string) => {
+    setRequestItems((prev) => prev.filter((item) => item.id !== itemId));
+  };
+
+  // Update request status
+  const updateRequestStatus = async (
+    requestId: string,
+    newStatus: StockOutRequest["status"]
+  ) => {
+    try {
+      await stockOutAPI.updateRequest(requestId, { status: newStatus });
+      setStockOutRequests((prev) =>
+        prev.map((req) =>
+          req.id === requestId
+            ? { ...req, status: newStatus, updatedAt: new Date().toISOString() }
+            : req
+        )
+      );
+    } catch (error) {
+      console.error("Error updating request status:", error);
+    }
+  };
+
+  // Submit request (change from draft to submitted)
+  const submitRequest = (requestId: string) => {
+    updateRequestStatus(requestId, "submitted");
+  };
+
+  // Approve request
+  const approveRequest = (requestId: string) => {
+    updateRequestStatus(requestId, "approved");
+  };
+
+  // Cancel request
+  const cancelRequest = (requestId: string) => {
+    updateRequestStatus(requestId, "cancelled");
+  };
+
+  // Start processing request
+  const processRequest = (requestId: string) => {
+    updateRequestStatus(requestId, "processing");
+  };
+
+  // Edit request handler
+  const handleEditRequest = (request: StockOutRequest) => {
+    setEditingRequest(request);
+    setNewRequest({
+      requestedBy: request.requestedBy,
+      department: request.department,
+      destination: request.destination,
+      priority: request.priority,
+      requiredDate: request.requiredDate,
+      notes: request.notes,
+      items: request.items || [],
+    });
+    setRequestItems(request.items || []);
+    setShowEditDialog(true);
+  };
+
+  // Update request handler
+  const handleUpdateRequest = async () => {
+    if (!editingRequest) return;
+
+    setLoading((prev) => ({ ...prev, creating: true }));
+    try {
+      const updatedData = {
+        ...newRequest,
+        items: requestItems,
+        totalValue: requestItems.reduce(
+          (sum, item) => sum + item.estimatedValue,
+          0
+        ),
+      };
+
+      await stockOutAPI.updateRequest(editingRequest.id, updatedData);
+
+      // Update the local state
+      setStockOutRequests((prev) =>
+        prev.map((req) =>
+          req.id === editingRequest.id
+            ? { ...req, ...updatedData, updatedAt: new Date().toISOString() }
+            : req
+        )
+      );
+
+      // Reset form and close dialog
+      setEditingRequest(null);
+      setNewRequest({
+        requestedBy: "",
+        department: "",
+        destination: "",
+        priority: "medium",
+        requiredDate: "",
+        notes: "",
+        items: [],
+      });
+      setRequestItems([]);
+      setShowEditDialog(false);
+      setSelectedProduct("");
+      setItemQuantity(1);
+    } catch (error) {
+      console.error("Error updating request:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, creating: false }));
+    }
   };
 
   // Load data on component mount
   useEffect(() => {
-    generateMockData();
-  }, []);
+    loadStockOutData();
+    loadAvailableProducts();
+  }, [currentPage]);
 
   // Filter requests
   const filteredRequests = stockOutRequests.filter((request) => {
@@ -483,8 +448,27 @@ const StockOutManagement: React.FC = () => {
 
   // Create new request
   const handleCreateRequest = () => {
+    if (
+      !newRequest.requestedBy ||
+      !newRequest.destination ||
+      requestItems.length === 0
+    ) {
+      alert("Please fill all required fields and add at least one item");
+      return;
+    }
+
     setLoading((prev) => ({ ...prev, creating: true }));
+
     setTimeout(() => {
+      const totalItems = requestItems.reduce(
+        (sum, item) => sum + item.quantityRequested,
+        0
+      );
+      const totalValue = requestItems.reduce(
+        (sum, item) => sum + item.estimatedValue,
+        0
+      );
+
       const newRequestData: StockOutRequest = {
         id: `SOD-2025-${String(stockOutRequests.length + 1).padStart(3, "0")}`,
         requestNumber: `SOD-2025-${String(stockOutRequests.length + 1).padStart(
@@ -498,10 +482,12 @@ const StockOutManagement: React.FC = () => {
         destination: newRequest.destination || "",
         status: "draft",
         priority: newRequest.priority || "medium",
-        totalItems: 0,
-        totalValue: 0,
-        items: [],
+        totalItems: totalItems,
+        totalValue: totalValue,
+        items: requestItems,
         notes: newRequest.notes,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       setStockOutRequests((prev) => [newRequestData, ...prev]);
@@ -515,40 +501,43 @@ const StockOutManagement: React.FC = () => {
         notes: "",
         items: [],
       });
+      setRequestItems([]);
       setLoading((prev) => ({ ...prev, creating: false }));
     }, 1000);
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-6 max-w-7xl">
+    <div className="container mx-auto p-2 sm:p-4 space-y-4 sm:space-y-6 max-w-7xl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <PackageX className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
+      <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg flex-shrink-0">
+              <PackageX className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-red-600" />
             </div>
             <span className="truncate">Stock Out Management</span>
           </h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-2">
+          <p className="text-xs sm:text-sm lg:text-base text-gray-600 mt-1 sm:mt-2">
             Manage inventory dispatch and outbound logistics
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button
-            onClick={generateMockData}
+            onClick={loadStockOutData}
             variant="outline"
             size="sm"
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
           >
             <RefreshCw className="h-4 w-4" />
             <span className="hidden sm:inline">Refresh</span>
+            <span className="sm:hidden">Sync</span>
           </Button>
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-2">
+              <Button size="sm" className="gap-2 w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">New Request</span>
+                <span className="sm:hidden">New</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -561,7 +550,7 @@ const StockOutManagement: React.FC = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Requested By</Label>
+                    <Label>Requested By *</Label>
                     <Input
                       value={newRequest.requestedBy || ""}
                       onChange={(e) =>
@@ -599,7 +588,7 @@ const StockOutManagement: React.FC = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Destination</Label>
+                    <Label>Destination *</Label>
                     <Input
                       value={newRequest.destination || ""}
                       onChange={(e) =>
@@ -644,6 +633,133 @@ const StockOutManagement: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {/* Add Items Section */}
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Add Items</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Select Product</Label>
+                      <Select
+                        value={selectedProduct}
+                        onValueChange={setSelectedProduct}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableProducts.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} (Stock: {product.current_stock})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Quantity</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setItemQuantity(Math.max(1, itemQuantity - 1))
+                          }
+                        >
+                          -
+                        </Button>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={itemQuantity}
+                          onChange={(e) =>
+                            setItemQuantity(parseInt(e.target.value) || 1)
+                          }
+                          className="text-center"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setItemQuantity(itemQuantity + 1)}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        onClick={addItemToRequest}
+                        disabled={!selectedProduct || itemQuantity <= 0}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Item
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Items List */}
+                  {requestItems.length > 0 && (
+                    <div className="border rounded-lg">
+                      <div className="p-4">
+                        <h4 className="font-medium mb-3">
+                          Selected Items ({requestItems.length})
+                        </h4>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {requestItems.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex justify-between items-center p-2 bg-gray-50 rounded"
+                            >
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">
+                                  {item.itemName}
+                                </div>
+                                <div className="text-xs text-gray-600">
+                                  {item.quantityRequested} {item.unit} - ₹
+                                  {item.estimatedValue.toFixed(2)}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => removeItemFromRequest(item.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 pt-3 border-t">
+                          <div className="flex justify-between text-sm font-medium">
+                            <span>
+                              Total Items:{" "}
+                              {requestItems.reduce(
+                                (sum, item) => sum + item.quantityRequested,
+                                0
+                              )}
+                            </span>
+                            <span>
+                              Total Value: ₹
+                              {requestItems
+                                .reduce(
+                                  (sum, item) => sum + item.estimatedValue,
+                                  0
+                                )
+                                .toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label>Notes</Label>
                   <Textarea
@@ -668,7 +784,12 @@ const StockOutManagement: React.FC = () => {
                 </Button>
                 <Button
                   onClick={handleCreateRequest}
-                  disabled={loading.creating}
+                  disabled={
+                    loading.creating ||
+                    !newRequest.requestedBy ||
+                    !newRequest.destination ||
+                    requestItems.length === 0
+                  }
                 >
                   {loading.creating ? (
                     <>
@@ -676,7 +797,279 @@ const StockOutManagement: React.FC = () => {
                       Creating...
                     </>
                   ) : (
-                    "Create Request"
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Request ({requestItems.length} items)
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Request Dialog */}
+          <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Request</DialogTitle>
+                <DialogDescription>
+                  Update the stock out request details and items.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Requested By *</Label>
+                    <Input
+                      value={newRequest.requestedBy || ""}
+                      onChange={(e) =>
+                        setNewRequest((prev) => ({
+                          ...prev,
+                          requestedBy: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter your name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Department</Label>
+                    <Select
+                      value={newRequest.department || ""}
+                      onValueChange={(value) =>
+                        setNewRequest((prev) => ({
+                          ...prev,
+                          department: value,
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Production">Production</SelectItem>
+                        <SelectItem value="Maintenance">Maintenance</SelectItem>
+                        <SelectItem value="Quality Control">
+                          Quality Control
+                        </SelectItem>
+                        <SelectItem value="Engineering">Engineering</SelectItem>
+                        <SelectItem value="Operations">Operations</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Destination *</Label>
+                    <Input
+                      value={newRequest.destination || ""}
+                      onChange={(e) =>
+                        setNewRequest((prev) => ({
+                          ...prev,
+                          destination: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., Factory Floor A"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Priority</Label>
+                    <Select
+                      value={newRequest.priority || "medium"}
+                      onValueChange={(value: any) =>
+                        setNewRequest((prev) => ({ ...prev, priority: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Required Date</Label>
+                    <Input
+                      type="date"
+                      value={newRequest.requiredDate || ""}
+                      onChange={(e) =>
+                        setNewRequest((prev) => ({
+                          ...prev,
+                          requiredDate: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Add Items Section */}
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Manage Items</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Select Product</Label>
+                      <Select
+                        value={selectedProduct}
+                        onValueChange={setSelectedProduct}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableProducts.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} (Stock: {product.current_stock})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Quantity</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setItemQuantity(Math.max(1, itemQuantity - 1))
+                          }
+                        >
+                          -
+                        </Button>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={itemQuantity}
+                          onChange={(e) =>
+                            setItemQuantity(parseInt(e.target.value) || 1)
+                          }
+                          className="text-center"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setItemQuantity(itemQuantity + 1)}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        onClick={addItemToRequest}
+                        disabled={!selectedProduct || itemQuantity <= 0}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Item
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Items List */}
+                  {requestItems.length > 0 && (
+                    <div className="border rounded-lg">
+                      <div className="p-4">
+                        <h4 className="font-medium mb-3">
+                          Selected Items ({requestItems.length})
+                        </h4>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {requestItems.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex justify-between items-center p-2 bg-gray-50 rounded"
+                            >
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">
+                                  {item.itemName}
+                                </div>
+                                <div className="text-xs text-gray-600">
+                                  {item.quantityRequested} {item.unit} - ₹
+                                  {item.estimatedValue.toFixed(2)}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => removeItemFromRequest(item.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 pt-3 border-t">
+                          <div className="flex justify-between text-sm font-medium">
+                            <span>
+                              Total Items:{" "}
+                              {requestItems.reduce(
+                                (sum, item) => sum + item.quantityRequested,
+                                0
+                              )}
+                            </span>
+                            <span>
+                              Total Value: ₹
+                              {requestItems
+                                .reduce(
+                                  (sum, item) => sum + item.estimatedValue,
+                                  0
+                                )
+                                .toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea
+                    value={newRequest.notes || ""}
+                    onChange={(e) =>
+                      setNewRequest((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
+                    placeholder="Additional notes or special instructions..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEditDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUpdateRequest}
+                  disabled={
+                    loading.creating ||
+                    !newRequest.requestedBy ||
+                    !newRequest.destination ||
+                    requestItems.length === 0
+                  }
+                >
+                  {loading.creating ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Update Request ({requestItems.length} items)
+                    </>
                   )}
                 </Button>
               </DialogFooter>
@@ -686,7 +1079,7 @@ const StockOutManagement: React.FC = () => {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
         <Card className="hover:shadow-md transition-shadow duration-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium text-gray-600 flex items-center gap-2">
@@ -835,30 +1228,32 @@ const StockOutManagement: React.FC = () => {
         </TabsList>
 
         {/* Requests Tab */}
-        <TabsContent value="requests" className="space-y-6">
+        <TabsContent value="requests" className="space-y-4 sm:space-y-6">
           {/* Filters */}
           <Card>
-            <CardHeader className="pb-4">
-              <CardTitle>Filter Requests</CardTitle>
+            <CardHeader className="pb-3 sm:pb-4">
+              <CardTitle className="text-sm sm:text-base">
+                Filter Requests
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
                 <div className="space-y-2">
-                  <Label>Search</Label>
+                  <Label className="text-xs sm:text-sm">Search</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Search requests..."
+                      placeholder="Search..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 h-9 text-sm"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label className="text-xs sm:text-sm">Status</Label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -873,12 +1268,12 @@ const StockOutManagement: React.FC = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Priority</Label>
+                  <Label className="text-xs sm:text-sm">Priority</Label>
                   <Select
                     value={priorityFilter}
                     onValueChange={setPriorityFilter}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -890,7 +1285,7 @@ const StockOutManagement: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-end">
+                <div className="flex items-end lg:col-span-1 col-span-full">
                   <Button
                     onClick={() => {
                       setSearchTerm("");
@@ -898,8 +1293,10 @@ const StockOutManagement: React.FC = () => {
                       setPriorityFilter("all");
                     }}
                     variant="outline"
-                    className="w-full"
+                    size="sm"
+                    className="w-full h-9 text-sm"
                   >
+                    <Filter className="h-4 w-4 mr-2" />
                     Clear Filters
                   </Button>
                 </div>
@@ -919,91 +1316,40 @@ const StockOutManagement: React.FC = () => {
             </CardHeader>
             <CardContent className="p-0">
               {loading.requests ? (
-                <div className="space-y-2 p-6">
+                <div className="space-y-2 p-4 sm:p-6">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
+                    <Skeleton key={i} className="h-12 sm:h-16 w-full" />
                   ))}
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="font-semibold text-xs sm:text-sm">
-                          Request #
-                        </TableHead>
-                        <TableHead className="font-semibold text-xs sm:text-sm">
-                          Requested By
-                        </TableHead>
-                        <TableHead className="font-semibold text-xs sm:text-sm hidden sm:table-cell">
-                          Destination
-                        </TableHead>
-                        <TableHead className="font-semibold text-center text-xs sm:text-sm">
-                          Items
-                        </TableHead>
-                        <TableHead className="font-semibold text-center text-xs sm:text-sm hidden md:table-cell">
-                          Value
-                        </TableHead>
-                        <TableHead className="font-semibold text-center text-xs sm:text-sm">
-                          Priority
-                        </TableHead>
-                        <TableHead className="font-semibold text-center text-xs sm:text-sm">
-                          Status
-                        </TableHead>
-                        <TableHead className="font-semibold text-center text-xs sm:text-sm">
-                          Actions
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedRequests.length === 0 ? (
-                        <TableRow>
-                          <TableCell
-                            colSpan={8}
-                            className="text-center py-8 text-gray-500"
-                          >
-                            No stock out requests found
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        paginatedRequests.map((request) => (
-                          <TableRow
-                            key={request.id}
-                            className="hover:bg-gray-50"
-                          >
-                            <TableCell className="font-medium text-xs sm:text-sm">
-                              <div>
-                                <div>{request.requestNumber}</div>
-                                <div className="text-xs text-gray-500">
-                                  {formatDate(request.requestDate)}
-                                </div>
+                <>
+                  {/* Mobile Card View */}
+                  <div className="block sm:hidden space-y-3 p-4">
+                    {paginatedRequests.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500 text-sm">
+                        No stock out requests found
+                      </div>
+                    ) : (
+                      paginatedRequests.map((request) => (
+                        <Card key={request.id} className="p-3 space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-semibold text-sm">
+                                {request.requestNumber}
                               </div>
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm">
-                              <div>
-                                <div className="font-medium">
-                                  {request.requestedBy}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {request.department}
-                                </div>
+                              <div className="text-xs text-gray-500">
+                                {formatDate(request.requestDate)}
                               </div>
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm hidden sm:table-cell">
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3 text-gray-400" />
-                                <span className="truncate max-w-32">
-                                  {request.destination}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center text-xs sm:text-sm font-semibold">
-                              {request.totalItems}
-                            </TableCell>
-                            <TableCell className="text-center text-xs sm:text-sm font-semibold hidden md:table-cell">
-                              {formatCurrency(request.totalValue)}
-                            </TableCell>
-                            <TableCell className="text-center">
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={`${getStatusColor(
+                                  request.status
+                                )} text-xs`}
+                              >
+                                {getStatusIcon(request.status)}
+                                <span className="ml-1">{request.status}</span>
+                              </Badge>
                               <Badge
                                 className={`${getPriorityColor(
                                   request.priority
@@ -1011,53 +1357,322 @@ const StockOutManagement: React.FC = () => {
                               >
                                 {request.priority}
                               </Badge>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge
-                                className={`${getStatusColor(
-                                  request.status
-                                )} text-xs flex items-center gap-1 justify-center`}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-gray-500">By:</span>{" "}
+                              {request.requestedBy}
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Items:</span>{" "}
+                              {request.totalItems}
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Dept:</span>{" "}
+                              {request.department}
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Value:</span>{" "}
+                              {formatCurrency(request.totalValue)}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2 border-t">
+                            <div className="text-xs text-gray-500">
+                              <MapPin className="h-3 w-3 inline mr-1" />
+                              {request.destination}
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelectedRequest(request)}
+                                className="h-7 w-7 p-0"
                               >
-                                {getStatusIcon(request.status)}
-                                <span className="hidden sm:inline">
-                                  {request.status}
-                                </span>
-                                <span className="sm:hidden">
-                                  {request.status.slice(0, 3)}
-                                </span>
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setSelectedRequest(request)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Eye className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                              </div>
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              {request.status !== "completed" &&
+                                request.status !== "cancelled" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditRequest(request)}
+                                    className="h-7 w-7 p-0"
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              <Select
+                                value={request.status}
+                                onValueChange={(
+                                  newStatus: StockOutRequest["status"]
+                                ) => updateRequestStatus(request.id, newStatus)}
+                              >
+                                <SelectTrigger className="h-7 w-16 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="draft">Draft</SelectItem>
+                                  <SelectItem value="submitted">
+                                    Submitted
+                                  </SelectItem>
+                                  <SelectItem value="approved">
+                                    Approved
+                                  </SelectItem>
+                                  <SelectItem value="processing">
+                                    Processing
+                                  </SelectItem>
+                                  <SelectItem value="completed">
+                                    Completed
+                                  </SelectItem>
+                                  <SelectItem value="cancelled">
+                                    Cancelled
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="font-semibold text-xs sm:text-sm">
+                            Request #
+                          </TableHead>
+                          <TableHead className="font-semibold text-xs sm:text-sm">
+                            Requested By
+                          </TableHead>
+                          <TableHead className="font-semibold text-xs sm:text-sm hidden sm:table-cell">
+                            Destination
+                          </TableHead>
+                          <TableHead className="font-semibold text-center text-xs sm:text-sm">
+                            Items
+                          </TableHead>
+                          <TableHead className="font-semibold text-center text-xs sm:text-sm hidden md:table-cell">
+                            Value
+                          </TableHead>
+                          <TableHead className="font-semibold text-center text-xs sm:text-sm">
+                            Priority
+                          </TableHead>
+                          <TableHead className="font-semibold text-center text-xs sm:text-sm">
+                            Status
+                          </TableHead>
+                          <TableHead className="font-semibold text-center text-xs sm:text-sm min-w-[200px]">
+                            Actions
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedRequests.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={8}
+                              className="text-center py-8 text-gray-500"
+                            >
+                              No stock out requests found
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                        ) : (
+                          paginatedRequests.map((request) => (
+                            <TableRow
+                              key={request.id}
+                              className="hover:bg-gray-50"
+                            >
+                              <TableCell className="font-medium text-xs sm:text-sm">
+                                <div>
+                                  <div>{request.requestNumber}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {formatDate(request.requestDate)}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm">
+                                <div>
+                                  <div className="font-medium">
+                                    {request.requestedBy}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {request.department}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm hidden sm:table-cell">
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 text-gray-400" />
+                                  <span className="truncate max-w-32">
+                                    {request.destination}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm font-semibold">
+                                {request.totalItems}
+                              </TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm font-semibold hidden md:table-cell">
+                                {formatCurrency(request.totalValue)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge
+                                  className={`${getPriorityColor(
+                                    request.priority
+                                  )} text-xs`}
+                                >
+                                  {request.priority}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge
+                                  className={`${getStatusColor(
+                                    request.status
+                                  )} text-xs flex items-center gap-1 justify-center`}
+                                >
+                                  {getStatusIcon(request.status)}
+                                  <span className="hidden sm:inline">
+                                    {request.status}
+                                  </span>
+                                  <span className="sm:hidden">
+                                    {request.status.slice(0, 3)}
+                                  </span>
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  {/* View Button - Always available */}
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setSelectedRequest(request)}
+                                    className="h-8 w-8 p-0"
+                                    title="View Details"
+                                  >
+                                    <Eye className="h-3 w-3" />
+                                  </Button>
+
+                                  {/* Edit Button - Available for all statuses except completed/cancelled */}
+                                  {request.status !== "completed" &&
+                                    request.status !== "cancelled" && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() =>
+                                          handleEditRequest(request)
+                                        }
+                                        className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700"
+                                        title="Edit Request"
+                                      >
+                                        <Edit className="h-3 w-3" />
+                                      </Button>
+                                    )}
+
+                                  {/* Status Change Dropdown - Available for all statuses */}
+                                  <Select
+                                    value={request.status}
+                                    onValueChange={(
+                                      newStatus: StockOutRequest["status"]
+                                    ) =>
+                                      updateRequestStatus(request.id, newStatus)
+                                    }
+                                  >
+                                    <SelectTrigger className="h-8 w-20 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="draft">
+                                        Draft
+                                      </SelectItem>
+                                      <SelectItem value="submitted">
+                                        Submitted
+                                      </SelectItem>
+                                      <SelectItem value="approved">
+                                        Approved
+                                      </SelectItem>
+                                      <SelectItem value="processing">
+                                        Processing
+                                      </SelectItem>
+                                      <SelectItem value="completed">
+                                        Completed
+                                      </SelectItem>
+                                      <SelectItem value="cancelled">
+                                        Cancelled
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+
+                                  {/* Quick Action Buttons based on current status */}
+                                  {request.status === "draft" && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => submitRequest(request.id)}
+                                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                                      title="Submit for Approval"
+                                    >
+                                      <CheckCircle className="h-3 w-3" />
+                                    </Button>
+                                  )}
+
+                                  {request.status === "submitted" && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => approveRequest(request.id)}
+                                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                                      title="Quick Approve"
+                                    >
+                                      <CheckCircle className="h-3 w-3" />
+                                    </Button>
+                                  )}
+
+                                  {request.status === "approved" && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => processRequest(request.id)}
+                                      className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700"
+                                      title="Start Processing"
+                                    >
+                                      <Truck className="h-3 w-3" />
+                                    </Button>
+                                  )}
+
+                                  {request.status === "processing" && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() =>
+                                        updateRequestStatus(
+                                          request.id,
+                                          "completed"
+                                        )
+                                      }
+                                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                                      title="Mark as Completed"
+                                    >
+                                      <Package className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex justify-between items-center p-4 border-t">
-                  <p className="text-sm text-gray-700">
+                <div className="flex flex-col sm:flex-row justify-between items-center p-3 sm:p-4 border-t gap-3 sm:gap-0">
+                  <p className="text-xs sm:text-sm text-gray-700 order-2 sm:order-1">
                     Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
                     {Math.min(
                       currentPage * itemsPerPage,
@@ -1065,7 +1680,7 @@ const StockOutManagement: React.FC = () => {
                     )}{" "}
                     of {filteredRequests.length} results
                   </p>
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-1 sm:space-x-2 order-1 sm:order-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -1073,8 +1688,10 @@ const StockOutManagement: React.FC = () => {
                         setCurrentPage(Math.max(1, currentPage - 1))
                       }
                       disabled={currentPage === 1}
+                      className="px-2 sm:px-4 text-xs sm:text-sm"
                     >
-                      Previous
+                      <span className="hidden sm:inline">Previous</span>
+                      <span className="sm:hidden">Prev</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -1083,8 +1700,10 @@ const StockOutManagement: React.FC = () => {
                         setCurrentPage(Math.min(totalPages, currentPage + 1))
                       }
                       disabled={currentPage === totalPages}
+                      className="px-2 sm:px-4 text-xs sm:text-sm"
                     >
-                      Next
+                      <span className="hidden sm:inline">Next</span>
+                      <span className="sm:hidden">Next</span>
                     </Button>
                   </div>
                 </div>
@@ -1094,16 +1713,16 @@ const StockOutManagement: React.FC = () => {
         </TabsContent>
 
         {/* Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="analytics" className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
             {/* Category Breakdown Chart */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart className="h-5 w-5 text-blue-600" />
+              <CardHeader className="pb-3 sm:pb-4">
+                <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                  <BarChart className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                   Category Breakdown
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Dispatch value by item category
                 </CardDescription>
               </CardHeader>
