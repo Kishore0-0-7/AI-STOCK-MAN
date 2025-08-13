@@ -49,9 +49,17 @@ export function Layout() {
     return <Navigate to="/login" replace />;
   }
 
+  // Helper function to get API base URL
+  const getApiBaseUrl = () => {
+    if (import.meta.env.DEV || window.location.hostname === 'localhost') {
+      return "http://localhost:5000/api/v1";
+    }
+    return "https://api.artechnology.pro/api/v1";
+  };
+
   // Fetch low stock count for the badge
   useEffect(() => {
-    fetch("https://api.artechnology.pro/api/v1/products/low-stock")
+    fetch(`${getApiBaseUrl()}/products/low-stock`)
       .then((res) => res.json())
       .then((data) => {
         setLowStockCount(Array.isArray(data) ? data.length : 0);
