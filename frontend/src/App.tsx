@@ -14,6 +14,7 @@ import Settings from "./pages/Settings";
 import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
 import QcDashboard from "./pages/QcDashboard";
+import ProductionCalculator from "./pages/ProductionCalculator";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,10 @@ const App = () => (
             <Route index element={<Dashboard />} />
             <Route path="products" element={<Products />} />
             <Route path="qc-dashboard" element={<QcDashboard />} />
+            <Route
+              path="production-calculator"
+              element={<ProductionCalculator />}
+            />
             {/* <Route path="billing" element={<Billing />} /> */}
             <Route path="purchase-orders" element={<PurchaseOrders />} />
             {/* <Route path="customer-orders" element={<CustomerOrders />} /> */}

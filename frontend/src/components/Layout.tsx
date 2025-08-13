@@ -19,6 +19,7 @@ import {
   Truck,
   Users,
   ShieldAlert,
+  Calculator,
 } from "lucide-react";
 
 export function Layout() {
@@ -44,6 +45,11 @@ export function Layout() {
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Products", href: "/products", icon: Package },
     { name: "QC Dashboard", href: "/qc-dashboard", icon: ShieldAlert },
+    {
+      name: "Production Calculator",
+      href: "/production-calculator",
+      icon: Calculator,
+    },
     { name: "Suppliers", href: "/suppliers", icon: Truck },
     // { name: "Customers", href: "/customers", icon: Users },
     // { name: "Billing", href: "/billing", icon: ShoppingCart },
