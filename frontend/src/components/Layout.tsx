@@ -43,12 +43,12 @@ export function Layout() {
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Products", href: "/products", icon: Package },
     { name: "Suppliers", href: "/suppliers", icon: Truck },
-    { name: "Customers", href: "/customers", icon: Users },
+    // { name: "Customers", href: "/customers", icon: Users },
     // { name: "Billing", href: "/billing", icon: ShoppingCart },
     { name: "Purchase Orders", href: "/purchase-orders", icon: FileText },
-    { name: "Customer Orders", href: "/customer-orders", icon: ShoppingCart },
-    { name: "Scan Bills", href: "/scan-bills", icon: ScanLine },
-    { name: "Sales Reports", href: "/sales-reports", icon: TrendingUp },
+    // { name: "Customer Orders", href: "/customer-orders", icon: ShoppingCart },
+    // { name: "Scan Bills", href: "/scan-bills", icon: ScanLine },
+    // { name: "Sales Reports", href: "/sales-reports", icon: TrendingUp },
     { name: "Stock Summary", href: "/stock-summary", icon: Archive },
     {
       name: "Low Stock Alerts",
@@ -56,7 +56,7 @@ export function Layout() {
       icon: AlertTriangle,
       badge: lowStockCount,
     },
-    { name: "API Test", href: "/api-test", icon: Settings, badge: "DEV" },
+    // { name: "API Test", href: "/api-test", icon: Settings, badge: "DEV" },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
