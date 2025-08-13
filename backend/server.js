@@ -21,6 +21,8 @@ const storageUtilizationRoutes = require("./routes/storageUtilization");
 const stockOutRoutes = require("./routes/stockOut");
 const authRoutes = require("./routes/auth");
 const employeeRoutes = require("./routes/employees");
+const purchaseOrderRoutes = require("./routes/purchaseOrders");
+const stockSummaryRoutes = require("./routes/stockSummary");
 // TODO: Add other route imports here
 
 const app = express();
@@ -110,8 +112,10 @@ app.use(
 app.use(`${API_PREFIX}/${API_VERSION}/stock-out`, stockOutRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/auth`, authRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/employees`, employeeRoutes);
+app.use(`${API_PREFIX}/${API_VERSION}/purchase-orders`, purchaseOrderRoutes);
+app.use(`${API_PREFIX}/${API_VERSION}/stock-summary`, stockSummaryRoutes);
 // TODO: Add other routes here
-// app.use(`${API_PREFIX}/${API_VERSION}/purchase-orders`, purchaseOrderRoutes);
+// app.use(`${API_PREFIX}/${API_VERSION}/customer-orders`, customerOrderRoutes);
 // app.use(`${API_PREFIX}/${API_VERSION}/customer-orders`, customerOrderRoutes);
 // app.use(`${API_PREFIX}/${API_VERSION}/inventory`, inventoryRoutes);
 // app.use(`${API_PREFIX}/${API_VERSION}/warehouse`, warehouseRoutes);
