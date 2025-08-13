@@ -790,6 +790,111 @@ export const qcAPI = {
   }>("/qc/stats"),
 };
 
+// Stock Summary API
+export const stockSummaryAPI = {
+  getStockSummary: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    stockFilter?: 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';
+    sortBy?: 'name' | 'stock' | 'value' | 'turnover' | 'lastMovement';
+    sortOrder?: 'asc' | 'desc';
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.search) queryParams.append("search", params.search);
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.stockFilter) queryParams.append("stockFilter", params.stockFilter);
+    if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
+    if (params?.sortOrder) queryParams.append("sortOrder", params.sortOrder);
+    
+    return apiCall<{
+      items: Array<{
+        id: string;
+        name: string;
+        category: string;
+        sku: string;
+        currentStock: number;
+        reorderLevel: number;
+        maxStock: number;
+        unit: string;
+        costPrice: number;
+        sellingPrice: number;
+        supplier: string;
+        lastRestocked: string;
+        expiryDate?: string;
+        location: string;
+        stockValue: number;
+        stockTurnover: number;
+        daysSinceLastMovement: number;
+      }>;
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+      stats: {
+        total: number;
+        inStock: number;
+        lowStock: number;
+        outOfStock: number;
+        totalValue: number;
+        avgTurnover: number;
+      };
+      categories: string[];
+    }>(`/stock-summary${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+  },
+
+  getProductMovements: (productId: string, params?: { limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    
+    return apiCall<{
+      movements: Array<{
+        id: string;
+        date: string;
+        type: 'Purchase' | 'Sale' | 'Adjustment' | 'Other';
+        quantity: number;
+        balance: number;
+        reference?: string;
+        reason?: string;
+        notes?: string;
+        createdBy?: string;
+      }>;
+    }>(`/stock-summary/movements/${productId}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+  },
+
+  getMovementTrends: (params?: { days?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.days) queryParams.append("days", params.days.toString());
+    
+    return apiCall<{
+      trends: Array<{
+        date: string;
+        stockIn: number;
+        stockOut: number;
+        net: number;
+      }>;
+    }>(`/stock-summary/trends${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+  },
+
+  getCategoryDistribution: () => {
+    return apiCall<{
+      distribution: Array<{
+        category: string;
+        productCount: number;
+        totalQuantity: number;
+        totalValue: number;
+        avgStockLevel: number;
+        lowStockItems: number;
+      }>;
+    }>("/stock-summary/category-distribution");
+  },
+};
+
 // Export all APIs
 export default {
   dashboard: dashboardAPI,
@@ -802,4 +907,5 @@ export default {
   customerOrders: customerOrdersAPI,
   reports: reportsAPI,
   qc: qcAPI,
+  stockSummary: stockSummaryAPI,
 };

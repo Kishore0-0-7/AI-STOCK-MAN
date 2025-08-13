@@ -14,6 +14,7 @@ const productRoutes = require("./routes/products");
 const alertRoutes = require("./routes/alerts");
 const supplierRoutes = require("./routes/suppliers");
 const qcRoutes = require("./routes/qc");
+const stockSummaryRoutes = require("./routes/stockSummary");
 // TODO: Add other route imports here
 
 const app = express();
@@ -89,6 +90,7 @@ app.use(`${API_PREFIX}/${API_VERSION}/products`, productRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/alerts`, alertRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/suppliers`, supplierRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/qc`, qcRoutes);
+app.use(`${API_PREFIX}/${API_VERSION}/stock-summary`, stockSummaryRoutes);
 // TODO: Add other routes here
 // app.use(`${API_PREFIX}/${API_VERSION}/purchase-orders`, purchaseOrderRoutes);
 // app.use(`${API_PREFIX}/${API_VERSION}/customer-orders`, customerOrderRoutes);
@@ -138,6 +140,9 @@ const startServer = async () => {
       );
       console.log(
         `🚨 Alerts API: http://localhost:${PORT}${API_PREFIX}/${API_VERSION}/alerts`
+      );
+      console.log(
+        `📈 Stock Summary API: http://localhost:${PORT}${API_PREFIX}/${API_VERSION}/stock-summary`
       );
       console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);

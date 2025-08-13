@@ -17,8 +17,8 @@ NC='\033[0m' # No Color
 
 # Database configuration
 DB_NAME="ai_stock_management"
-DB_USER="stock_user"
-DB_PASSWORD="stock_password_2024"
+DB_USER="root"
+DB_PASSWORD="12345"
 DB_HOST="localhost"
 DB_PORT="3306"
 SCHEMA_FILE="ai_stock_management_schema.sql"
