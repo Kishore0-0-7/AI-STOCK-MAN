@@ -14,7 +14,29 @@ class AlertsController {
 
       console.log('Alerts query params received:', { limit, status, type, priority, page });
 
-      // Simple query first - let's avoid complex filtering for now
+      // Build WHERE clause based on filters
+      let whereClause = 'WHERE 1=1';
+      const queryParams = [];
+
+      // Status filter
+      if (status && status !== 'all') {
+        whereClause += ' AND a.status = ?';
+        queryParams.push(status);
+      }
+
+      // Type filter (for low_stock alerts)
+      if (type && type !== 'all') {
+        whereClause += ' AND a.alert_type = ?';
+        queryParams.push(type);
+      }
+
+      // Priority filter
+      if (priority && priority !== 'all') {
+        whereClause += ' AND a.priority = ?';
+        queryParams.push(priority);
+      }
+
+      // Main query with proper filtering
       let query = `
         SELECT 
           a.id,
@@ -44,20 +66,23 @@ class AlertsController {
         FROM alerts a
         LEFT JOIN products p ON a.product_id = p.id
         LEFT JOIN suppliers s ON p.supplier_id = s.id
-        WHERE a.status = 'active'
+        ${whereClause}
         ORDER BY a.priority DESC, a.created_at DESC
-        LIMIT 10
+        LIMIT ?
       `;
 
-      console.log('Executing simple alerts query');
-      const [alerts] = await pool.execute(query);
+      queryParams.push(parseInt(limit));
 
-      // Get total count
-      const [countResult] = await pool.execute(`
+      console.log('Executing alerts query with filters:', { whereClause, queryParams });
+      const [alerts] = await pool.query(query, queryParams);
+
+      // Get total count with same filters
+      const countQuery = `
         SELECT COUNT(*) as total 
         FROM alerts a 
-        WHERE a.status = 'active'
-      `);
+        ${whereClause}
+      `;
+      const [countResult] = await pool.query(countQuery, queryParams.slice(0, -1)); // Remove limit param
       const totalCount = countResult[0].total;
 
       // Transform alerts data

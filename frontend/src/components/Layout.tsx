@@ -148,8 +148,8 @@ export function Layout() {
       <div className="flex">
         {/* Desktop Sidebar */}
         <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:pt-16">
-          <div className="flex flex-col flex-1 bg-card border-r shadow-soft">
-            <nav className="flex-1 px-4 py-6 space-y-2">
+          <div className="flex flex-col flex-1 bg-card border-r shadow-soft overflow-hidden">
+            <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto overflow-x-hidden">
               {navigationItems.map((item) => (
                 <Link
                   key={item.name}
@@ -192,8 +192,8 @@ export function Layout() {
               className="fixed inset-0 bg-black/50"
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <nav className="fixed top-16 left-0 bottom-0 w-64 bg-card border-r shadow-soft">
-              <div className="px-4 py-6 space-y-2">
+            <nav className="fixed top-16 left-0 bottom-0 w-64 bg-card border-r shadow-soft overflow-hidden">
+              <div className="px-4 py-6 space-y-2 h-full overflow-y-auto overflow-x-hidden">
                 {navigationItems.map((item) => (
                   <Link
                     key={item.name}

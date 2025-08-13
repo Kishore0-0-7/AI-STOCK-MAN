@@ -60,9 +60,14 @@ interface LowStockProduct {
   category: string;
   current_stock: number;
   low_stock_threshold: number;
-  price: number;
+  price: string | number; // API returns string, but could be number
   supplier_id: string;
   supplier_name?: string;
+  supplier?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
 }
 
 const LowStockAlerts = () => {
@@ -497,7 +502,7 @@ const LowStockAlerts = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => handleResolveAlert(alert.id)}
-                        className="text-green-600 border-green-600 hover:bg-green-50"
+                        className="text-green-600 border-green-600"
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Resolve
@@ -506,7 +511,7 @@ const LowStockAlerts = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => handleIgnoreAlert(alert.id)}
-                        className="text-gray-600 border-gray-300 hover:bg-gray-50"
+                        className="text-gray-600 border-gray-300"
                       >
                         <X className="h-4 w-4 mr-1" />
                         Acknowledge
@@ -565,7 +570,7 @@ const LowStockAlerts = () => {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Unit Price:</span>
-                        <span>${product.price.toFixed(2)}</span>
+                        <span>${parseFloat(product.price.toString()).toFixed(2)}</span>
                       </div>
                     </div>
 
@@ -631,7 +636,7 @@ const LowStockAlerts = () => {
               />
               <p className="text-sm text-gray-600 mt-1">
                 Estimated cost: $
-                {((selectedProduct?.price || 0) * orderQuantity).toFixed(2)}
+                {(parseFloat(selectedProduct?.price?.toString() || '0') * orderQuantity).toFixed(2)}
               </p>
             </div>
 

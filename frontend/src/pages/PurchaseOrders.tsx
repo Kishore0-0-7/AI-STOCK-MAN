@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import api from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { purchaseOrdersAPI } from "@/services/api";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +47,21 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+// Chart imports
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  BarChart,
+  Bar,
+} from "recharts";
 import {
   Plus,
   Search,
@@ -72,22 +89,6 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useIsMobile } from "@/hooks/use-mobile";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from "recharts";
 
 // Types
 interface PurchaseOrderItem {
@@ -111,8 +112,16 @@ interface PurchaseOrder {
   status: "pending" | "approved" | "shipped" | "received" | "cancelled";
   priority: "low" | "medium" | "high";
   notes?: string;
-  items: PurchaseOrderItem[];
+  item_count: number; // Number of items in the order
+  items_received: number; // Number of items received
   created_by?: string;
+  payment_terms?: string;
+  delivery_address?: string;
+  approved_by?: string;
+  approved_at?: string;
+  created_at: string;
+  updated_at: string;
+  items: PurchaseOrderItem[]; // Add the items property
 }
 
 // Sample data
@@ -129,6 +138,10 @@ const samplePurchaseOrders: PurchaseOrder[] = [
     priority: "high",
     notes: "Urgent requirement for iron casting blocks",
     created_by: "Manufacturing Manager",
+    item_count: 1,
+    items_received: 0,
+    created_at: "2024-01-20T00:00:00Z",
+    updated_at: "2024-01-20T00:00:00Z",
     items: [
       {
         id: "item-001",
@@ -153,6 +166,10 @@ const samplePurchaseOrders: PurchaseOrder[] = [
     priority: "medium",
     notes: "Monthly aluminum alloy restocking",
     created_by: "Procurement Team",
+    item_count: 1,
+    items_received: 1,
+    created_at: "2024-01-18T00:00:00Z",
+    updated_at: "2024-01-24T00:00:00Z",
     items: [
       {
         id: "item-002",
@@ -176,6 +193,10 @@ const samplePurchaseOrders: PurchaseOrder[] = [
     priority: "medium",
     notes: "Bronze ingots for marine applications",
     created_by: "Marine Projects Lead",
+    item_count: 1,
+    items_received: 0,
+    created_at: "2024-01-22T00:00:00Z",
+    updated_at: "2024-01-22T00:00:00Z",
     items: [
       {
         id: "item-003",
@@ -199,6 +220,10 @@ const samplePurchaseOrders: PurchaseOrder[] = [
     priority: "low",
     notes: "Quarterly steel billets stock replenishment",
     created_by: "Steel Department Head",
+    item_count: 1,
+    items_received: 0,
+    created_at: "2024-01-15T00:00:00Z",
+    updated_at: "2024-01-15T00:00:00Z",
     items: [
       {
         id: "item-004",
@@ -222,6 +247,10 @@ const samplePurchaseOrders: PurchaseOrder[] = [
     priority: "medium",
     notes: "Cancelled due to specification change",
     created_by: "Marine Engineering",
+    item_count: 1,
+    items_received: 0,
+    created_at: "2024-01-19T00:00:00Z",
+    updated_at: "2024-01-19T00:00:00Z",
     items: [
       {
         id: "item-005",
@@ -285,7 +314,7 @@ export default function PurchaseOrders() {
         setLoading(true);
         console.log("🛒 Loading Purchase Orders from API...");
         
-        const response = await api.purchaseOrders.getAll({
+        const response = await purchaseOrdersAPI.getAll({
           page: 1,
           limit: 100, // Load all orders for now
           search: "",
@@ -301,7 +330,12 @@ export default function PurchaseOrders() {
         // Handle direct response (not wrapped in success/data)
         if (response && response.orders) {
           console.log("✅ Purchase Orders loaded:", response.orders);
-          setPurchaseOrders(response.orders || []);
+          // Map the API response to include items array if missing
+          const ordersWithItems = response.orders.map(order => ({
+            ...order,
+            items: (order as any).items || [] // Ensure items array exists
+          })) as PurchaseOrder[];
+          setPurchaseOrders(ordersWithItems || []);
           
           toast({
             title: "Success",
@@ -502,8 +536,12 @@ export default function PurchaseOrders() {
       status: selectedOrder?.status || "pending",
       priority: form.priority as "low" | "medium" | "high",
       notes: form.notes,
-      items: form.items,
+      items: form.items || [],
+      item_count: form.items?.length || 0,
+      items_received: selectedOrder?.items_received || 0,
       created_by: "Current User",
+      created_at: selectedOrder?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     try {
@@ -953,13 +991,13 @@ export default function PurchaseOrders() {
                       <div>
                         <p className="text-sm text-muted-foreground">Items</p>
                         <p className="text-lg font-semibold">
-                          {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+                          {order.item_count || 0} item{(order.item_count || 0) !== 1 ? "s" : ""}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Avg per Item</p>
                         <p className="text-lg font-semibold">
-                          {formatCurrency(Math.round(order.total_amount / order.items.length))}
+                          {order.item_count > 0 ? formatCurrency(Math.round(order.total_amount / order.item_count)) : formatCurrency(0)}
                         </p>
                       </div>
                     </div>
@@ -1333,8 +1371,8 @@ export default function PurchaseOrders() {
                  {formatCurrency(selectedOrder.total_amount)}
                </div>
                <div className="text-sm text-slate-600">
-                 {selectedOrder.items.length} item{selectedOrder.items.length !== 1 ? "s" : ""} • 
-                 Avg {formatCurrency(Math.round(selectedOrder.total_amount / selectedOrder.items.length))}
+                 {selectedOrder.items?.length || 0} item{(selectedOrder.items?.length || 0) !== 1 ? "s" : ""} • 
+                 Avg {selectedOrder.items?.length ? formatCurrency(Math.round(selectedOrder.total_amount / selectedOrder.items.length)) : formatCurrency(0)}
                </div>
              </div>
 
@@ -1374,7 +1412,7 @@ export default function PurchaseOrders() {
              <div className="space-y-2">
                <h4 className="font-medium text-slate-900">Order Items</h4>
                <div className="space-y-2">
-                 {selectedOrder.items.map((item) => (
+                 {(selectedOrder.items || []).map((item) => (
                    <div key={item.id} className="p-3 bg-slate-50 rounded-lg">
                      <div className="flex justify-between items-start mb-2">
                        <div className="font-medium text-sm text-slate-900 flex-1">

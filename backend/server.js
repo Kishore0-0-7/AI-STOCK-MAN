@@ -43,7 +43,6 @@ app.use(
     origin: [
       "http://localhost:5173", // Vite default
       "http://localhost:8080", // Alternative frontend port
-      "http://localhost:8081", // Current frontend port
       "http://localhost:3000", // React default
       "http://localhost:4000", // Alternative port
       process.env.CORS_ORIGIN
