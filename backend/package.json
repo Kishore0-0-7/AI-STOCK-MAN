@@ -4,7 +4,7 @@
   "description": "AI Stock Management System - Backend API with MVC Architecture featuring separate controllers, centralized database management, and comprehensive REST APIs",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "nodemon server.js",
     "dev": "nodemon server.js",
     "health": "node health-check.js",
     "setup": "./setup.sh",

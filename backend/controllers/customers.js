@@ -45,8 +45,8 @@ const customersController = {
           email: customer.email,
           phone: customer.phone,
           address: customer.address,
-          createdAt: customer.created_at,
-          updatedAt: customer.updated_at,
+          created_at: customer.created_at,
+          updated_at: customer.updated_at,
         })),
         pagination: {
           page,
@@ -81,8 +81,8 @@ const customersController = {
         email: customer[0].email,
         phone: customer[0].phone,
         address: customer[0].address,
-        createdAt: customer[0].created_at,
-        updatedAt: customer[0].updated_at,
+        created_at: customer[0].created_at,
+        updated_at: customer[0].updated_at,
       });
     } catch (error) {
       console.error("Error fetching customer:", error);

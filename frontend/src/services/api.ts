@@ -29,18 +29,26 @@ export interface ApiResponse<T> {
 }
 
 export interface Product {
-  id: number;
+  id: string;
   name: string;
   category: string;
   price: number;
   current_stock: number;
   low_stock_threshold: number;
-  supplier_id: number;
+  supplier_id: string;
   description?: string;
   barcode?: string;
   unit?: string;
   created_at?: string;
   updated_at?: string;
+  // Frontend form fields and backend response compatibility
+  stock?: number; // Backend response field
+  minStock?: number; // Backend response field
+  sku?: string; // Backend field
+  cost?: number; // Backend field
+  status?: string; // Backend field
+  createdAt?: string; // Backend field
+  updatedAt?: string; // Backend field
   // Legacy property names for backward compatibility
   currentStock?: number;
   lowStockThreshold?: number;
@@ -52,6 +60,7 @@ export interface Supplier {
   id: string;
   name: string;
   contact_person?: string;
+  contact_name?: string; // Alternative field name for compatibility
   email?: string;
   phone?: string;
   address?: string;
@@ -63,7 +72,7 @@ export interface Supplier {
 }
 
 export interface Customer {
-  id: number;
+  id: string;
   name: string;
   email?: string;
   phone?: string;
@@ -304,7 +313,7 @@ export const productsAPI = {
       `/products${query ? `?${query}` : ""}`
     );
 
-    console.log(response)
+    console.log(response);
 
     // Handle both response formats: direct array or nested in products property
     if (Array.isArray(response)) {
@@ -543,9 +552,15 @@ export const purchaseOrdersAPI = {
     if (params?.status) queryParams.append("status", params.status);
 
     const query = queryParams.toString();
-    return apiCall<PurchaseOrder[]>(
-      `/purchase-orders${query ? `?${query}` : ""}`
-    );
+    return apiCall<{
+      orders: PurchaseOrder[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        pages: number;
+      };
+    }>(`/purchase-orders${query ? `?${query}` : ""}`);
   },
 
   getById: (id: string) => apiCall<PurchaseOrder>(`/purchase-orders/${id}`),

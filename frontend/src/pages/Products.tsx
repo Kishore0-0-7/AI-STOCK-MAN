@@ -50,42 +50,7 @@ import {
   FileImage,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { productsAPI, suppliersAPI } from "@/services/api";
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  current_stock?: number; // Frontend form field
-  stock?: number; // Backend response field
-  low_stock_threshold?: number;
-  minStock?: number; // Backend response field
-  price: number;
-  supplier_id?: string;
-  supplier?: {
-    // Backend nested supplier object
-    id: string;
-    name: string;
-    email?: string;
-  };
-  barcode?: string;
-  sku?: string; // Backend field
-  description?: string; // Backend field
-  cost?: number; // Backend field
-  status?: string; // Backend field
-  created_at?: string;
-  updated_at?: string;
-  createdAt?: string; // Backend field
-  updatedAt?: string; // Backend field
-}
-
-interface Supplier {
-  id: string;
-  name: string;
-  contact_name?: string;
-  phone?: string;
-  email?: string;
-}
+import { productsAPI, suppliersAPI, Product, Supplier } from "@/services/api";
 
 interface ProductWithSupplier extends Product {
   supplier_name?: string;
@@ -325,191 +290,201 @@ async function importProductsFromCSV(
 
   const reader = new FileReader();
 
-
-reader.onload = async (e) => {
-  try {
-    const fileData = e.target?.result;
-    let products: any[] = [];
-
-    const normalizeHeader = (h: string) => h.trim().replace(/"/g, "").toLowerCase();
-
-    if (fileExtension === "json") {
-      // JSON import
-      const jsonData = JSON.parse(fileData as string);
-      products = Array.isArray(jsonData) ? jsonData : [jsonData];
-
-      console.log('----------------------------------------');
-      console.log('Importing data from JSON file:');
-      console.log('Number of products:', products.length);
-      console.log('Sample of imported data:', products.slice(0, 2));
-      console.log('----------------------------------------');
-
-    } else if (["xls", "xlsx"].includes(fileExtension)) {
-      // Excel import using SheetJS
-      const workbook = XLSX.read(fileData, { type: "binary" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-
-      // Read as arrays first to handle messy headers
-      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-      const headers = rows[0].map(normalizeHeader);
-      const dataRows = rows.slice(1);
-
-      console.log('----------------------------------------');
-      console.log(`Importing data from ${fileExtension.toUpperCase()} file:`);
-      console.log('Detected headers:', headers);
-      console.log('Total rows to process:', dataRows.length);
-      console.log('----------------------------------------');
-
-      products = dataRows.map((row) => {
-        const product: any = {};
-        headers.forEach((h, index) => {
-          const val = (row[index] || "").toString().trim();
-          switch (h) {
-            case "name":
-            case "product name":
-              product.name = val;
-              break;
-            case "category":
-              product.category = val;
-              break;
-            case "price":
-              product.price = parseFloat(val) || 0;
-              break;
-            case "cost":
-              product.cost = parseFloat(val) || 0;
-              break;
-            case "current stock":
-            case "stock":
-            case "stock quantity":
-              product.stock = parseInt(val) || 0;
-              break;
-            case "low stock threshold":
-            case "min stock":
-            case "minstock":
-            case "minimum stock":
-              product.minStock = parseInt(val) || 10;
-              break;
-            case "sku":
-            case "barcode":
-              product.sku = val;
-              break;
-            case "supplier":
-            case "supplier_name":
-            case "supplier name":
-              product.supplier_name = val;
-              break;
-            case "status":
-              product.status = val;
-              break;
-          }
-        });
-        return product;
-      });
-
-    } else {
-      // CSV / TSV import
-      const text = fileData as string;
-      const delimiter = text.includes("\t") ? "\t" : ",";
-      const lines = text.split("\n").filter(l => l.trim());
-      const headers = lines[0].split(delimiter).map(normalizeHeader);
-
-      console.log('----------------------------------------');
-      console.log(`Importing data from ${fileExtension.toUpperCase()} file:`);
-      console.log('Detected headers:', headers);
-      console.log('Total rows to process:', lines.length - 1);
-      console.log('----------------------------------------');
-
-      products = lines.slice(1).map((line) => {
-        const values = line.split(delimiter).map(v => v.trim().replace(/"/g, ""));
-        const product: any = {};
-
-        headers.forEach((h, index) => {
-          const value = values[index] || "";
-          switch (h) {
-            case "name":
-            case "product name":
-              product.name = value;
-              break;
-            case "category":
-              product.category = value;
-              break;
-            case "price":
-              product.price = parseFloat(value) || 0;
-              break;
-            case "cost":
-              product.cost = parseFloat(value) || 0;
-              break;
-            case "current stock":
-            case "stock":
-            case "stock quantity":
-              product.stock = parseInt(value) || 0;
-              break;
-            case "low stock threshold":
-            case "min stock":
-            case "minstock":
-            case "minimum stock":
-              product.minStock = parseInt(value) || 10;
-              break;
-            case "sku":
-            case "barcode":
-              product.sku = value;
-              break;
-            case "supplier":
-            case "supplier_name":
-            case "supplier name":
-              product.supplier_name = value;
-              break;
-            case "status":
-              product.status = value;
-              break;
-          }
-        });
-        return product;
-      });
-    }
-
-    // Validate
-    const validProducts = products.filter(
-      (p) => p.name && p.category && p.price != null
-    );
-
-    if (validProducts.length === 0) {
-      onError("No valid products found. Make sure your file has Name, Category, and Price columns.");
-      return;
-    }
-
-    // Send to API
+  reader.onload = async (e) => {
     try {
-      const response = await productsAPI.bulkCreate(validProducts);
-      if (response.results) {
-        const { success, failed, errors } = response.results;
-        if (success > 0) {
-          onSuccess();
-          const message =
-            failed > 0
-              ? `${success} products imported successfully, ${failed} failed.`
-              : `All ${success} products imported successfully!`;
-          console.log(message);
-          if (errors && errors.length > 0) {
-            console.log("Import errors:", errors);
-          }
-        } else {
-          onError("Failed to import any products. Please check your file format and data.");
-        }
+      const fileData = e.target?.result;
+      let products: any[] = [];
+
+      const normalizeHeader = (h: string) =>
+        h.trim().replace(/"/g, "").toLowerCase();
+
+      if (fileExtension === "json") {
+        // JSON import
+        const jsonData = JSON.parse(fileData as string);
+        products = Array.isArray(jsonData) ? jsonData : [jsonData];
+
+        console.log("----------------------------------------");
+        console.log("Importing data from JSON file:");
+        console.log("Number of products:", products.length);
+        console.log("Sample of imported data:", products.slice(0, 2));
+        console.log("----------------------------------------");
+      } else if (["xls", "xlsx"].includes(fileExtension)) {
+        // Excel import using SheetJS
+        const workbook = XLSX.read(fileData, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+
+        // Read as arrays first to handle messy headers
+        const rows: any[][] = XLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: "",
+        });
+        const headers = rows[0].map(normalizeHeader);
+        const dataRows = rows.slice(1);
+
+        console.log("----------------------------------------");
+        console.log(`Importing data from ${fileExtension.toUpperCase()} file:`);
+        console.log("Detected headers:", headers);
+        console.log("Total rows to process:", dataRows.length);
+        console.log("----------------------------------------");
+
+        products = dataRows.map((row) => {
+          const product: any = {};
+          headers.forEach((h, index) => {
+            const val = (row[index] || "").toString().trim();
+            switch (h) {
+              case "name":
+              case "product name":
+                product.name = val;
+                break;
+              case "category":
+                product.category = val;
+                break;
+              case "price":
+                product.price = parseFloat(val) || 0;
+                break;
+              case "cost":
+                product.cost = parseFloat(val) || 0;
+                break;
+              case "current stock":
+              case "stock":
+              case "stock quantity":
+                product.stock = parseInt(val) || 0;
+                break;
+              case "low stock threshold":
+              case "min stock":
+              case "minstock":
+              case "minimum stock":
+                product.minStock = parseInt(val) || 10;
+                break;
+              case "sku":
+              case "barcode":
+                product.sku = val;
+                break;
+              case "supplier":
+              case "supplier_name":
+              case "supplier name":
+                product.supplier_name = val;
+                break;
+              case "status":
+                product.status = val;
+                break;
+            }
+          });
+          return product;
+        });
+      } else {
+        // CSV / TSV import
+        const text = fileData as string;
+        const delimiter = text.includes("\t") ? "\t" : ",";
+        const lines = text.split("\n").filter((l) => l.trim());
+        const headers = lines[0].split(delimiter).map(normalizeHeader);
+
+        console.log("----------------------------------------");
+        console.log(`Importing data from ${fileExtension.toUpperCase()} file:`);
+        console.log("Detected headers:", headers);
+        console.log("Total rows to process:", lines.length - 1);
+        console.log("----------------------------------------");
+
+        products = lines.slice(1).map((line) => {
+          const values = line
+            .split(delimiter)
+            .map((v) => v.trim().replace(/"/g, ""));
+          const product: any = {};
+
+          headers.forEach((h, index) => {
+            const value = values[index] || "";
+            switch (h) {
+              case "name":
+              case "product name":
+                product.name = value;
+                break;
+              case "category":
+                product.category = value;
+                break;
+              case "price":
+                product.price = parseFloat(value) || 0;
+                break;
+              case "cost":
+                product.cost = parseFloat(value) || 0;
+                break;
+              case "current stock":
+              case "stock":
+              case "stock quantity":
+                product.stock = parseInt(value) || 0;
+                break;
+              case "low stock threshold":
+              case "min stock":
+              case "minstock":
+              case "minimum stock":
+                product.minStock = parseInt(value) || 10;
+                break;
+              case "sku":
+              case "barcode":
+                product.sku = value;
+                break;
+              case "supplier":
+              case "supplier_name":
+              case "supplier name":
+                product.supplier_name = value;
+                break;
+              case "status":
+                product.status = value;
+                break;
+            }
+          });
+          return product;
+        });
       }
-    } catch (apiError: any) {
-      console.error("API Error:", apiError);
-      onError(`Failed to import products: ${apiError.message || "Unknown API error"}`);
+
+      // Validate
+      const validProducts = products.filter(
+        (p) => p.name && p.category && p.price != null
+      );
+
+      if (validProducts.length === 0) {
+        onError(
+          "No valid products found. Make sure your file has Name, Category, and Price columns."
+        );
+        return;
+      }
+
+      // Send to API
+      try {
+        const response = await productsAPI.bulkCreate(validProducts);
+        if (response.results) {
+          const { success, failed, errors } = response.results;
+          if (success > 0) {
+            onSuccess();
+            const message =
+              failed > 0
+                ? `${success} products imported successfully, ${failed} failed.`
+                : `All ${success} products imported successfully!`;
+            console.log(message);
+            if (errors && errors.length > 0) {
+              console.log("Import errors:", errors);
+            }
+          } else {
+            onError(
+              "Failed to import any products. Please check your file format and data."
+            );
+          }
+        }
+      } catch (apiError: any) {
+        console.error("API Error:", apiError);
+        onError(
+          `Failed to import products: ${
+            apiError.message || "Unknown API error"
+          }`
+        );
+      }
+    } catch (error) {
+      console.error("Import error:", error);
+      onError(
+        "Failed to parse file. Please check the file format and try again."
+      );
     }
-
-  } catch (error) {
-    console.error("Import error:", error);
-    onError("Failed to parse file. Please check the file format and try again.");
-  }
-};
-
-
+  };
 
   reader.readAsText(file);
 }
@@ -1227,14 +1202,17 @@ export default function Products() {
           {filteredProducts.length > itemsPerPage && (
             <div className="flex items-center justify-between px-6 py-4 border-t">
               <div className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of{" "}
+                Showing {startIndex + 1} to{" "}
+                {Math.min(endIndex, filteredProducts.length)} of{" "}
                 {filteredProducts.length} entries
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
                   disabled={currentPage === 1}
                   className="h-8"
                 >
@@ -1247,12 +1225,15 @@ export default function Products() {
                     if (
                       pageNumber === 1 ||
                       pageNumber === totalPages ||
-                      (pageNumber >= currentPage - 2 && pageNumber <= currentPage + 2)
+                      (pageNumber >= currentPage - 2 &&
+                        pageNumber <= currentPage + 2)
                     ) {
                       return (
                         <Button
                           key={pageNumber}
-                          variant={currentPage === pageNumber ? "default" : "outline"}
+                          variant={
+                            currentPage === pageNumber ? "default" : "outline"
+                          }
                           size="sm"
                           onClick={() => setCurrentPage(pageNumber)}
                           className={`h-8 w-8 p-0 ${
@@ -1280,7 +1261,9 @@ export default function Products() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
                   disabled={currentPage === totalPages}
                   className="h-8"
                 >

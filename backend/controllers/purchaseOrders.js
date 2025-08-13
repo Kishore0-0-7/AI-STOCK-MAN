@@ -48,17 +48,23 @@ const purchaseOrdersController = {
         orders: orders.map((order) => ({
           id: order.id,
           orderNumber: `PO-${String(order.id).padStart(6, "0")}`,
+          supplier_id: order.supplier_id,
           supplier: {
             id: order.supplier_id,
             name: order.supplier_name,
             email: order.supplier_email,
           },
+          supplier_name: order.supplier_name,
           status: order.status,
           totalAmount: parseFloat(order.total_amount || 0),
+          total_amount: parseFloat(order.total_amount || 0),
           itemCount: order.item_count,
-          expectedDate: order.expected_delivery_date,
-          deliveryDate: order.delivery_date,
+          expectedDeliveryDate: order.expected_delivery_date,
+          orderDate: order.created_at
+            ? order.created_at.toISOString().split("T")[0]
+            : null,
           notes: order.notes,
+          created_at: order.created_at,
           createdAt: order.created_at,
           updatedAt: order.updated_at,
         })),
