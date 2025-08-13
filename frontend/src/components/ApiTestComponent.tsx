@@ -141,9 +141,7 @@ const ApiTestComponent: React.FC = () => {
             </p>
             <p>
               4. Backend should be running on:{" "}
-              <code className="bg-blue-100 px-1 rounded">
-                http://localhost:4000
-              </code>
+              <code className="bg-blue-100 px-1 rounded">http://:4000</code>
             </p>
           </div>
         </div>

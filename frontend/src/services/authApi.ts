@@ -1,5 +1,5 @@
 // Authentication API service for JWT-based backend
-const API_BASE_URL = "http://localhost:5000/api/v1";
+const API_BASE_URL = "https://api.artechnology.pro/api/v1";
 
 // Token management
 export const getAuthToken = () => localStorage.getItem("auth_token");

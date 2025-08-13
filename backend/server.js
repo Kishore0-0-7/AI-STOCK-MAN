@@ -53,6 +53,8 @@ app.use(
       "http://localhost:8080", // Alternative frontend port
       "http://localhost:3000", // React default
       "http://localhost:4000", // Alternative port
+      "https://localhost",
+      "https://hackathon.artechnology.pro",
       process.env.CORS_ORIGIN,
     ].filter(Boolean),
     credentials: true,

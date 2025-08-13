@@ -1,5 +1,5 @@
 // API service for all backend communications
-const API_BASE_URL = "http://localhost:5000/api/v1";
+const API_BASE_URL = "https://api.artechnology.pro/api/v1";
 
 // Health check function
 export const healthCheck = async (): Promise<{
@@ -7,7 +7,7 @@ export const healthCheck = async (): Promise<{
   message: string;
 }> => {
   try {
-    const response = await fetch(`http://localhost:5000/health`);
+    const response = await fetch(`https://api.artechnology.pro/health`);
     const data = await response.json();
     return { status: "connected", message: "Backend is running" };
   } catch (error) {

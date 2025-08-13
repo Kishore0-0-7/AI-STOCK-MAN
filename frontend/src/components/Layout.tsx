@@ -51,7 +51,7 @@ export function Layout() {
 
   // Fetch low stock count for the badge
   useEffect(() => {
-    fetch("http://localhost:5000/api/v1/products/low-stock")
+    fetch("https://api.artechnology.pro/api/v1/products/low-stock")
       .then((res) => res.json())
       .then((data) => {
         setLowStockCount(Array.isArray(data) ? data.length : 0);
@@ -251,8 +251,8 @@ export function Layout() {
       <div className="flex">
         {/* Desktop Sidebar */}
         <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:pt-16">
-          <div className="flex flex-col flex-1 bg-card border-r shadow-soft">
-            <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          <div className="flex flex-col h-full bg-card border-r shadow-soft">
+            <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto min-h-0">
               {navigationItems.map((item) => (
                 <ConditionalRender
                   key={item.name}
@@ -293,7 +293,7 @@ export function Layout() {
 
             {/* User info at bottom of sidebar */}
             {user && (
-              <div className="p-4 border-t bg-muted/30">
+              <div className="flex-shrink-0 p-4 border-t bg-muted/30">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
                     <AvatarFallback className="bg-primary text-primary-foreground text-sm">
@@ -327,8 +327,8 @@ export function Layout() {
               className="fixed inset-0 bg-black/50"
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <nav className="fixed top-16 left-0 bottom-0 w-64 bg-card border-r shadow-soft">
-              <div className="px-4 py-6 space-y-2 overflow-y-auto h-full">
+            <nav className="fixed top-16 left-0 bottom-0 w-64 bg-card border-r shadow-soft flex flex-col">
+              <div className="px-4 py-6 space-y-2 overflow-y-auto flex-1 min-h-0">
                 {navigationItems.map((item) => (
                   <ConditionalRender
                     key={item.name}
