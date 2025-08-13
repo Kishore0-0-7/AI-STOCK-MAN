@@ -13,7 +13,6 @@ import PurchaseOrders from "./pages/PurchaseOrders";
 import SupplierDetails from "./pages/SupplierDetails";
 import StockSummary from "./pages/StockSummary";
 import LowStockAlerts from "./pages/LowStockAlerts";
-import Settings from "./pages/Settings";
 import Suppliers from "./pages/Suppliers";
 import QcDashboard from "./pages/QcDashboard";
 import ProductionCalculator from "./pages/ProductionCalculator";
@@ -156,16 +155,6 @@ const App = () => (
                 }
               />
               <Route path="profile" element={<Profile />} />
-              <Route
-                path="settings"
-                element={
-                  <ProtectedRoute
-                    requiredPermissions={[Permission.MANAGE_SETTINGS]}
-                  >
-                    <Settings />
-                  </ProtectedRoute>
-                }
-              />
               <Route
                 path="employees"
                 element={

@@ -24,7 +24,6 @@ import {
   TrendingUp,
   Archive,
   AlertTriangle,
-  Settings,
   Menu,
   X,
   Truck,
@@ -64,7 +63,14 @@ export function Layout() {
   }, []);
 
   // Role-based navigation items
-  const navigationItems = [
+  const navigationItems: Array<{
+    name: string;
+    href: string;
+    icon: any;
+    requiredPermissions?: Permission[];
+    requiredRoles?: UserRole[];
+    badge?: number | string;
+  }> = [
     {
       name: "Dashboard",
       href: "/",
@@ -140,13 +146,6 @@ export function Layout() {
       icon: AlertTriangle,
       badge: lowStockCount,
       requiredPermissions: [Permission.VIEW_ALERTS],
-    },
-    {
-      name: "Settings",
-      href: "/settings",
-      icon: Settings,
-      requiredPermissions: [Permission.MANAGE_SETTINGS],
-      requiredRoles: [UserRole.SUPER_ADMIN, UserRole.WAREHOUSE_MANAGER],
     },
     {
       name: "Employees",
@@ -234,16 +233,6 @@ export function Layout() {
                       Profile
                     </Link>
                   </DropdownMenuItem>
-                  <ConditionalRender
-                    requiredPermissions={[Permission.MANAGE_SETTINGS]}
-                  >
-                    <DropdownMenuItem asChild>
-                      <Link to="/settings" className="flex items-center">
-                        <Settings className="mr-2 h-4 w-4" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
-                  </ConditionalRender>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} className="text-red-600">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -263,7 +252,7 @@ export function Layout() {
         {/* Desktop Sidebar */}
         <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:pt-16">
           <div className="flex flex-col flex-1 bg-card border-r shadow-soft">
-            <nav className="flex-1 px-4 py-6 space-y-2">
+            <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
               {navigationItems.map((item) => (
                 <ConditionalRender
                   key={item.name}
@@ -339,7 +328,7 @@ export function Layout() {
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <nav className="fixed top-16 left-0 bottom-0 w-64 bg-card border-r shadow-soft">
-              <div className="px-4 py-6 space-y-2">
+              <div className="px-4 py-6 space-y-2 overflow-y-auto h-full">
                 {navigationItems.map((item) => (
                   <ConditionalRender
                     key={item.name}
