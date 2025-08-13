@@ -66,6 +66,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Supplier, SupplierDetails } from "@/types/supplier";
+import { suppliersAPI } from "@/services/api";
 import {
   BarChart,
   Bar,
@@ -79,11 +80,7 @@ import {
   Cell,
 } from "recharts";
 
-interface EnhancedSupplier
-  extends Omit<
-    SupplierDetails,
-    "contract" | "recentPurchases" | "currentPurchaseOrders"
-  > {
+interface EnhancedSupplier extends SupplierDetails {
   totalOrders?: number;
   totalValue?: number;
   avgRating?: number;
@@ -93,166 +90,12 @@ interface EnhancedSupplier
   notes?: string;
 }
 
-// Enhanced sample suppliers data
-const Suppliers: EnhancedSupplier[] = [
-  {
-    id: "1",
-    name: "SteelWorks Industries",
-    category: "Steel & Iron",
-    contact_person: "Arjun Patel",
-    email: "arjun@steelworks.com",
-    phone: "+91 98765 43210",
-    address: "Industrial Zone 5, Bhilai, Chhattisgarh 490026",
-    products: [
-      "Iron Casting Blocks",
-      "Steel Billets",
-      "Cast Iron Pipes",
-      "Steel Plates",
-    ],
-    currentOrders: 8,
-    status: "active",
-    totalOrders: 152,
-    totalValue: 8750000,
-    avgRating: 4.8,
-    lastOrderDate: "2024-01-20",
-    productsSupplied: 15,
-    payment_terms: "NET_45",
-    notes:
-      "Premium steel and iron supplier. Excellent quality control and timely deliveries.",
-  },
-  {
-    id: "2",
-    name: "MetalCraft Co",
-    category: "Aluminum & Alloys",
-    contact_person: "Kavita Menon",
-    email: "kavita@metalcraft.com",
-    phone: "+91 98765 43211",
-    address: "Aluminum Park, Hosur, Tamil Nadu 635109",
-    products: [
-      "Aluminum Bars",
-      "Alloy Rods",
-      "Aluminum Sheets",
-      "Precision Castings",
-    ],
-    currentOrders: 5,
-    status: "active",
-    totalOrders: 89,
-    totalValue: 3200000,
-    avgRating: 4.5,
-    lastOrderDate: "2024-01-18",
-    productsSupplied: 12,
-    payment_terms: "NET_30",
-    notes:
-      "Specialized in aluminum alloys. Good for precision casting requirements.",
-  },
-  {
-    id: "3",
-    name: "Bronze Masters Ltd",
-    category: "Bronze & Copper",
-    contact_person: "Ramesh Iyer",
-    email: "ramesh@bronzemasters.com",
-    phone: "+91 98765 43212",
-    address: "Copper Industrial Estate, Coimbatore, Tamil Nadu 641045",
-    products: [
-      "Bronze Ingots",
-      "Copper Sheets",
-      "Brass Rods",
-      "Phosphor Bronze",
-    ],
-    currentOrders: 4,
-    status: "active",
-    totalOrders: 67,
-    totalValue: 2150000,
-    avgRating: 4.6,
-    lastOrderDate: "2024-01-15",
-    productsSupplied: 8,
-    payment_terms: "NET_30",
-    notes:
-      "Premier bronze and copper alloy supplier. Excellent for marine applications.",
-  },
-  {
-    id: "4",
-    name: "Carbon Steel Works",
-    category: "Carbon Steel",
-    contact_person: "Sanjay Gupta",
-    email: "sanjay@carbonsteel.com",
-    phone: "+91 98765 43213",
-    address: "Steel City Complex, Jamshedpur, Jharkhand 831001",
-    products: [
-      "Carbon Steel Billets",
-      "Steel Rods",
-      "Steel Plates",
-      "Structural Steel",
-    ],
-    currentOrders: 6,
-    status: "active",
-    totalOrders: 94,
-    totalValue: 5200000,
-    avgRating: 4.3,
-    lastOrderDate: "2024-01-12",
-    productsSupplied: 11,
-    payment_terms: "NET_45",
-    notes: "Reliable carbon steel supplier. Good for structural applications.",
-  },
-  {
-    id: "5",
-    name: "Naval Brass Co",
-    category: "Marine Alloys",
-    contact_person: "Captain Vijay Kumar",
-    email: "vijay@navalbrass.com",
-    phone: "+91 98765 43214",
-    address: "Marine Industrial Zone, Kochi, Kerala 682037",
-    products: [
-      "Naval Brass",
-      "Marine Bronze",
-      "Corrosion-resistant Alloys",
-      "Ship Fittings",
-    ],
-    currentOrders: 3,
-    status: "active",
-    totalOrders: 45,
-    totalValue: 1680000,
-    avgRating: 4.9,
-    lastOrderDate: "2024-01-19",
-    productsSupplied: 7,
-    payment_terms: "NET_30",
-    notes: "Specialized marine alloys supplier with naval certifications.",
-  },
-  {
-    id: "6",
-    name: "Foundry Equipment Co",
-    category: "Foundry Tools",
-    contact_person: "Prakash Sharma",
-    email: "prakash@foundryequip.com",
-    phone: "+91 98765 43215",
-    address: "Foundry Industrial Park, Rajkot, Gujarat 360005",
-    products: [
-      "Casting Molds",
-      "Foundry Tools",
-      "Furnace Equipment",
-      "Sand Casting Supplies",
-    ],
-    currentOrders: 2,
-    status: "active",
-    totalOrders: 28,
-    totalValue: 890000,
-    avgRating: 4.2,
-    lastOrderDate: "2024-01-10",
-    productsSupplied: 6,
-    payment_terms: "NET_30",
-    notes:
-      "Foundry equipment specialist. Good for casting setup and maintenance.",
-  },
-];
-
-// Export the suppliers data for use in other components
-export const dummySuppliers = Suppliers;
-
 export default function EnhancedSuppliers() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [suppliers, setSuppliers] = useState<EnhancedSupplier[]>(Suppliers);
+  const [suppliers, setSuppliers] = useState<EnhancedSupplier[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -290,6 +133,63 @@ export default function EnhancedSuppliers() {
       window.removeEventListener("resize", checkIsMobile);
     };
   }, []);
+
+  // Load suppliers data
+  useEffect(() => {
+    const loadSuppliers = async () => {
+      try {
+        setLoading(true);
+        const suppliersData = await suppliersAPI.getAll();
+
+        // Transform API data to match EnhancedSupplier interface
+        const enhancedSuppliers: EnhancedSupplier[] = suppliersData.map(
+          (supplier) => ({
+            id: supplier.id.toString(),
+            name: supplier.name,
+            category: supplier.category || "General",
+            contact_person: supplier.contact_person || "",
+            email: supplier.email || "",
+            phone: supplier.phone || "",
+            address: supplier.address || "",
+            status: (supplier.status === "suspended"
+              ? "inactive"
+              : supplier.status) as "active" | "inactive",
+            payment_terms: supplier.payment_terms || "NET_30",
+            notes: supplier.notes || "",
+            products: [], // Will be populated when needed
+            currentOrders: supplier.total_orders || 0,
+            contract: {
+              startDate: "2024-01-01",
+              endDate: "2024-12-31",
+              type: "Standard",
+            },
+            recentPurchases: [],
+            currentPurchaseOrders: [],
+            totalOrders: supplier.total_orders || 0,
+            totalValue: supplier.total_value || 0,
+            avgRating: 4.2, // Default rating since not in API
+            lastOrderDate: supplier.updated_at
+              ? supplier.updated_at.split("T")[0]
+              : new Date().toISOString().split("T")[0],
+            productsSupplied: supplier.total_products || 0,
+          })
+        );
+
+        setSuppliers(enhancedSuppliers);
+      } catch (error) {
+        console.error("Error loading suppliers:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load suppliers data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSuppliers();
+  }, [toast]);
 
   // Get unique categories from suppliers
   const categories = useMemo(() => {
@@ -381,7 +281,7 @@ export default function EnhancedSuppliers() {
     navigate(`/suppliers/${supplierId}`);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!form.name || !form.email) {
@@ -394,45 +294,71 @@ export default function EnhancedSuppliers() {
     }
 
     try {
-      const supplierData: EnhancedSupplier = {
-        id: selectedSupplier?.id || `supplier-${Date.now()}`,
+      const supplierData = {
         name: form.name!,
         category: form.category || "General",
         contact_person: form.contact_person,
         email: form.email!,
-        phone: form.phone,
-        address: form.address,
+        phone: form.phone || "",
+        address: form.address || "",
         status: (form.status as "active" | "inactive") || "active",
-        payment_terms: form.payment_terms,
-        notes: form.notes,
-        products: [],
-        currentOrders: selectedSupplier?.currentOrders || 0,
-        totalOrders: selectedSupplier?.totalOrders || 0,
-        totalValue: selectedSupplier?.totalValue || 0,
-        avgRating: selectedSupplier?.avgRating || 4.0,
-        lastOrderDate:
-          selectedSupplier?.lastOrderDate ||
-          new Date().toISOString().split("T")[0],
-        productsSupplied: selectedSupplier?.productsSupplied || 0,
+        payment_terms: form.payment_terms || "NET_30",
+        notes: form.notes || "",
       };
 
       if (selectedSupplier) {
-        setSuppliers((prev) =>
-          prev.map((s) => (s.id === selectedSupplier.id ? supplierData : s))
-        );
+        // Update existing supplier
+        await suppliersAPI.update(selectedSupplier.id, supplierData);
         toast({
           title: "Success",
           description: "Supplier updated successfully",
         });
         setIsEditDialogOpen(false);
       } else {
-        setSuppliers((prev) => [...prev, supplierData]);
+        // Create new supplier
+        await suppliersAPI.create(supplierData);
         toast({
           title: "Success",
           description: "Supplier created successfully",
         });
         setIsAddDialogOpen(false);
       }
+
+      // Reload suppliers data
+      const suppliersData = await suppliersAPI.getAll();
+      const enhancedSuppliers: EnhancedSupplier[] = suppliersData.map(
+        (supplier) => ({
+          id: supplier.id.toString(),
+          name: supplier.name,
+          category: supplier.category || "General",
+          contact_person: supplier.contact_person || "",
+          email: supplier.email || "",
+          phone: supplier.phone || "",
+          address: supplier.address || "",
+          status: (supplier.status === "suspended"
+            ? "inactive"
+            : supplier.status) as "active" | "inactive",
+          payment_terms: supplier.payment_terms || "NET_30",
+          notes: supplier.notes || "",
+          products: [],
+          currentOrders: supplier.total_orders || 0,
+          contract: {
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            type: "Standard",
+          },
+          recentPurchases: [],
+          currentPurchaseOrders: [],
+          totalOrders: supplier.total_orders || 0,
+          totalValue: supplier.total_value || 0,
+          avgRating: 4.2,
+          lastOrderDate: supplier.updated_at
+            ? supplier.updated_at.split("T")[0]
+            : new Date().toISOString().split("T")[0],
+          productsSupplied: supplier.total_products || 0,
+        })
+      );
+      setSuppliers(enhancedSuppliers);
 
       // Reset form
       setForm({
@@ -456,13 +382,58 @@ export default function EnhancedSuppliers() {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedSupplier) return;
 
-    setSuppliers((prev) => prev.filter((s) => s.id !== selectedSupplier.id));
-    toast({ title: "Success", description: "Supplier deleted successfully" });
-    setIsDeleteDialogOpen(false);
-    setSelectedSupplier(null);
+    try {
+      await suppliersAPI.delete(selectedSupplier.id);
+
+      // Reload suppliers data
+      const suppliersData = await suppliersAPI.getAll();
+      const enhancedSuppliers: EnhancedSupplier[] = suppliersData.map(
+        (supplier) => ({
+          id: supplier.id.toString(),
+          name: supplier.name,
+          category: supplier.category || "General",
+          contact_person: supplier.contact_person || "",
+          email: supplier.email || "",
+          phone: supplier.phone || "",
+          address: supplier.address || "",
+          status: (supplier.status === "suspended"
+            ? "inactive"
+            : supplier.status) as "active" | "inactive",
+          payment_terms: supplier.payment_terms || "NET_30",
+          notes: supplier.notes || "",
+          products: [],
+          currentOrders: supplier.total_orders || 0,
+          contract: {
+            startDate: "2024-01-01",
+            endDate: "2024-12-31",
+            type: "Standard",
+          },
+          recentPurchases: [],
+          currentPurchaseOrders: [],
+          totalOrders: supplier.total_orders || 0,
+          totalValue: supplier.total_value || 0,
+          avgRating: 4.2,
+          lastOrderDate: supplier.updated_at
+            ? supplier.updated_at.split("T")[0]
+            : new Date().toISOString().split("T")[0],
+          productsSupplied: supplier.total_products || 0,
+        })
+      );
+      setSuppliers(enhancedSuppliers);
+
+      toast({ title: "Success", description: "Supplier deleted successfully" });
+      setIsDeleteDialogOpen(false);
+      setSelectedSupplier(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete supplier",
+        variant: "destructive",
+      });
+    }
   };
 
   const openEditDialog = (supplier: EnhancedSupplier) => {

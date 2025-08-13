@@ -264,9 +264,11 @@ export default function QcDashboard() {
       );
       setHoldItems(
         holdItemsData.status === "fulfilled"
-          ? holdItemsData.value.map(item => ({
+          ? holdItemsData.value.map((item) => ({
               ...item,
-              status: (item.status as "Hold" | "Rework" | "Scrap" | "Released") || "Hold"
+              status:
+                (item.status as "Hold" | "Rework" | "Scrap" | "Released") ||
+                "Hold",
             }))
           : generateMockHoldItems()
       );
@@ -281,10 +283,11 @@ export default function QcDashboard() {
       console.error("Failed to fetch QC data:", error);
       toast({
         title: "Data Loading Notice",
-        description: "Some data could not be loaded from the server. Showing available data.",
+        description:
+          "Some data could not be loaded from the server. Showing available data.",
         variant: "default",
       });
-      
+
       // Set loading to false even on error
       setLoading({
         metrics: false,

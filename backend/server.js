@@ -14,6 +14,11 @@ const productRoutes = require("./routes/products");
 const alertRoutes = require("./routes/alerts");
 const supplierRoutes = require("./routes/suppliers");
 const qcRoutes = require("./routes/qc");
+const productionCalculatorRoutes = require("./routes/productionCalculator");
+const inboundRoutes = require("./routes/inbound");
+const outboundRoutes = require("./routes/outbound");
+const storageUtilizationRoutes = require("./routes/storageUtilization");
+const stockOutRoutes = require("./routes/stockOut");
 // TODO: Add other route imports here
 
 const app = express();
@@ -43,18 +48,18 @@ app.use(
       "http://localhost:8080", // Alternative frontend port
       "http://localhost:3000", // React default
       "http://localhost:4000", // Alternative port
-      process.env.CORS_ORIGIN
+      process.env.CORS_ORIGIN,
     ].filter(Boolean),
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     preflightContinue: false,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
   })
 );
 
 // Handle preflight requests
-app.options('*', cors());
+app.options("*", cors());
 
 // Compression middleware
 app.use(compression());
@@ -89,6 +94,17 @@ app.use(`${API_PREFIX}/${API_VERSION}/products`, productRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/alerts`, alertRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/suppliers`, supplierRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/qc`, qcRoutes);
+app.use(
+  `${API_PREFIX}/${API_VERSION}/production-calculator`,
+  productionCalculatorRoutes
+);
+app.use(`${API_PREFIX}/${API_VERSION}/inbound`, inboundRoutes);
+app.use(`${API_PREFIX}/${API_VERSION}/outbound`, outboundRoutes);
+app.use(
+  `${API_PREFIX}/${API_VERSION}/storage-utilization`,
+  storageUtilizationRoutes
+);
+app.use(`${API_PREFIX}/${API_VERSION}/stock-out`, stockOutRoutes);
 // TODO: Add other routes here
 // app.use(`${API_PREFIX}/${API_VERSION}/purchase-orders`, purchaseOrderRoutes);
 // app.use(`${API_PREFIX}/${API_VERSION}/customer-orders`, customerOrderRoutes);

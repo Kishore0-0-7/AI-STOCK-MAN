@@ -57,18 +57,21 @@ export interface Product {
 }
 
 export interface Supplier {
-  id: string;
+  id: number;
   name: string;
+  category: string;
+  email: string;
+  phone: string;
+  address: string;
   contact_person?: string;
-  contact_name?: string; // Alternative field name for compatibility
-  email?: string;
-  phone?: string;
-  address?: string;
+  status: "active" | "inactive" | "suspended";
   payment_terms?: string;
-  status?: "active" | "inactive";
   notes?: string;
   created_at?: string;
   updated_at?: string;
+  total_orders?: number;
+  total_value?: number;
+  total_products?: number;
 }
 
 export interface Customer {
@@ -731,66 +734,425 @@ export const reportsAPI = {
 
 // QC API
 export const qcAPI = {
-  getMetrics: () => apiCall<{
-    rejectionRate: number;
-    totalInspections: number;
-    scrapQuantity: number;
-    scrapValue: number;
-  }>("/qc/metrics"),
+  getMetrics: () =>
+    apiCall<{
+      rejectionRate: number;
+      totalInspections: number;
+      scrapQuantity: number;
+      scrapValue: number;
+    }>("/qc/metrics"),
 
-  getDefects: () => apiCall<Array<{
-    type: string;
-    count: number;
-  }>>("/qc/defects"),
+  getDefects: () =>
+    apiCall<
+      Array<{
+        type: string;
+        count: number;
+      }>
+    >("/qc/defects"),
 
   getRejectionTrend: (params?: { days?: number }) => {
     const queryParams = new URLSearchParams();
     if (params?.days) queryParams.append("days", params.days.toString());
-    return apiCall<Array<{
-      date: string;
-      rejectionRate: number;
-    }>>(`/qc/rejection-trend${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+    return apiCall<
+      Array<{
+        date: string;
+        rejectionRate: number;
+      }>
+    >(
+      `/qc/rejection-trend${
+        queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`
+    );
   },
 
-  getHoldItems: (params?: { 
-    limit?: number; 
-    status?: string;
-  }) => {
+  getHoldItems: (params?: { limit?: number; status?: string }) => {
     const queryParams = new URLSearchParams();
     if (params?.limit) queryParams.append("limit", params.limit.toString());
     if (params?.status) queryParams.append("status", params.status);
-    return apiCall<Array<{
-      id: string;
-      itemCode: string;
-      description: string;
-      quantity: number;
-      status: string;
-      date: string;
-      order_number?: string;
-      supplier_name?: string;
-    }>>(`/qc/hold-items${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+    return apiCall<
+      Array<{
+        id: string;
+        itemCode: string;
+        description: string;
+        quantity: number;
+        status: string;
+        date: string;
+        order_number?: string;
+        supplier_name?: string;
+      }>
+    >(
+      `/qc/hold-items${
+        queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`
+    );
   },
 
-  updateItemStatus: (id: string, data: {
-    quality_status: string;
-    notes?: string;
-  }) => apiCall<{ success: boolean; message: string }>(`/qc/items/${id}/status`, {
-    method: "PUT",
-    body: JSON.stringify(data),
-  }),
+  updateItemStatus: (
+    id: string,
+    data: {
+      quality_status: string;
+      notes?: string;
+    }
+  ) =>
+    apiCall<{ success: boolean; message: string }>(`/qc/items/${id}/status`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 
-  getStats: () => apiCall<{
-    totalItems: number;
-    approvedItems: number;
-    rejectedItems: number;
-    holdItems: number;
-    pendingItems: number;
-    averageScrapValue: number;
-    approvalRate: number;
-  }>("/qc/stats"),
+  getStats: () =>
+    apiCall<{
+      totalItems: number;
+      approvedItems: number;
+      rejectedItems: number;
+      holdItems: number;
+      pendingItems: number;
+      averageScrapValue: number;
+      approvalRate: number;
+    }>("/qc/stats"),
 };
 
-// Export all APIs
+// Production Calculator API
+export interface RawMaterial {
+  id: string;
+  name: string;
+  currentStock: number;
+  unit: string;
+  costPerUnit: number;
+  reorderLevel: number;
+  supplier: string;
+  category: string;
+  lastUpdated: string;
+}
+
+export interface ProductRecipe {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  estimatedTime: number;
+  complexity: "Low" | "Medium" | "High";
+  materials: MaterialRequirement[];
+}
+
+export interface MaterialRequirement {
+  materialId: string;
+  materialName: string;
+  requiredQuantity: number;
+  unit: string;
+  wastagePercent: number;
+}
+
+export interface ProductionCalculation {
+  productId: string;
+  productName: string;
+  requestedQuantity: number;
+  possibleQuantity: number;
+  totalCost: number;
+  estimatedTime: number;
+  materialBreakdown: MaterialBreakdown[];
+  feasible: boolean;
+  bottlenecks: string[];
+}
+
+export interface MaterialBreakdown {
+  materialId: string;
+  materialName: string;
+  required: number;
+  available: number;
+  shortage: number;
+  cost: number;
+  unit: string;
+}
+
+export interface ProductionBatch {
+  id: string;
+  productName: string;
+  quantity: number;
+  status: "Planned" | "In Progress" | "Completed" | "On Hold" | "Cancelled";
+  startDate: string;
+  estimatedCompletion: string;
+  progress: number;
+  materials: MaterialBreakdown[];
+}
+
+export interface InventoryAnalytics {
+  stockAnalysis: Array<{
+    name: string;
+    current: number;
+    reorder: number;
+    cost: number;
+    category: string;
+  }>;
+  categoryDistribution: Array<{
+    name: string;
+    value: number;
+    itemCount: number;
+    avgStock: number;
+  }>;
+  summary: {
+    totalInventoryValue: number;
+    lowStockCount: number;
+    wellStockedCount: number;
+    totalMaterials: number;
+    restockInvestment: number;
+  };
+}
+
+export const productionCalculatorAPI = {
+  getRawMaterials: () =>
+    apiCall<RawMaterial[]>("/production-calculator/raw-materials"),
+
+  getProducts: () =>
+    apiCall<ProductRecipe[]>("/production-calculator/products"),
+
+  calculateProduction: (productId: string, requestedQuantity: number) =>
+    apiCall<ProductionCalculation>("/production-calculator/calculate", {
+      method: "POST",
+      body: JSON.stringify({ productId, requestedQuantity }),
+    }),
+
+  getProductionBatches: () =>
+    apiCall<ProductionBatch[]>("/production-calculator/batches"),
+
+  createProductionBatch: (data: {
+    productId: string;
+    quantity: number;
+    startDate?: string;
+    estimatedCompletionDate?: string;
+    notes?: string;
+  }) =>
+    apiCall<{ id: string; batchNumber: string; status: string }>(
+      "/production-calculator/batches",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    ),
+
+  getInventoryAnalytics: () =>
+    apiCall<InventoryAnalytics>("/production-calculator/analytics"),
+};
+
+// Inbound Dashboard API
+export interface InboundMetrics {
+  totalReceivedToday: number;
+  totalReceivedMonth: number;
+  todayGrowth: number;
+  monthGrowth: number;
+}
+
+export interface SupplierData {
+  name: string;
+  quantity: number;
+  value: number;
+  orders: number;
+  avgOrderValue: number;
+  color: string;
+}
+
+export interface PendingShipment {
+  id: string;
+  poNumber: string;
+  supplier: string;
+  expectedDate: string;
+  quantity: number;
+  status: "In Transit" | "Delayed" | "Confirmed" | "Processing";
+  priority: "High" | "Medium" | "Low";
+  itemCount: number;
+  totalValue: number;
+}
+
+export interface QualityStatus {
+  status: "Pass" | "Fail" | "Hold" | "Pending";
+  quantity: number;
+  percentage: number;
+  color: string;
+}
+
+export interface RecentActivity {
+  id: string;
+  orderNumber: string;
+  supplier: string;
+  status: string;
+  date: string;
+  itemCount: number;
+  totalValue: number;
+  type: string;
+}
+
+export interface InboundSummary {
+  totalPurchaseOrders: number;
+  activeSuppliers: number;
+  pendingOrders: number;
+  completedOrders: number;
+  averageDeliveryDelay: number;
+  onTimeDeliveryRate: number;
+}
+
+export const inboundAPI = {
+  getMetrics: () => apiCall<InboundMetrics>("/inbound/metrics"),
+
+  getSupplierData: () => apiCall<SupplierData[]>("/inbound/suppliers"),
+
+  getPendingShipments: () =>
+    apiCall<PendingShipment[]>("/inbound/pending-shipments"),
+
+  getQualityStatus: () => apiCall<QualityStatus[]>("/inbound/quality-status"),
+
+  getRecentActivities: () => apiCall<RecentActivity[]>("/inbound/activities"),
+
+  getSummary: () => apiCall<InboundSummary>("/inbound/summary"),
+};
+
+// Outbound Dashboard API
+export interface OutboundMetrics {
+  totalDispatchedToday: number;
+  totalDispatchedMonth: number;
+  todayGrowth: number;
+  monthGrowth: number;
+  onTimeRate: number;
+}
+
+export interface CustomerDispatch {
+  name: string;
+  quantity: number;
+  value: number;
+  orders: number;
+  color: string;
+  type: "Customer" | "Work Order";
+}
+
+export interface PendingOrder {
+  id: string;
+  orderNumber: string;
+  customer: string;
+  dueDate: string;
+  quantity: number;
+  status: "Ready" | "Processing" | "Delayed" | "Quality Check";
+  priority: "High" | "Medium" | "Low";
+  orderType: "Customer Order" | "Work Order" | "Transfer Order";
+  totalValue: number;
+}
+
+export interface OnTimeMetrics {
+  period: string;
+  onTime: number;
+  delayed: number;
+  rate: number;
+}
+
+export interface OutboundActivity {
+  orderId: string;
+  customer: string;
+  status: string;
+  timestamp: string | Date;
+  quantity: number;
+  type: "Customer Order" | "Work Order" | "Transfer Order";
+}
+
+export interface OutboundSummary {
+  totalOrders: number;
+  dispatchedOrders: number;
+  pendingOrders: number;
+  activeCustomers: number;
+  avgOrderValue: number;
+  dispatchRate: number;
+}
+
+export const outboundAPI = {
+  getMetrics: () => apiCall<OutboundMetrics>("/outbound/metrics"),
+
+  getCustomerData: () => apiCall<CustomerDispatch[]>("/outbound/customer-data"),
+
+  getPendingOrders: () => apiCall<PendingOrder[]>("/outbound/pending-orders"),
+
+  getOnTimeMetrics: () => apiCall<OnTimeMetrics[]>("/outbound/ontime-metrics"),
+
+  getRecentActivities: () =>
+    apiCall<OutboundActivity[]>("/outbound/activities"),
+
+  getSummary: () => apiCall<OutboundSummary>("/outbound/summary"),
+};
+
+// Storage Utilization Dashboard API
+export interface StorageOverview {
+  totalCapacity: number;
+  currentOccupied: number;
+  occupancyPercentage: number;
+  availableCapacity: number;
+  totalProducts: number;
+  avgStockPerProduct: number;
+}
+
+export interface RackUtilization {
+  rackId: string;
+  capacity: number;
+  occupied: number;
+  status: "available" | "near-full" | "overfilled";
+  location: string;
+  utilizationPercentage: number;
+  categoryName?: string;
+  productCount?: number;
+}
+
+export interface HeatMapCell {
+  x: number;
+  y: number;
+  utilization: number;
+  rackId: string;
+  categoryName?: string;
+}
+
+export interface TrendData {
+  date: string;
+  inbound: number;
+  outbound: number;
+}
+
+export interface StorageKPIData {
+  averageUtilization: number;
+  underutilizedRacks: number;
+  storageEfficiency: number;
+  totalProducts: number;
+  lowStockItems: number;
+}
+
+export interface ForecastData {
+  period: string;
+  predictedUtilization: number;
+  confidence: number;
+}
+
+export interface StorageSummary {
+  totalCapacity: number;
+  currentStock: number;
+  availableCapacity: number;
+  utilizationRate: number;
+  totalProducts: number;
+  totalCategories: number;
+  lowStockProducts: number;
+  outOfStockProducts: number;
+}
+
+export const storageUtilizationAPI = {
+  getOverview: () => apiCall<StorageOverview>("/storage-utilization/overview"),
+
+  getRackUtilization: () =>
+    apiCall<RackUtilization[]>("/storage-utilization/rack-utilization"),
+
+  getHeatMap: () => apiCall<HeatMapCell[]>("/storage-utilization/heat-map"),
+
+  getTrends: () =>
+    apiCall<{ inboundData: TrendData[]; outboundData: TrendData[] }>(
+      "/storage-utilization/trends"
+    ),
+
+  getKPIs: () => apiCall<StorageKPIData>("/storage-utilization/kpis"),
+
+  getForecast: () => apiCall<ForecastData[]>("/storage-utilization/forecast"),
+
+  getSummary: () => apiCall<StorageSummary>("/storage-utilization/summary"),
+}; // Export all APIs
 export default {
   dashboard: dashboardAPI,
   products: productsAPI,
@@ -802,4 +1164,191 @@ export default {
   customerOrders: customerOrdersAPI,
   reports: reportsAPI,
   qc: qcAPI,
+  productionCalculator: productionCalculatorAPI,
+  inbound: inboundAPI,
+  outbound: outboundAPI,
+  storageUtilization: storageUtilizationAPI,
+};
+
+// Stock Out Management interfaces
+export interface StockOutItem {
+  id: string;
+  itemCode: string;
+  itemName: string;
+  category: string;
+  quantityRequested: number;
+  quantityAllocated: number;
+  quantityDispatched: number;
+  unit: string;
+  status:
+    | "pending"
+    | "allocated"
+    | "dispatched"
+    | "partially-dispatched"
+    | "cancelled";
+  priority: "low" | "medium" | "high" | "urgent";
+  requestDate: string;
+  requiredDate: string;
+  dispatchDate?: string;
+  destination: string;
+  requestedBy: string;
+  notes?: string;
+  trackingNumber?: string;
+  estimatedValue: number;
+}
+
+export interface StockOutRequest {
+  id: string;
+  requestNumber: string;
+  requestDate: string;
+  requiredDate: string;
+  requestedBy: string;
+  department: string;
+  destination: string;
+  status:
+    | "draft"
+    | "submitted"
+    | "approved"
+    | "processing"
+    | "completed"
+    | "cancelled";
+  priority: "low" | "medium" | "high" | "urgent";
+  totalItems: number;
+  totalValue: number;
+  items: StockOutItem[];
+  approvedBy?: string;
+  processedBy?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StockOutMetrics {
+  totalRequestsToday: number;
+  totalItemsDispatched: number;
+  totalValueDispatched: number;
+  pendingRequests: number;
+  completionRate: number;
+  averageProcessingTime: number;
+}
+
+export interface StockOutDashboardData {
+  categoryBreakdown: { name: string; value: number; count: number }[];
+  statusDistribution: { name: string; value: number; color: string }[];
+  dispatchTrends: { date: string; dispatched: number; value: number }[];
+  topDestinations: { name: string; count: number; value: number }[];
+}
+
+export interface StockOutRequestsResponse {
+  requests: StockOutRequest[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalRequests: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+// Stock Out Management API
+export const stockOutAPI = {
+  getRequests: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    priority?: string;
+    department?: string;
+  }): Promise<ApiResponse<StockOutRequestsResponse>> => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return fetch(
+      `${API_BASE_URL}/stock-out/requests${
+        queryString ? `?${queryString}` : ""
+      }`
+    ).then((res) => res.json());
+  },
+
+  getMetrics: (): Promise<ApiResponse<StockOutMetrics>> =>
+    fetch(`${API_BASE_URL}/stock-out/metrics`).then((res) => res.json()),
+
+  getDashboardData: (): Promise<ApiResponse<StockOutDashboardData>> =>
+    fetch(`${API_BASE_URL}/stock-out/dashboard`).then((res) => res.json()),
+
+  getRequestById: (id: string): Promise<ApiResponse<StockOutRequest>> =>
+    fetch(`${API_BASE_URL}/stock-out/requests/${id}`).then((res) => res.json()),
+
+  createRequest: (request: {
+    requestedBy: string;
+    department: string;
+    destination: string;
+    priority?: "low" | "medium" | "high" | "urgent";
+    requiredDate: string;
+    notes?: string;
+    items: {
+      itemCode: string;
+      itemName: string;
+      category: string;
+      quantityRequested: number;
+      unit: string;
+      estimatedValue?: number;
+    }[];
+  }): Promise<ApiResponse<{ id: string; requestNumber: string }>> => {
+    return fetch(`${API_BASE_URL}/stock-out/requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    }).then((res) => res.json());
+  },
+
+  updateRequest: (
+    id: string,
+    updates: {
+      status?: string;
+      approvedBy?: string;
+      processedBy?: string;
+      notes?: string;
+      items?: {
+        id?: string;
+        quantityAllocated?: number;
+        quantityDispatched?: number;
+        status?: string;
+        trackingNumber?: string;
+        dispatchDate?: string;
+      }[];
+    }
+  ): Promise<ApiResponse<{ message: string }>> => {
+    return fetch(`${API_BASE_URL}/stock-out/requests/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    }).then((res) => res.json());
+  },
+};
+
+// Updated main API object
+export const apiUpdated = {
+  healthCheck,
+  dashboard: dashboardAPI,
+  products: productsAPI,
+  suppliers: suppliersAPI,
+  customers: customersAPI,
+  bills: billsAPI,
+  alerts: alertsAPI,
+  purchaseOrders: purchaseOrdersAPI,
+  customerOrders: customerOrdersAPI,
+  reports: reportsAPI,
+  qc: qcAPI,
+  productionCalculator: productionCalculatorAPI,
+  inbound: inboundAPI,
+  outbound: outboundAPI,
+  storageUtilization: storageUtilizationAPI,
+  stockOut: stockOutAPI,
 };

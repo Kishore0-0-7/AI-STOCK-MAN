@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import api from "@/services/api";
 import {
   BarChart,
   Bar,
@@ -46,6 +47,8 @@ interface SupplierData {
   name: string;
   quantity: number;
   value: number;
+  orders: number;
+  avgOrderValue: number;
   color: string;
 }
 
@@ -57,6 +60,8 @@ interface PendingShipment {
   quantity: number;
   status: "In Transit" | "Delayed" | "Confirmed" | "Processing";
   priority: "High" | "Medium" | "Low";
+  itemCount: number;
+  totalValue: number;
 }
 
 interface QualityStatus {
@@ -90,115 +95,66 @@ const InboundDashboard: React.FC = () => {
     "#06b6d4",
   ];
 
-  // Load sample data
+  // Load data from APIs
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        // Load all data in parallel
+        const [
+          metricsResponse,
+          suppliersResponse,
+          shipmentsResponse,
+          qualityResponse,
+        ] = await Promise.all([
+          api.inbound.getMetrics(),
+          api.inbound.getSupplierData(),
+          api.inbound.getPendingShipments(),
+          api.inbound.getQualityStatus(),
+        ]);
 
-      // Sample metrics
-      setMetrics({
-        totalReceivedToday: 1247,
-        totalReceivedMonth: 28943,
-        todayGrowth: 12.5,
-        monthGrowth: 8.3,
-      });
+        // Set metrics
+        setMetrics(metricsResponse);
 
-      // Sample supplier data
-      setSupplierData([
-        {
-          name: "MetalCorp Industries",
-          quantity: 450,
-          value: 125000,
-          color: COLORS[0],
-        },
-        {
-          name: "SteelWorks Ltd",
-          quantity: 320,
-          value: 89000,
-          color: COLORS[1],
-        },
-        {
-          name: "Iron Foundry Co",
-          quantity: 280,
-          value: 76000,
-          color: COLORS[2],
-        },
-        {
-          name: "Allied Materials",
-          quantity: 197,
-          value: 54000,
-          color: COLORS[3],
-        },
-        {
-          name: "Prime Suppliers",
-          quantity: 156,
-          value: 42000,
-          color: COLORS[4],
-        },
-        { name: "Others", quantity: 234, value: 67000, color: COLORS[5] },
-      ]);
+        // Set supplier data with colors
+        const suppliersWithColors = suppliersResponse.map(
+          (supplier: any, index: number) => ({
+            ...supplier,
+            color: COLORS[index % COLORS.length],
+          })
+        );
+        setSupplierData(suppliersWithColors);
 
-      // Sample pending shipments
-      setPendingShipments([
-        {
-          id: "PO-2025-001",
-          poNumber: "PO-2025-001",
-          supplier: "MetalCorp Industries",
-          expectedDate: "2025-08-15",
-          quantity: 500,
-          status: "In Transit",
-          priority: "High",
-        },
-        {
-          id: "PO-2025-002",
-          poNumber: "PO-2025-002",
-          supplier: "SteelWorks Ltd",
-          expectedDate: "2025-08-16",
-          quantity: 300,
-          status: "Confirmed",
-          priority: "Medium",
-        },
-        {
-          id: "PO-2025-003",
-          poNumber: "PO-2025-003",
-          supplier: "Iron Foundry Co",
-          expectedDate: "2025-08-14",
-          quantity: 200,
-          status: "Delayed",
-          priority: "High",
-        },
-        {
-          id: "PO-2025-004",
-          poNumber: "PO-2025-004",
-          supplier: "Allied Materials",
-          expectedDate: "2025-08-18",
-          quantity: 150,
-          status: "Processing",
-          priority: "Low",
-        },
-        {
-          id: "PO-2025-005",
-          poNumber: "PO-2025-005",
-          supplier: "Prime Suppliers",
-          expectedDate: "2025-08-17",
-          quantity: 250,
-          status: "Confirmed",
-          priority: "Medium",
-        },
-      ]);
+        // Set pending shipments
+        setPendingShipments(shipmentsResponse);
 
-      // Sample quality check data
-      setQualityStatus([
-        { status: "Pass", quantity: 1089, percentage: 87.3, color: "#10b981" },
-        { status: "Hold", quantity: 98, percentage: 7.9, color: "#f59e0b" },
-        { status: "Fail", quantity: 45, percentage: 3.6, color: "#ef4444" },
-        { status: "Pending", quantity: 15, percentage: 1.2, color: "#6b7280" },
-      ]);
-
-      setLoading(false);
+        // Set quality status with colors
+        const qualityWithColors = qualityResponse.map((item: any) => {
+          let color = "#6b7280"; // default gray
+          switch (item.status) {
+            case "Pass":
+              color = "#10b981"; // green
+              break;
+            case "Hold":
+              color = "#f59e0b"; // yellow
+              break;
+            case "Fail":
+              color = "#ef4444"; // red
+              break;
+            case "Pending":
+              color = "#6b7280"; // gray
+              break;
+          }
+          return { ...item, color };
+        });
+        setQualityStatus(qualityWithColors);
+      } catch (error) {
+        console.error("Error loading inbound data:", error);
+        // Keep default empty states on error
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadData();

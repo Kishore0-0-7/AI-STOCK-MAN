@@ -16,15 +16,16 @@ class QCController {
       `);
 
       const data = rejectionData[0];
-      const rejectionRate = data.total_inspections > 0 
-        ? ((data.rejected_count / data.total_inspections) * 100).toFixed(2)
-        : 0;
+      const rejectionRate =
+        data.total_inspections > 0
+          ? ((data.rejected_count / data.total_inspections) * 100).toFixed(2)
+          : 0;
 
       const metrics = {
         rejectionRate: parseFloat(rejectionRate),
         totalInspections: data.total_inspections || 0,
         scrapQuantity: data.scrap_quantity || 0,
-        scrapValue: parseFloat(data.scrap_value || 0)
+        scrapValue: parseFloat(data.scrap_value || 0),
       };
 
       res.json(metrics);
@@ -33,7 +34,7 @@ class QCController {
       res.status(500).json({
         success: false,
         message: "Failed to fetch QC metrics",
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -81,14 +82,14 @@ class QCController {
       `);
 
       // Filter out zero counts and add some default categories if no data
-      let defects = defectData.filter(item => item.count > 0);
-      
+      let defects = defectData.filter((item) => item.count > 0);
+
       if (defects.length === 0) {
         defects = [
           { type: "Cracks", count: 15 },
           { type: "Porosity", count: 12 },
           { type: "Dimension Issues", count: 8 },
-          { type: "Surface Defects", count: 5 }
+          { type: "Surface Defects", count: 5 },
         ];
       }
 
@@ -98,7 +99,7 @@ class QCController {
       res.status(500).json({
         success: false,
         message: "Failed to fetch QC defects",
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -109,7 +110,8 @@ class QCController {
       const { days = 30 } = req.query;
       const daysInt = Math.min(parseInt(days) || 30, 365);
 
-      const [trendData] = await pool.query(`
+      const [trendData] = await pool.query(
+        `
         SELECT 
           DATE(created_at) as date,
           COUNT(*) as total_items,
@@ -119,15 +121,22 @@ class QCController {
         GROUP BY DATE(created_at)
         ORDER BY date DESC
         LIMIT 30
-      `, [daysInt]);
+      `,
+        [daysInt]
+      );
 
       // Calculate rejection rate for each day
-      const trends = trendData.map(item => ({
-        date: item.date.toISOString().split('T')[0],
-        rejectionRate: item.total_items > 0 
-          ? parseFloat(((item.rejected_items / item.total_items) * 100).toFixed(2))
-          : 0
-      })).reverse(); // Show chronological order
+      const trends = trendData
+        .map((item) => ({
+          date: item.date.toISOString().split("T")[0],
+          rejectionRate:
+            item.total_items > 0
+              ? parseFloat(
+                  ((item.rejected_items / item.total_items) * 100).toFixed(2)
+                )
+              : 0,
+        }))
+        .reverse(); // Show chronological order
 
       res.json(trends);
     } catch (error) {
@@ -135,7 +144,7 @@ class QCController {
       res.status(500).json({
         success: false,
         message: "Failed to fetch QC rejection trend",
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -149,12 +158,13 @@ class QCController {
       let whereClause = `WHERE poi.quality_status IN ('hold', 'pending', 'rejected')`;
       const params = [];
 
-      if (status && status !== 'all') {
+      if (status && status !== "all") {
         whereClause = `WHERE poi.quality_status = ?`;
         params.push(status);
       }
 
-      const [holdItems] = await pool.query(`
+      const [holdItems] = await pool.query(
+        `
         SELECT 
           poi.id,
           p.sku as itemCode,
@@ -171,20 +181,27 @@ class QCController {
         ${whereClause}
         ORDER BY poi.created_at DESC
         LIMIT ?
-      `, [...params, limitInt]);
+      `,
+        [...params, limitInt]
+      );
 
       // Transform data to match frontend expectations
-      const transformedItems = holdItems.map(item => ({
+      const transformedItems = holdItems.map((item) => ({
         id: item.id,
         itemCode: item.itemCode || `PO-${item.order_number}`,
         description: item.description,
         quantity: item.quantity,
-        status: item.status === 'hold' ? 'Hold' : 
-               item.status === 'rejected' ? 'Scrap' :
-               item.status === 'pending' ? 'Pending' : 'Released',
-        date: item.date.toISOString().split('T')[0],
+        status:
+          item.status === "hold"
+            ? "Hold"
+            : item.status === "rejected"
+            ? "Scrap"
+            : item.status === "pending"
+            ? "Pending"
+            : "Released",
+        date: item.date.toISOString().split("T")[0],
         order_number: item.order_number,
-        supplier_name: item.supplier_name
+        supplier_name: item.supplier_name,
       }));
 
       res.json(transformedItems);
@@ -193,7 +210,7 @@ class QCController {
       res.status(500).json({
         success: false,
         message: "Failed to fetch QC hold items",
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -204,25 +221,31 @@ class QCController {
       const { id } = req.params;
       const { quality_status, notes } = req.body;
 
-      const validStatuses = ['pending', 'approved', 'rejected', 'hold'];
+      const validStatuses = ["pending", "approved", "rejected", "hold"];
       if (!validStatuses.includes(quality_status)) {
         return res.status(400).json({
           success: false,
-          message: `Invalid quality status. Must be one of: ${validStatuses.join(', ')}`
+          message: `Invalid quality status. Must be one of: ${validStatuses.join(
+            ", "
+          )}`,
         });
       }
 
-      await pool.query(`
+      await pool.query(
+        `
         UPDATE purchase_order_items 
         SET 
           quality_status = ?,
           notes = ?,
           updated_at = NOW()
         WHERE id = ?
-      `, [quality_status, notes || '', id]);
+      `,
+        [quality_status, notes || "", id]
+      );
 
       // Log the activity
-      await pool.query(`
+      await pool.query(
+        `
         INSERT INTO user_activities (
           activity_type, 
           description, 
@@ -231,26 +254,27 @@ class QCController {
           table_name, 
           record_id
         ) VALUES (?, ?, ?, ?, ?, ?)
-      `, [
-        'update',
-        `QC status updated to ${quality_status} for purchase order item`,
-        'QC Inspector',
-        'quality_control',
-        'purchase_order_items',
-        id
-      ]);
+      `,
+        [
+          "update",
+          `QC status updated to ${quality_status} for purchase order item`,
+          "QC Inspector",
+          "quality_control",
+          "purchase_order_items",
+          id,
+        ]
+      );
 
       res.json({
         success: true,
-        message: "QC item status updated successfully"
+        message: "QC item status updated successfully",
       });
-
     } catch (error) {
       console.error("Update QC item status error:", error);
       res.status(500).json({
         success: false,
         message: "Failed to update QC item status",
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -278,9 +302,12 @@ class QCController {
         holdItems: data.hold_items || 0,
         pendingItems: data.pending_items || 0,
         averageScrapValue: parseFloat(data.avg_scrap_value || 0),
-        approvalRate: data.total_items > 0 
-          ? parseFloat(((data.approved_items / data.total_items) * 100).toFixed(2))
-          : 0
+        approvalRate:
+          data.total_items > 0
+            ? parseFloat(
+                ((data.approved_items / data.total_items) * 100).toFixed(2)
+              )
+            : 0,
       };
 
       res.json(overview);
@@ -289,7 +316,7 @@ class QCController {
       res.status(500).json({
         success: false,
         message: "Failed to fetch QC statistics",
-        error: error.message
+        error: error.message,
       });
     }
   }

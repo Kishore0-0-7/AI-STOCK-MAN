@@ -12,7 +12,13 @@ class AlertsController {
         page = 1,
       } = req.query;
 
-      console.log('Alerts query params received:', { limit, status, type, priority, page });
+      console.log("Alerts query params received:", {
+        limit,
+        status,
+        type,
+        priority,
+        page,
+      });
 
       // Simple query first - let's avoid complex filtering for now
       let query = `
@@ -49,7 +55,7 @@ class AlertsController {
         LIMIT 10
       `;
 
-      console.log('Executing simple alerts query');
+      console.log("Executing simple alerts query");
       const [alerts] = await pool.execute(query);
 
       // Get total count

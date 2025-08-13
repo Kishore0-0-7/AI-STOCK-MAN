@@ -340,13 +340,13 @@ const sampleProducts: ProductWithSupplier[] = [
   },
 ];
 
-const sampleSuppliers: Supplier[] = [
-  { id: "supplier-1", name: "SteelWorks Industries", status: "active" },
-  { id: "supplier-2", name: "MetalCraft Co", status: "active" },
-  { id: "supplier-3", name: "Bronze Masters Ltd", status: "active" },
-  { id: "supplier-4", name: "Carbon Steel Works", status: "active" },
-  { id: "supplier-5", name: "Naval Brass Co", status: "active" },
-];
+// const sampleSuppliers: Supplier[] = [
+//   { id: "supplier-1", name: "SteelWorks Industries", status: "active" },
+//   { id: "supplier-2", name: "MetalCraft Co", status: "active" },
+//   { id: "supplier-3", name: "Bronze Masters Ltd", status: "active" },
+//   { id: "supplier-4", name: "Carbon Steel Works", status: "active" },
+//   { id: "supplier-5", name: "Naval Brass Co", status: "active" },
+// ];
 
 export default function EnhancedProducts() {
   const [products, setProducts] = useState<ProductWithSupplier[]>([]);
@@ -386,19 +386,22 @@ export default function EnhancedProducts() {
     try {
       setLoading(true);
       const productsData = await productsAPI.getAll({
-        limit: 500 // Get all products with reasonable limit
+        limit: 500, // Get all products with reasonable limit
       });
-      
+
       // Transform products data to include stock_status and value
       const transformedProducts = productsData.map((product: any) => ({
         ...product,
-        stock_status: product.current_stock <= product.low_stock_threshold 
-          ? (product.current_stock === 0 ? "out" : "low") 
-          : "good",
+        stock_status:
+          product.current_stock <= product.low_stock_threshold
+            ? product.current_stock === 0
+              ? "out"
+              : "low"
+            : "good",
         value: (product.current_stock || 0) * (product.price || 0),
-        supplier_name: product.supplier?.name || "No Supplier"
+        supplier_name: product.supplier?.name || "No Supplier",
       }));
-      
+
       setProducts(transformedProducts);
     } catch (error) {
       console.error("Failed to load products:", error);
@@ -611,7 +614,7 @@ export default function EnhancedProducts() {
         description: form.description || "",
         unit: form.unit || "pcs",
         barcode: form.barcode || "",
-        status: "active"
+        status: "active",
       };
 
       if (selectedProduct) {
@@ -662,18 +665,18 @@ export default function EnhancedProducts() {
 
     try {
       setLoading(true);
-      
+
       // Delete product via API
       await productsAPI.delete(selectedProduct.id);
-      
+
       // Reload products from API
       await loadProducts();
-      
+
       toast({
         title: "Success",
         description: "Product deleted successfully",
       });
-      
+
       setIsDeleteDialogOpen(false);
       setSelectedProduct(null);
     } catch (error) {
@@ -1364,7 +1367,7 @@ export default function EnhancedProducts() {
                     {suppliers.map((supplier) => (
                       <SelectItem
                         key={supplier.id}
-                        value={supplier.id}
+                        value={supplier.id.toString()}
                         className="text-sm"
                       >
                         {supplier.name}

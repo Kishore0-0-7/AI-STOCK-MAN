@@ -5,8 +5,8 @@ class SuppliersController {
   // Get all suppliers - matches suppliersAPI.getAll()
   static async getAllSuppliers(req, res) {
     try {
-      console.log('Getting all suppliers...');
-      
+      console.log("Getting all suppliers...");
+
       const [suppliers] = await pool.execute(`
         SELECT 
           s.id,
@@ -20,15 +20,21 @@ class SuppliersController {
           s.status,
           s.notes,
           s.created_at,
-          s.updated_at
+          s.updated_at,
+          COUNT(DISTINCT p.id) as total_products,
+          COALESCE(SUM(DISTINCT po.total_amount), 0) as total_value,
+          COUNT(DISTINCT po.id) as total_orders
         FROM suppliers s
+        LEFT JOIN products p ON s.id = p.supplier_id
+        LEFT JOIN purchase_orders po ON s.id = po.supplier_id
+        GROUP BY s.id, s.name, s.category, s.contact_person, s.email, s.phone, s.address, s.payment_terms, s.status, s.notes, s.created_at, s.updated_at
         ORDER BY s.name ASC
       `);
-      
-      console.log('Found suppliers:', suppliers.length);
-      
+
+      console.log("Found suppliers:", suppliers.length);
+
       // Transform data to match frontend expectations
-      const transformedSuppliers = suppliers.map(supplier => ({
+      const transformedSuppliers = suppliers.map((supplier) => ({
         id: supplier.id,
         name: supplier.name,
         category: supplier.category,
@@ -42,12 +48,11 @@ class SuppliersController {
         notes: supplier.notes,
         created_at: supplier.created_at,
         updated_at: supplier.updated_at,
-        // Additional stats - will be calculated later
-        total_products: 0,
-        total_value: 0,
-        total_orders: 0,
+        total_products: parseInt(supplier.total_products) || 0,
+        total_value: parseFloat(supplier.total_value) || 0,
+        total_orders: parseInt(supplier.total_orders) || 0,
       }));
-      
+
       res.json(transformedSuppliers);
     } catch (error) {
       console.error("Get all suppliers error:", error);
@@ -63,7 +68,7 @@ class SuppliersController {
   static async getSupplierById(req, res) {
     try {
       const { id } = req.params;
-      
+
       const [suppliers] = await pool.execute(
         `
         SELECT 
@@ -90,16 +95,16 @@ class SuppliersController {
         `,
         [id]
       );
-      
+
       if (suppliers.length === 0) {
         return res.status(404).json({
           success: false,
           message: "Supplier not found",
         });
       }
-      
+
       const supplier = suppliers[0];
-      
+
       // Get recent orders for this supplier
       const [recentOrders] = await pool.execute(
         `
@@ -117,7 +122,7 @@ class SuppliersController {
         `,
         [id]
       );
-      
+
       // Transform data
       const transformedSupplier = {
         id: supplier.id,
@@ -138,7 +143,7 @@ class SuppliersController {
         total_orders: supplier.total_orders,
         recent_orders: recentOrders,
       };
-      
+
       res.json(transformedSupplier);
     } catch (error) {
       console.error("Get supplier by ID error:", error);
@@ -223,7 +228,7 @@ class SuppliersController {
   static async updateSupplier(req, res) {
     try {
       const { id } = req.params;
-      
+
       const schema = Joi.object({
         name: Joi.string().max(255),
         category: Joi.string().max(100),
@@ -248,25 +253,27 @@ class SuppliersController {
       // Build dynamic update query
       const updateFields = [];
       const updateValues = [];
-      
+
       Object.entries(value).forEach(([key, val]) => {
         if (val !== undefined) {
           updateFields.push(`${key} = ?`);
           updateValues.push(val);
         }
       });
-      
+
       if (updateFields.length === 0) {
         return res.status(400).json({
           success: false,
           message: "No valid fields to update",
         });
       }
-      
+
       updateValues.push(id);
-      
+
       const [result] = await pool.execute(
-        `UPDATE suppliers SET ${updateFields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        `UPDATE suppliers SET ${updateFields.join(
+          ", "
+        )}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
         updateValues
       );
 
@@ -325,7 +332,9 @@ class SuppliersController {
 
       res.json({
         success: true,
-        message: `Supplier ${status === "active" ? "activated" : "deactivated"} successfully`,
+        message: `Supplier ${
+          status === "active" ? "activated" : "deactivated"
+        } successfully`,
       });
     } catch (error) {
       console.error("Update supplier status error:", error);
@@ -351,7 +360,8 @@ class SuppliersController {
       if (products[0].count > 0) {
         return res.status(409).json({
           success: false,
-          message: "Cannot delete supplier with associated products. Please remove or reassign products first.",
+          message:
+            "Cannot delete supplier with associated products. Please remove or reassign products first.",
         });
       }
 
@@ -403,9 +413,12 @@ class SuppliersController {
       );
 
       const metrics = performance[0];
-      const onTimeDeliveryRate = metrics.total_orders > 0 
-        ? ((metrics.total_orders - metrics.cancelled_orders) / metrics.total_orders) * 100 
-        : 0;
+      const onTimeDeliveryRate =
+        metrics.total_orders > 0
+          ? ((metrics.total_orders - metrics.cancelled_orders) /
+              metrics.total_orders) *
+            100
+          : 0;
 
       res.json({
         total_orders: metrics.total_orders,
@@ -452,7 +465,8 @@ class SuppliersController {
         active_suppliers: stats[0].active_suppliers,
         inactive_suppliers: stats[0].inactive_suppliers,
         total_categories: stats[0].total_categories,
-        total_inventory_value: parseFloat(valueStats[0].total_inventory_value) || 0,
+        total_inventory_value:
+          parseFloat(valueStats[0].total_inventory_value) || 0,
         suppliers_with_products: valueStats[0].suppliers_with_products,
       });
     } catch (error) {
@@ -491,7 +505,7 @@ class SuppliersController {
         [parseInt(period), parseInt(limit)]
       );
 
-      const transformedPerformers = topPerformers.map(supplier => ({
+      const transformedPerformers = topPerformers.map((supplier) => ({
         id: supplier.id,
         name: supplier.name,
         category: supplier.category,

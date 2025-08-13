@@ -7,7 +7,11 @@ const router = express.Router();
 // QC Routes
 router.get("/metrics", QCController.getMetrics);
 router.get("/defects", QCController.getDefects);
-router.get("/rejection-trend", validateQueryParams, QCController.getRejectionTrend);
+router.get(
+  "/rejection-trend",
+  validateQueryParams,
+  QCController.getRejectionTrend
+);
 router.get("/hold-items", validateQueryParams, QCController.getHoldItems);
 router.get("/stats", QCController.getStats);
 

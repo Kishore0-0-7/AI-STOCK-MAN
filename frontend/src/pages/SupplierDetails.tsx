@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import {
   Building2,
@@ -12,21 +13,26 @@ import {
   Clock,
   Box,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 import type { SupplierDetails } from "@/types/supplier";
-import { dummySuppliers } from "./Suppliers";
+import { suppliersAPI } from "@/services/api";
 
-// Extended dummy data for the selected supplier
-const getDummySupplierDetails = (id: string): SupplierDetails | null => {
-  const supplier = dummySuppliers.find(s => s.id === id);
-  if (!supplier) return null;
-
+// Function to transform API supplier data to SupplierDetails
+const transformToSupplierDetails = (supplier: any): SupplierDetails => {
   return {
-    ...supplier,
-    email: "contact@example.com",
-    phone: "+1 234-567-8900",
-    address: "123 Business Street, Industry Park, City, Country",
-    contact_person: "John Doe",
+    id: supplier.id.toString(),
+    name: supplier.name,
+    category: supplier.category || "General",
+    contact_person: supplier.contact_person || "N/A",
+    status: (supplier.status === "suspended" ? "inactive" : supplier.status) as
+      | "active"
+      | "inactive",
+    email: supplier.email || "contact@example.com",
+    phone: supplier.phone || "+1 234-567-8900",
+    address: supplier.address || "Address not provided",
+    products: [], // Will be populated if needed
+    currentOrders: Math.floor(Math.random() * 10),
     contract: {
       startDate: "2023-01-01",
       endDate: "2024-12-31",
@@ -69,7 +75,49 @@ const getDummySupplierDetails = (id: string): SupplierDetails | null => {
 
 export default function SupplierDetails() {
   const { id } = useParams();
-  const supplier = id ? getDummySupplierDetails(id) : null;
+  const { toast } = useToast();
+  const [supplier, setSupplier] = useState<SupplierDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSupplier = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const supplierData = await suppliersAPI.getById(id);
+        const supplierDetails = transformToSupplierDetails(supplierData);
+        setSupplier(supplierDetails);
+      } catch (error) {
+        console.error("Error loading supplier:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load supplier details",
+          variant: "destructive",
+        });
+        setSupplier(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSupplier();
+  }, [id, toast]);
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 lg:p-8 space-y-6">
+        <div className="text-center py-12">
+          <p className="text-lg font-medium text-muted-foreground mb-1">
+            Loading supplier details...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!supplier) {
     return (
@@ -144,7 +192,9 @@ export default function SupplierDetails() {
             <div className="flex items-center gap-2 text-sm">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">Duration:</span>
-              <span>{supplier.contract.startDate} to {supplier.contract.endDate}</span>
+              <span>
+                {supplier.contract.startDate} to {supplier.contract.endDate}
+              </span>
             </div>
           </div>
         </Card>
@@ -197,15 +247,19 @@ export default function SupplierDetails() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-medium">₹{purchase.amount.toLocaleString('en-IN')}</div>
+                <div className="font-medium">
+                  ₹{purchase.amount.toLocaleString("en-IN")}
+                </div>
                 <div className="text-sm">
-                  <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                    purchase.status === "completed"
-                      ? "bg-green-50 text-green-700"
-                      : purchase.status === "processing"
-                      ? "bg-blue-50 text-blue-700"
-                      : "bg-orange-50 text-orange-700"
-                  }`}>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                      purchase.status === "completed"
+                        ? "bg-green-50 text-green-700"
+                        : purchase.status === "processing"
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-orange-50 text-orange-700"
+                    }`}
+                  >
                     {purchase.status}
                   </span>
                 </div>
@@ -231,15 +285,19 @@ export default function SupplierDetails() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-medium">₹{order.amount.toLocaleString('en-IN')}</div>
+                <div className="font-medium">
+                  ₹{order.amount.toLocaleString("en-IN")}
+                </div>
                 <div className="text-sm">
-                  <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                    order.status === "completed"
-                      ? "bg-green-50 text-green-700"
-                      : order.status === "processing"
-                      ? "bg-blue-50 text-blue-700"
-                      : "bg-orange-50 text-orange-700"
-                  }`}>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                      order.status === "completed"
+                        ? "bg-green-50 text-green-700"
+                        : order.status === "processing"
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-orange-50 text-orange-700"
+                    }`}
+                  >
                     {order.status}
                   </span>
                 </div>

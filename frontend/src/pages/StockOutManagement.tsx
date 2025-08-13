@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
 import {
+  stockOutAPI,
+  type StockOutRequest,
+  type StockOutMetrics,
+  type StockOutDashboardData,
+  type StockOutItem,
+} from "@/services/api";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -80,66 +87,7 @@ import {
   Package,
 } from "lucide-react";
 
-// Types
-interface StockOutItem {
-  id: string;
-  itemCode: string;
-  itemName: string;
-  category: string;
-  quantityRequested: number;
-  quantityAllocated: number;
-  quantityDispatched: number;
-  unit: string;
-  status:
-    | "pending"
-    | "allocated"
-    | "dispatched"
-    | "partially-dispatched"
-    | "cancelled";
-  priority: "low" | "medium" | "high" | "urgent";
-  requestDate: string;
-  requiredDate: string;
-  dispatchDate?: string;
-  destination: string;
-  requestedBy: string;
-  notes?: string;
-  trackingNumber?: string;
-  estimatedValue: number;
-}
-
-interface StockOutRequest {
-  id: string;
-  requestNumber: string;
-  requestDate: string;
-  requiredDate: string;
-  requestedBy: string;
-  department: string;
-  destination: string;
-  status:
-    | "draft"
-    | "submitted"
-    | "approved"
-    | "processing"
-    | "completed"
-    | "cancelled";
-  priority: "low" | "medium" | "high" | "urgent";
-  totalItems: number;
-  totalValue: number;
-  items: StockOutItem[];
-  approvedBy?: string;
-  processedBy?: string;
-  notes?: string;
-}
-
-interface StockOutMetrics {
-  totalRequestsToday: number;
-  totalItemsDispatched: number;
-  totalValueDispatched: number;
-  pendingRequests: number;
-  completionRate: number;
-  averageProcessingTime: number;
-}
-
+// Keep only the DashboardData interface since it's not in the API
 interface DashboardData {
   categoryBreakdown: { name: string; value: number; count: number }[];
   statusDistribution: { name: string; value: number; color: string }[];
@@ -199,190 +147,41 @@ const StockOutManagement: React.FC = () => {
     "#82CA9D",
   ];
 
-  // Mock data generation
-  const generateMockData = () => {
-    setLoading((prev) => ({ ...prev, requests: true, metrics: true }));
+  // Load data from API
+  const loadStockOutData = async () => {
+    setLoading({ requests: true, metrics: true, creating: false });
 
-    setTimeout(() => {
-      // Generate mock stock out requests
-      const mockRequests: StockOutRequest[] = [
-        {
-          id: "SOD-2025-001",
-          requestNumber: "SOD-2025-001",
-          requestDate: "2025-08-13",
-          requiredDate: "2025-08-15",
-          requestedBy: "John Doe",
-          department: "Production",
-          destination: "Factory Floor A",
-          status: "processing",
-          priority: "high",
-          totalItems: 3,
-          totalValue: 125000,
-          approvedBy: "Manager Smith",
-          items: [
-            {
-              id: "item-1",
-              itemCode: "STL-001",
-              itemName: "Steel Rod 12mm",
-              category: "Raw Materials",
-              quantityRequested: 100,
-              quantityAllocated: 100,
-              quantityDispatched: 50,
-              unit: "pcs",
-              status: "partially-dispatched",
-              priority: "high",
-              requestDate: "2025-08-13",
-              requiredDate: "2025-08-15",
-              destination: "Factory Floor A",
-              requestedBy: "John Doe",
-              estimatedValue: 50000,
-              trackingNumber: "TRK-001",
-            },
-            {
-              id: "item-2",
-              itemCode: "CEM-002",
-              itemName: "Cement Bag 50kg",
-              category: "Building Materials",
-              quantityRequested: 50,
-              quantityAllocated: 50,
-              quantityDispatched: 0,
-              unit: "bags",
-              status: "allocated",
-              priority: "medium",
-              requestDate: "2025-08-13",
-              requiredDate: "2025-08-15",
-              destination: "Factory Floor A",
-              requestedBy: "John Doe",
-              estimatedValue: 25000,
-            },
-          ],
-        },
-        {
-          id: "SOD-2025-002",
-          requestNumber: "SOD-2025-002",
-          requestDate: "2025-08-12",
-          requiredDate: "2025-08-14",
-          requestedBy: "Jane Smith",
-          department: "Maintenance",
-          destination: "Warehouse B",
-          status: "completed",
-          priority: "medium",
-          totalItems: 2,
-          totalValue: 75000,
-          approvedBy: "Manager Brown",
-          processedBy: "Operator Wilson",
-          items: [
-            {
-              id: "item-3",
-              itemCode: "BLT-003",
-              itemName: "Bolt M12x50",
-              category: "Hardware",
-              quantityRequested: 200,
-              quantityAllocated: 200,
-              quantityDispatched: 200,
-              unit: "pcs",
-              status: "dispatched",
-              priority: "medium",
-              requestDate: "2025-08-12",
-              requiredDate: "2025-08-14",
-              dispatchDate: "2025-08-13",
-              destination: "Warehouse B",
-              requestedBy: "Jane Smith",
-              estimatedValue: 40000,
-              trackingNumber: "TRK-002",
-            },
-          ],
-        },
-        {
-          id: "SOD-2025-003",
-          requestNumber: "SOD-2025-003",
-          requestDate: "2025-08-13",
-          requiredDate: "2025-08-16",
-          requestedBy: "Mike Johnson",
-          department: "Quality Control",
-          destination: "QC Lab",
-          status: "submitted",
-          priority: "urgent",
-          totalItems: 1,
-          totalValue: 15000,
-          items: [
-            {
-              id: "item-4",
-              itemCode: "TST-004",
-              itemName: "Testing Equipment",
-              category: "Equipment",
-              quantityRequested: 1,
-              quantityAllocated: 0,
-              quantityDispatched: 0,
-              unit: "unit",
-              status: "pending",
-              priority: "urgent",
-              requestDate: "2025-08-13",
-              requiredDate: "2025-08-16",
-              destination: "QC Lab",
-              requestedBy: "Mike Johnson",
-              estimatedValue: 15000,
-            },
-          ],
-        },
-      ];
+    try {
+      // Load requests, metrics, and dashboard data in parallel
+      const [requestsResult, metricsResult, dashboardResult] =
+        await Promise.all([
+          stockOutAPI.getRequests({ page: currentPage, limit: itemsPerPage }),
+          stockOutAPI.getMetrics(),
+          stockOutAPI.getDashboardData(),
+        ]);
 
-      setStockOutRequests(mockRequests);
+      if (requestsResult.success && requestsResult.data) {
+        setStockOutRequests(requestsResult.data.requests);
+      }
 
-      // Generate metrics
-      const mockMetrics: StockOutMetrics = {
-        totalRequestsToday: 5,
-        totalItemsDispatched: 450,
-        totalValueDispatched: 2850000,
-        pendingRequests: 8,
-        completionRate: 87.5,
-        averageProcessingTime: 2.4,
-      };
+      if (metricsResult.success && metricsResult.data) {
+        setMetrics(metricsResult.data);
+      }
 
-      setMetrics(mockMetrics);
-
-      // Generate dashboard data
-      const mockDashboardData: DashboardData = {
-        categoryBreakdown: [
-          { name: "Raw Materials", value: 1200000, count: 15 },
-          { name: "Building Materials", value: 800000, count: 12 },
-          { name: "Hardware", value: 450000, count: 8 },
-          { name: "Equipment", value: 300000, count: 5 },
-          { name: "Tools", value: 100000, count: 3 },
-        ],
-        statusDistribution: [
-          { name: "Completed", value: 45, color: "#10b981" },
-          { name: "Processing", value: 25, color: "#3b82f6" },
-          { name: "Pending", value: 20, color: "#f59e0b" },
-          { name: "Cancelled", value: 10, color: "#ef4444" },
-        ],
-        dispatchTrends: [
-          { date: "2025-08-07", dispatched: 120, value: 480000 },
-          { date: "2025-08-08", dispatched: 150, value: 520000 },
-          { date: "2025-08-09", dispatched: 90, value: 380000 },
-          { date: "2025-08-10", dispatched: 200, value: 650000 },
-          { date: "2025-08-11", dispatched: 175, value: 590000 },
-          { date: "2025-08-12", dispatched: 220, value: 720000 },
-          { date: "2025-08-13", dispatched: 180, value: 610000 },
-        ],
-        topDestinations: [
-          { name: "Factory Floor A", count: 25, value: 850000 },
-          { name: "Warehouse B", count: 18, value: 620000 },
-          { name: "Production Line 1", count: 15, value: 480000 },
-          { name: "QC Lab", count: 12, value: 380000 },
-          { name: "Maintenance Shop", count: 10, value: 320000 },
-        ],
-      };
-
-      setDashboardData(mockDashboardData);
+      if (dashboardResult.success && dashboardResult.data) {
+        setDashboardData(dashboardResult.data as DashboardData);
+      }
+    } catch (error) {
+      console.error("Error loading stock out data:", error);
+    } finally {
       setLoading({ requests: false, metrics: false, creating: false });
-    }, 1500);
+    }
   };
 
   // Load data on component mount
   useEffect(() => {
-    generateMockData();
-  }, []);
+    loadStockOutData();
+  }, [currentPage]);
 
   // Filter requests
   const filteredRequests = stockOutRequests.filter((request) => {
@@ -502,6 +301,8 @@ const StockOutManagement: React.FC = () => {
         totalValue: 0,
         items: [],
         notes: newRequest.notes,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       setStockOutRequests((prev) => [newRequestData, ...prev]);
@@ -536,7 +337,7 @@ const StockOutManagement: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <Button
-            onClick={generateMockData}
+            onClick={loadStockOutData}
             variant="outline"
             size="sm"
             className="gap-2"
