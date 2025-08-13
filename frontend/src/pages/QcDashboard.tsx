@@ -246,33 +246,34 @@ export default function QcDashboard() {
   }, []);
 
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-gray-50 min-h-screen">
+    <div className="space-y-6">
       <TooltipProvider>
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <ShieldAlert className="h-5 w-5 text-white" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quality Control Dashboard</h1>
-              <p className="text-sm text-gray-600">Rough Casting Warehouse System</p>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">Quality Control Dashboard</h1>
+              <p className="text-xs sm:text-sm text-gray-600">Rough Casting Warehouse System</p>
             </div>
           </div>
-          <Button onClick={fetchData} variant="outline" size="sm" className="gap-2">
+          <Button onClick={fetchData} variant="outline" size="sm" className="gap-2 flex-shrink-0">
             <RefreshCw className="h-4 w-4" />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
+            <span className="sm:hidden">↻</span>
           </Button>
         </div>
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Rejection Rate */}
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center justify-between">
-                Rejection Rate
-                <AlertTriangle className="h-4 w-4" />
+              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600 flex items-center justify-between">
+                <span className="truncate">Rejection Rate</span>
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 ml-2" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -280,7 +281,7 @@ export default function QcDashboard() {
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <div className="space-y-1">
-                  <div className={`text-2xl font-bold p-2 rounded ${getRejectionRateColor(metrics?.rejectionRate || 0)}`}>
+                  <div className={`text-xl sm:text-2xl font-bold p-2 rounded ${getRejectionRateColor(metrics?.rejectionRate || 0)}`}>
                     {metrics?.rejectionRate.toFixed(1)}%
                   </div>
                   <p className="text-xs text-gray-500">
@@ -292,11 +293,11 @@ export default function QcDashboard() {
           </Card>
 
           {/* Total QC Inspections */}
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center justify-between">
-                Total QC Inspections
-                <CheckCircle2 className="h-4 w-4" />
+              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600 flex items-center justify-between">
+                <span className="truncate">Total QC Inspections</span>
+                <CheckCircle2 className="h-4 w-4 flex-shrink-0 ml-2" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -304,7 +305,7 @@ export default function QcDashboard() {
                 <Skeleton className="h-8 w-20" />
               ) : (
                 <div className="space-y-1">
-                  <div className="text-2xl font-bold text-gray-900">
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900">
                     {metrics?.totalInspections.toLocaleString('en-IN')}
                   </div>
                   <p className="text-xs text-gray-500">This month</p>
@@ -314,11 +315,11 @@ export default function QcDashboard() {
           </Card>
 
           {/* Scrap Quantity */}
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center justify-between">
-                Scrap Quantity
-                <XCircle className="h-4 w-4" />
+              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600 flex items-center justify-between">
+                <span className="truncate">Scrap Quantity</span>
+                <XCircle className="h-4 w-4 flex-shrink-0 ml-2" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -326,7 +327,7 @@ export default function QcDashboard() {
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <div className="space-y-1">
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-xl sm:text-2xl font-bold text-red-600">
                     {metrics?.scrapQuantity.toLocaleString('en-IN')}
                   </div>
                   <p className="text-xs text-gray-500">units</p>
@@ -336,11 +337,11 @@ export default function QcDashboard() {
           </Card>
 
           {/* Scrap Value */}
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center justify-between">
-                Scrap Value
-                <IndianRupee className="h-4 w-4" />
+              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600 flex items-center justify-between">
+                <span className="truncate">Scrap Value</span>
+                <IndianRupee className="h-4 w-4 flex-shrink-0 ml-2" />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -348,11 +349,11 @@ export default function QcDashboard() {
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <div className="space-y-1">
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-lg sm:text-2xl font-bold text-red-600 truncate">
                     {formatCurrency(metrics?.scrapValue || 0)}
                   </div>
-                  <p className="text-xs text-gray-500">
-                    ₹{((metrics?.scrapValue || 0) / (metrics?.scrapQuantity || 1)).toLocaleString('en-IN')} per unit
+                  <p className="text-xs text-gray-500 truncate">
+                    ₹{Math.round((metrics?.scrapValue || 0) / (metrics?.scrapQuantity || 1)).toLocaleString('en-IN')} per unit
                   </p>
                 </div>
               )}
@@ -362,31 +363,33 @@ export default function QcDashboard() {
 
         {/* Filters */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-4">
             <CardTitle className="text-lg font-semibold">Filters</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Start Date</label>
+                <label className="text-sm font-medium text-gray-700">Start Date</label>
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">End Date</label>
+                <label className="text-sm font-medium text-gray-700">End Date</label>
                 <Input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Status Filter</label>
+                <label className="text-sm font-medium text-gray-700">Status Filter</label>
                 <Select value={selectedDefectType} onValueChange={setSelectedDefectType}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -405,7 +408,8 @@ export default function QcDashboard() {
                   setSelectedDefectType('all');
                   setSearchTerm('');
                 }} variant="outline" className="w-full">
-                  Clear Filters
+                  <span className="hidden sm:inline">Clear Filters</span>
+                  <span className="sm:hidden">Clear</span>
                 </Button>
               </div>
             </div>
@@ -413,40 +417,51 @@ export default function QcDashboard() {
         </Card>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           {/* Defect Types Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Defect Types Breakdown
+          <Card className="w-full">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Package className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+                <span className="truncate">Defect Types Breakdown</span>
               </CardTitle>
-              <CardDescription>Current defect types and occurrence count</CardDescription>
+              <CardDescription className="text-sm">Current defect types and occurrence count</CardDescription>
             </CardHeader>
             <CardContent>
               {loading.defects ? (
                 <div className="h-64 flex items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                 </div>
               ) : defects.length === 0 ? (
                 <div className="h-64 flex items-center justify-center text-gray-500">
-                  No Data Available
+                  <div className="text-center">
+                    <Package className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                    <p>No Data Available</p>
+                  </div>
                 </div>
               ) : (
-                <div className="h-64">
+                <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={defects}>
-                      <CartesianGrid strokeDasharray="3 3" />
+                    <BarChart data={defects} margin={{ top: 5, right: 5, left: 5, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
                         dataKey="type" 
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
                         angle={-45}
                         textAnchor="end"
-                        height={80}
+                        height={60}
+                        interval={0}
                       />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <RechartsTooltip />
-                      <Bar dataKey="count" fill="#3b82f6" />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <RechartsTooltip 
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                        }}
+                      />
+                      <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -455,47 +470,58 @@ export default function QcDashboard() {
           </Card>
 
           {/* Rejection Rate Trend */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Rejection Rate Trend
+          <Card className="w-full">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
+                <span className="truncate">Rejection Rate Trend</span>
               </CardTitle>
-              <CardDescription>30-day rejection rate history</CardDescription>
+              <CardDescription className="text-sm">30-day rejection rate history</CardDescription>
             </CardHeader>
             <CardContent>
               {loading.trends ? (
                 <div className="h-64 flex items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                 </div>
               ) : trends.length === 0 ? (
                 <div className="h-64 flex items-center justify-center text-gray-500">
-                  No Data Available
+                  <div className="text-center">
+                    <TrendingUp className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                    <p>No Data Available</p>
+                  </div>
                 </div>
               ) : (
-                <div className="h-64">
+                <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trends}>
-                      <CartesianGrid strokeDasharray="3 3" />
+                    <LineChart data={trends} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
                         dataKey="date" 
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
                         tickFormatter={(date) => new Date(date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                        interval="preserveStartEnd"
                       />
                       <YAxis 
-                        tick={{ fontSize: 12 }}
-                        label={{ value: 'Rate (%)', angle: -90, position: 'insideLeft' }}
+                        tick={{ fontSize: 10 }}
+                        label={{ value: 'Rate (%)', angle: -90, position: 'insideLeft', style: { fontSize: 10 } }}
                       />
                       <RechartsTooltip 
                         labelFormatter={(date) => formatDate(date)}
                         formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Rejection Rate']}
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                        }}
                       />
                       <Line 
                         type="monotone" 
                         dataKey="rejectionRate" 
                         stroke="#3b82f6" 
                         strokeWidth={2}
-                        dot={{ fill: '#3b82f6', strokeWidth: 2, r: 3 }}
+                        dot={{ fill: '#3b82f6', strokeWidth: 2, r: 2 }}
+                        activeDot={{ r: 4, fill: '#3b82f6' }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -506,12 +532,12 @@ export default function QcDashboard() {
         </div>
 
         {/* QC Hold Items Table */}
-        <Card>
-          <CardHeader>
+        <Card className="w-full">
+          <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                QC Hold Items ({filteredItems.length})
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Package className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+                <span className="truncate">QC Hold Items ({filteredItems.length})</span>
               </CardTitle>
               <div className="flex gap-2 w-full sm:w-auto">
                 <div className="relative flex-1 sm:flex-initial">
@@ -520,15 +546,15 @@ export default function QcDashboard() {
                     placeholder="Search items..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-full sm:w-64"
+                    className="pl-10 w-full sm:w-64 text-sm"
                   />
                 </div>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {loading.holdItems ? (
-              <div className="space-y-2">
+              <div className="space-y-2 p-6">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
@@ -537,12 +563,12 @@ export default function QcDashboard() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Item Code</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="font-semibold text-sm">Item Code</TableHead>
+                      <TableHead className="font-semibold text-sm hidden sm:table-cell">Description</TableHead>
+                      <TableHead className="font-semibold text-center text-sm">Qty</TableHead>
+                      <TableHead className="font-semibold text-center text-sm">Status</TableHead>
+                      <TableHead className="font-semibold text-sm hidden md:table-cell">Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -557,20 +583,27 @@ export default function QcDashboard() {
                       </TableRow>
                     ) : (
                       filteredItems.map((item) => (
-                        <TableRow key={item.id} className="hover:bg-gray-50">
-                          <TableCell className="font-medium">{item.itemCode}</TableCell>
-                          <TableCell className="max-w-xs">
-                            <div className="truncate" title={item.description}>
+                        <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                          <TableCell className="font-medium text-sm">
+                            <div className="flex flex-col">
+                              <span>{item.itemCode}</span>
+                              <span className="text-xs text-gray-500 sm:hidden truncate" title={item.description}>
+                                {item.description}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-xs hidden sm:table-cell">
+                            <div className="truncate text-sm" title={item.description}>
                               {item.description}
                             </div>
                           </TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>
-                            <Badge className={`${getStatusColor(item.status)} border-0`}>
+                          <TableCell className="text-center font-semibold text-sm">{item.quantity}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge className={`${getStatusColor(item.status)} border-0 text-xs`}>
                               {item.status}
                             </Badge>
                           </TableCell>
-                          <TableCell>{formatDate(item.date)}</TableCell>
+                          <TableCell className="text-sm hidden md:table-cell">{formatDate(item.date)}</TableCell>
                         </TableRow>
                       ))
                     )}
