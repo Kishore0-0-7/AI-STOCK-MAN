@@ -1,5 +1,5 @@
 // API service for all backend communications
-const API_BASE_URL = "http://localhost:4000/api";
+const API_BASE_URL = "http://localhost:5000/api/v1";
 
 // Health check function
 export const healthCheck = async (): Promise<{
@@ -7,7 +7,7 @@ export const healthCheck = async (): Promise<{
   message: string;
 }> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/health`);
+    const response = await fetch(`http://localhost:5000/health`);
     const data = await response.json();
     return { status: "connected", message: "Backend is running" };
   } catch (error) {
@@ -729,6 +729,67 @@ export const reportsAPI = {
   },
 };
 
+// QC API
+export const qcAPI = {
+  getMetrics: () => apiCall<{
+    rejectionRate: number;
+    totalInspections: number;
+    scrapQuantity: number;
+    scrapValue: number;
+  }>("/qc/metrics"),
+
+  getDefects: () => apiCall<Array<{
+    type: string;
+    count: number;
+  }>>("/qc/defects"),
+
+  getRejectionTrend: (params?: { days?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.days) queryParams.append("days", params.days.toString());
+    return apiCall<Array<{
+      date: string;
+      rejectionRate: number;
+    }>>(`/qc/rejection-trend${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+  },
+
+  getHoldItems: (params?: { 
+    limit?: number; 
+    status?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.status) queryParams.append("status", params.status);
+    return apiCall<Array<{
+      id: string;
+      itemCode: string;
+      description: string;
+      quantity: number;
+      status: string;
+      date: string;
+      order_number?: string;
+      supplier_name?: string;
+    }>>(`/qc/hold-items${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+  },
+
+  updateItemStatus: (id: string, data: {
+    quality_status: string;
+    notes?: string;
+  }) => apiCall<{ success: boolean; message: string }>(`/qc/items/${id}/status`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  }),
+
+  getStats: () => apiCall<{
+    totalItems: number;
+    approvedItems: number;
+    rejectedItems: number;
+    holdItems: number;
+    pendingItems: number;
+    averageScrapValue: number;
+    approvalRate: number;
+  }>("/qc/stats"),
+};
+
 // Export all APIs
 export default {
   dashboard: dashboardAPI,
@@ -740,4 +801,5 @@ export default {
   purchaseOrders: purchaseOrdersAPI,
   customerOrders: customerOrdersAPI,
   reports: reportsAPI,
+  qc: qcAPI,
 };

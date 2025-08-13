@@ -54,6 +54,8 @@ import {
   XCircle,
   Loader2,
 } from "lucide-react";
+import { qcAPI } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
 
 // API Functions
 const apiCall = async (endpoint: string) => {
@@ -208,6 +210,8 @@ const formatDate = (dateString: string): string => {
 };
 
 export default function QcDashboard() {
+  const { toast } = useToast();
+
   // State
   const [metrics, setMetrics] = useState<QCMetrics | null>(null);
   const [defects, setDefects] = useState<DefectData[]>([]);
@@ -234,13 +238,13 @@ export default function QcDashboard() {
     setLoading({ metrics: true, defects: true, trends: true, holdItems: true });
 
     try {
-      // Try to fetch from API, fallback to mock data
+      // Fetch data from the real API
       const [metricsData, defectsData, trendsData, holdItemsData] =
         await Promise.allSettled([
-          apiCall("/qc/metrics").catch(() => generateMockMetrics()),
-          apiCall("/qc/defects").catch(() => generateMockDefects()),
-          apiCall("/qc/rejection-trend").catch(() => generateMockTrend()),
-          apiCall("/qc/hold-items").catch(() => generateMockHoldItems()),
+          qcAPI.getMetrics(),
+          qcAPI.getDefects(),
+          qcAPI.getRejectionTrend({ days: 30 }),
+          qcAPI.getHoldItems({ limit: 50 }),
         ]);
 
       setMetrics(
@@ -260,7 +264,10 @@ export default function QcDashboard() {
       );
       setHoldItems(
         holdItemsData.status === "fulfilled"
-          ? holdItemsData.value
+          ? holdItemsData.value.map(item => ({
+              ...item,
+              status: (item.status as "Hold" | "Rework" | "Scrap" | "Released") || "Hold"
+            }))
           : generateMockHoldItems()
       );
 
@@ -271,12 +278,14 @@ export default function QcDashboard() {
         holdItems: false,
       });
     } catch (error) {
-      console.error("Failed to fetch data:", error);
-      // Use mock data as fallback
-      setMetrics(generateMockMetrics());
-      setDefects(generateMockDefects());
-      setTrends(generateMockTrend());
-      setHoldItems(generateMockHoldItems());
+      console.error("Failed to fetch QC data:", error);
+      toast({
+        title: "Data Loading Notice",
+        description: "Some data could not be loaded from the server. Showing available data.",
+        variant: "default",
+      });
+      
+      // Set loading to false even on error
       setLoading({
         metrics: false,
         defects: false,

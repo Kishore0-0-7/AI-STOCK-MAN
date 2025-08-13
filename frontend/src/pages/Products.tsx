@@ -349,10 +349,9 @@ const sampleSuppliers: Supplier[] = [
 ];
 
 export default function EnhancedProducts() {
-  const [products, setProducts] =
-    useState<ProductWithSupplier[]>(sampleProducts);
-  const [suppliers, setSuppliers] = useState<Supplier[]>(sampleSuppliers);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<ProductWithSupplier[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
@@ -381,6 +380,58 @@ export default function EnhancedProducts() {
   const { toast } = useToast();
 
   const itemsPerPage = isMobile ? 6 : 12;
+
+  // Load products from API
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      const productsData = await productsAPI.getAll({
+        limit: 500 // Get all products with reasonable limit
+      });
+      
+      // Transform products data to include stock_status and value
+      const transformedProducts = productsData.map((product: any) => ({
+        ...product,
+        stock_status: product.current_stock <= product.low_stock_threshold 
+          ? (product.current_stock === 0 ? "out" : "low") 
+          : "good",
+        value: (product.current_stock || 0) * (product.price || 0),
+        supplier_name: product.supplier?.name || "No Supplier"
+      }));
+      
+      setProducts(transformedProducts);
+    } catch (error) {
+      console.error("Failed to load products:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load products. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load suppliers from API
+  const loadSuppliers = async () => {
+    try {
+      const suppliersData = await suppliersAPI.getAll({ limit: 500 });
+      setSuppliers(suppliersData);
+    } catch (error) {
+      console.error("Failed to load suppliers:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load suppliers. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Initial data load
+  useEffect(() => {
+    loadProducts();
+    loadSuppliers();
+  }, []);
 
   // Check for mobile viewport
   useEffect(() => {
@@ -546,39 +597,34 @@ export default function EnhancedProducts() {
     }
 
     try {
-      const productData: ProductWithSupplier = {
-        id: selectedProduct?.id || `product-${Date.now()}`,
+      setLoading(true);
+
+      const productData = {
         name: form.name!,
         category: form.category!,
         sku: form.sku || `SKU-${Date.now()}`,
-        price: form.price!,
-        cost: form.cost || form.price! * 0.7,
-        current_stock: form.current_stock || 0,
-        low_stock_threshold: form.low_stock_threshold || 10,
-        supplier_id: form.supplier_id,
-        supplier_name: suppliers.find((s) => s.id === form.supplier_id)?.name,
-        description: form.description,
-        stock_status:
-          (form.current_stock || 0) > (form.low_stock_threshold || 10)
-            ? "good"
-            : (form.current_stock || 0) > 0
-            ? "low"
-            : "out",
-        value: (form.current_stock || 0) * (form.price || 0),
-        unit: "pcs",
+        price: Number(form.price!),
+        cost: Number(form.cost || form.price! * 0.7),
+        current_stock: Number(form.current_stock || 0),
+        low_stock_threshold: Number(form.low_stock_threshold || 10),
+        supplier_id: form.supplier_id || null,
+        description: form.description || "",
+        unit: form.unit || "pcs",
+        barcode: form.barcode || "",
+        status: "active"
       };
 
       if (selectedProduct) {
-        setProducts((prev) =>
-          prev.map((p) => (p.id === selectedProduct.id ? productData : p))
-        );
+        // Update existing product
+        await productsAPI.update(selectedProduct.id, productData);
         toast({
           title: "Success",
           description: "Product updated successfully",
         });
         setIsEditDialogOpen(false);
       } else {
-        setProducts((prev) => [...prev, productData]);
+        // Create new product
+        await productsAPI.create(productData);
         toast({
           title: "Success",
           description: "Product created successfully",
@@ -586,7 +632,8 @@ export default function EnhancedProducts() {
         setIsAddDialogOpen(false);
       }
 
-      // Reset form
+      // Reload products from API
+      await loadProducts();
       setForm({
         name: "",
         category: "",
@@ -602,19 +649,43 @@ export default function EnhancedProducts() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save product",
+        description: "Failed to save product. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedProduct) return;
 
-    setProducts((prev) => prev.filter((p) => p.id !== selectedProduct.id));
-    toast({ title: "Success", description: "Product deleted successfully" });
-    setIsDeleteDialogOpen(false);
-    setSelectedProduct(null);
+    try {
+      setLoading(true);
+      
+      // Delete product via API
+      await productsAPI.delete(selectedProduct.id);
+      
+      // Reload products from API
+      await loadProducts();
+      
+      toast({
+        title: "Success",
+        description: "Product deleted successfully",
+      });
+      
+      setIsDeleteDialogOpen(false);
+      setSelectedProduct(null);
+    } catch (error) {
+      console.error("Failed to delete product:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete product. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openEditDialog = (product: ProductWithSupplier) => {

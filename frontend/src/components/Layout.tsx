@@ -34,10 +34,10 @@ export function Layout() {
 
   // Fetch low stock count for the badge
   useEffect(() => {
-    fetch("http://localhost:4000/api/alerts/low-stock")
+    fetch("http://localhost:5000/api/v1/products/low-stock")
       .then((res) => res.json())
       .then((data) => {
-        setLowStockCount(data.length);
+        setLowStockCount(Array.isArray(data) ? data.length : 0);
       })
       .catch((err) => {
         console.error("Failed to fetch low stock alerts for navigation:", err);
