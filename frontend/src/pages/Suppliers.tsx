@@ -275,7 +275,7 @@ export default function EnhancedSuppliers() {
         value: s.totalValue || 0,
         orders: s.totalOrders || 0,
       }));
-    
+
     console.log("Top suppliers chart data:", data);
     return data;
   }, [suppliers]);
@@ -664,14 +664,14 @@ export default function EnhancedSuppliers() {
           ) : (
             <div className="h-48 sm:h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={topSuppliersData} 
+                <BarChart
+                  data={topSuppliersData}
                   layout="horizontal"
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    type="number" 
+                  <XAxis
+                    type="number"
                     tick={{ fontSize: isMobile ? 10 : 12 }}
                     axisLine={false}
                     tickLine={false}
@@ -696,9 +696,9 @@ export default function EnhancedSuppliers() {
                       borderRadius: "6px",
                     }}
                   />
-                  <Bar 
-                    dataKey="value" 
-                    fill="#3B82F6" 
+                  <Bar
+                    dataKey="value"
+                    fill="#3B82F6"
                     radius={[0, 4, 4, 0]}
                     name="Total Value"
                   />
