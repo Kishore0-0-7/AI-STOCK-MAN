@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import api from "@/services/api";
 import {
   Dialog,
   DialogContent,
@@ -255,7 +256,8 @@ export default function PurchaseOrders() {
   const isMobile = useIsMobile();
 
   // State management
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(samplePurchaseOrders);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -275,6 +277,58 @@ export default function PurchaseOrders() {
   });
 
   const itemsPerPage = isMobile ? 8 : 12;
+
+  // Load purchase orders from API
+  useEffect(() => {
+    const loadPurchaseOrders = async () => {
+      try {
+        setLoading(true);
+        console.log("🛒 Loading Purchase Orders from API...");
+        
+        const response = await api.purchaseOrders.getAll({
+          page: 1,
+          limit: 100, // Load all orders for now
+          search: "",
+          status: "all",
+          priority: "all",
+          supplier: "all",
+          sortBy: "order_date",
+          sortOrder: "desc"
+        });
+
+        console.log("✅ Purchase Orders API response:", response);
+        
+        // Handle direct response (not wrapped in success/data)
+        if (response && response.orders) {
+          console.log("✅ Purchase Orders loaded:", response.orders);
+          setPurchaseOrders(response.orders || []);
+          
+          toast({
+            title: "Success",
+            description: `Loaded ${response.orders?.length || 0} purchase orders`,
+          });
+        } else {
+          console.error("❌ Failed to load purchase orders: Invalid response structure", response);
+          toast({
+            title: "Error",
+            description: "Invalid response from server",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("❌ Error loading purchase orders:", error);
+        toast({
+          title: "Error",
+          description: "Failed to connect to server",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPurchaseOrders();
+  }, [toast]);
 
   // Statistics calculations
   const orderStats = useMemo(() => {
@@ -545,17 +599,30 @@ export default function PurchaseOrders() {
 
   return (
     <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-gradient-to-br from-background to-muted/20 min-h-screen">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            <ShoppingCart className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
-            <span className="break-words">Purchase Orders</span>
-          </h1>
-          <p className="text-muted-foreground text-sm lg:text-base mt-1">
-            Manage purchase orders and supplier relationships • {orderStats.total} orders total
-          </p>
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-3">
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-500" />
+            <p className="text-muted-foreground">Loading purchase orders...</p>
+          </div>
         </div>
+      )}
+
+      {/* Main Content - Only show when not loading */}
+      {!loading && (
+        <>
+          {/* Header */}
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 sm:gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <ShoppingCart className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
+                <span className="break-words">Purchase Orders</span>
+              </h1>
+              <p className="text-muted-foreground text-sm lg:text-base mt-1">
+                Manage purchase orders and supplier relationships • {orderStats.total} orders total
+              </p>
+            </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <Button
             variant="outline"
@@ -1409,6 +1476,8 @@ export default function PurchaseOrders() {
          </AlertDialogFooter>
        </AlertDialogContent>
      </AlertDialog>
+        </>
+      )}
     </div>
   );
 }

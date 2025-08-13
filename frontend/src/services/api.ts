@@ -545,50 +545,156 @@ export const alertsAPI = {
 
 // Purchase Orders API
 export const purchaseOrdersAPI = {
-  getAll: (params?: { page?: number; limit?: number; status?: string }) => {
+  getAll: (params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string;
+    status?: string;
+    priority?: string;
+    supplier?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.search) queryParams.append("search", params.search);
     if (params?.status) queryParams.append("status", params.status);
+    if (params?.priority) queryParams.append("priority", params.priority);
+    if (params?.supplier) queryParams.append("supplier", params.supplier);
+    if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
+    if (params?.sortOrder) queryParams.append("sortOrder", params.sortOrder);
 
     const query = queryParams.toString();
     return apiCall<{
-      orders: PurchaseOrder[];
+      orders: Array<{
+        id: string;
+        order_number: string;
+        supplier_id: string;
+        supplier_name: string;
+        total_amount: number;
+        order_date: string;
+        expected_delivery_date?: string;
+        actual_delivery_date?: string;
+        status: "draft" | "pending" | "approved" | "shipped" | "received" | "completed" | "cancelled";
+        priority: "low" | "medium" | "high" | "urgent";
+        notes?: string;
+        created_by?: string;
+        item_count: number;
+        items_received: number;
+        payment_terms?: string;
+        delivery_address?: string;
+        approved_by?: string;
+        approved_at?: string;
+        created_at: string;
+        updated_at: string;
+      }>;
       pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        pages: number;
+        current_page: number;
+        total_pages: number;
+        total_orders: number;
+        orders_per_page: number;
       };
+      stats: {
+        total: number;
+        pending: number;
+        approved: number;
+        shipped: number;
+        received: number;
+        cancelled: number;
+        totalValue: number;
+        avgOrderValue: number;
+      };
+      suppliers: Array<{
+        id: string;
+        name: string;
+      }>;
     }>(`/purchase-orders${query ? `?${query}` : ""}`);
   },
 
-  getById: (id: string) => apiCall<PurchaseOrder>(`/purchase-orders/${id}`),
+  getById: (id: string) => apiCall<{
+    id: string;
+    order_number: string;
+    supplier_id: string;
+    supplier_name: string;
+    supplier_email?: string;
+    supplier_phone?: string;
+    supplier_address?: string;
+    order_date: string;
+    expected_delivery_date?: string;
+    actual_delivery_date?: string;
+    status: "draft" | "pending" | "approved" | "shipped" | "received" | "completed" | "cancelled";
+    priority: "low" | "medium" | "high" | "urgent";
+    total_amount: number;
+    tax_amount: number;
+    discount_amount: number;
+    final_amount: number;
+    payment_terms?: string;
+    delivery_address?: string;
+    notes?: string;
+    created_by?: string;
+    approved_by?: string;
+    approved_at?: string;
+    created_at: string;
+    updated_at: string;
+    items: Array<{
+      id: string;
+      product_id: string;
+      product_name: string;
+      sku?: string;
+      unit?: string;
+      quantity: number;
+      unit_price: number;
+      total_price: number;
+      received_quantity: number;
+      quality_status: "pending" | "approved" | "rejected" | "hold";
+      delivery_date?: string;
+      notes?: string;
+    }>;
+  }>(`/purchase-orders/${id}`),
 
-  create: (order: CreatePurchaseOrderRequest) =>
-    apiCall<PurchaseOrder>("/purchase-orders", {
+  create: (order: {
+    supplier_id: string;
+    expected_delivery_date?: string;
+    priority?: "low" | "medium" | "high" | "urgent";
+    payment_terms?: string;
+    delivery_address?: string;
+    notes?: string;
+    created_by?: string;
+    items: Array<{
+      product_id: string;
+      product_name: string;
+      quantity: number;
+      unit_price: number;
+      total_price: number;
+      notes?: string;
+    }>;
+  }) =>
+    apiCall<{
+      message: string;
+      order: any;
+    }>("/purchase-orders", {
       method: "POST",
       body: JSON.stringify(order),
     }),
 
-  update: (id: string, order: Partial<PurchaseOrder>) =>
-    apiCall<PurchaseOrder>(`/purchase-orders/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(order),
-    }),
-
-  updateStatus: (id: string, status: string) =>
-    apiCall<PurchaseOrder>(`/purchase-orders/${id}/status`, {
-      method: "PUT",
-      body: JSON.stringify({ status }),
+  updateStatus: (id: string, data: {
+    status: "draft" | "pending" | "approved" | "shipped" | "received" | "completed" | "cancelled";
+    approved_by?: string;
+    notes?: string;
+  }) =>
+    apiCall<{
+      message: string;
+      order: any;
+    }>(`/purchase-orders/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
     }),
 
   delete: (id: string) =>
     apiCall<{ message: string }>(`/purchase-orders/${id}`, {
       method: "DELETE",
     }),
-
-  getStats: () => apiCall<any>("/purchase-orders/stats/summary"),
 };
 
 // Customer Orders API

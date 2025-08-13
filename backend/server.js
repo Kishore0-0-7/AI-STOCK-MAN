@@ -15,6 +15,7 @@ const alertRoutes = require("./routes/alerts");
 const supplierRoutes = require("./routes/suppliers");
 const qcRoutes = require("./routes/qc");
 const stockSummaryRoutes = require("./routes/stockSummary");
+const purchaseOrderRoutes = require("./routes/purchaseOrders");
 // TODO: Add other route imports here
 
 const app = express();
@@ -42,6 +43,7 @@ app.use(
     origin: [
       "http://localhost:5173", // Vite default
       "http://localhost:8080", // Alternative frontend port
+      "http://localhost:8081", // Current frontend port
       "http://localhost:3000", // React default
       "http://localhost:4000", // Alternative port
       process.env.CORS_ORIGIN
@@ -91,8 +93,9 @@ app.use(`${API_PREFIX}/${API_VERSION}/alerts`, alertRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/suppliers`, supplierRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/qc`, qcRoutes);
 app.use(`${API_PREFIX}/${API_VERSION}/stock-summary`, stockSummaryRoutes);
+app.use(`${API_PREFIX}/${API_VERSION}/purchase-orders`, purchaseOrderRoutes);
 // TODO: Add other routes here
-// app.use(`${API_PREFIX}/${API_VERSION}/purchase-orders`, purchaseOrderRoutes);
+// app.use(`${API_PREFIX}/${API_VERSION}/customer-orders`, customerOrderRoutes);
 // app.use(`${API_PREFIX}/${API_VERSION}/customer-orders`, customerOrderRoutes);
 // app.use(`${API_PREFIX}/${API_VERSION}/inventory`, inventoryRoutes);
 // app.use(`${API_PREFIX}/${API_VERSION}/warehouse`, warehouseRoutes);
@@ -143,6 +146,9 @@ const startServer = async () => {
       );
       console.log(
         `📈 Stock Summary API: http://localhost:${PORT}${API_PREFIX}/${API_VERSION}/stock-summary`
+      );
+      console.log(
+        `🛒 Purchase Orders API: http://localhost:${PORT}${API_PREFIX}/${API_VERSION}/purchase-orders`
       );
       console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
