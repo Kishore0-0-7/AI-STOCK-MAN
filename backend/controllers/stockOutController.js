@@ -522,7 +522,19 @@ const createRequest = async (req, res) => {
 const updateRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, approvedBy, processedBy, notes, items } = req.body;
+    const { 
+      status, 
+      requestedBy, 
+      department, 
+      destination, 
+      priority, 
+      requiredDate, 
+      notes, 
+      approvedBy, 
+      processedBy, 
+      totalValue,
+      items 
+    } = req.body;
 
     // Check if request exists
     const [existingRequest] = await db.execute(
@@ -545,6 +557,30 @@ const updateRequest = async (req, res) => {
       updates.push("status = ?");
       params.push(status);
     }
+    if (requestedBy) {
+      updates.push("requested_by = ?");
+      params.push(requestedBy);
+    }
+    if (department) {
+      updates.push("department = ?");
+      params.push(department);
+    }
+    if (destination) {
+      updates.push("destination = ?");
+      params.push(destination);
+    }
+    if (priority) {
+      updates.push("priority = ?");
+      params.push(priority);
+    }
+    if (requiredDate) {
+      updates.push("required_date = ?");
+      params.push(requiredDate);
+    }
+    if (notes !== undefined) {
+      updates.push("notes = ?");
+      params.push(notes);
+    }
     if (approvedBy) {
       updates.push("approved_by = ?");
       params.push(approvedBy);
@@ -553,9 +589,9 @@ const updateRequest = async (req, res) => {
       updates.push("processed_by = ?");
       params.push(processedBy);
     }
-    if (notes !== undefined) {
-      updates.push("notes = ?");
-      params.push(notes);
+    if (totalValue !== undefined) {
+      updates.push("total_value = ?");
+      params.push(totalValue);
     }
 
     if (updates.length > 0) {
@@ -563,56 +599,43 @@ const updateRequest = async (req, res) => {
       params.push(id);
 
       await db.execute(
-        `
-                UPDATE stock_out_requests 
-                SET ${updates.join(", ")} 
-                WHERE id = ?
-            `,
+        `UPDATE stock_out_requests SET ${updates.join(", ")} WHERE id = ?`,
         params
       );
     }
 
     // Update items if provided
     if (items && Array.isArray(items)) {
+      // First, delete existing items
+      await db.execute("DELETE FROM stock_out_items WHERE request_id = ?", [id]);
+      
+      // Insert new/updated items
       for (const item of items) {
-        if (item.id) {
-          const itemUpdates = [];
-          const itemParams = [];
-
-          if (item.quantityAllocated !== undefined) {
-            itemUpdates.push("quantity_allocated = ?");
-            itemParams.push(item.quantityAllocated);
-          }
-          if (item.quantityDispatched !== undefined) {
-            itemUpdates.push("quantity_dispatched = ?");
-            itemParams.push(item.quantityDispatched);
-          }
-          if (item.status) {
-            itemUpdates.push("status = ?");
-            itemParams.push(item.status);
-          }
-          if (item.trackingNumber !== undefined) {
-            itemUpdates.push("tracking_number = ?");
-            itemParams.push(item.trackingNumber);
-          }
-          if (item.dispatchDate) {
-            itemUpdates.push("dispatch_date = ?");
-            itemParams.push(item.dispatchDate);
-          }
-
-          if (itemUpdates.length > 0) {
-            itemParams.push(item.id);
-            await db.execute(
-              `
-                            UPDATE stock_out_items 
-                            SET ${itemUpdates.join(", ")} 
-                            WHERE id = ?
-                        `,
-              itemParams
-            );
-          }
-        }
+        await db.execute(
+          `INSERT INTO stock_out_items 
+           (id, request_id, product_id, item_name, category, quantity_requested, unit, estimated_value, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+          [
+            item.id || require('crypto').randomUUID(),
+            id,
+            item.itemCode || null,
+            item.itemName || '',
+            item.category || '',
+            item.quantityRequested || 0,
+            item.unit || 'pcs',
+            item.estimatedValue || 0
+          ]
+        );
       }
+      
+      // Update total items and value in main request
+      const totalItems = items.reduce((sum, item) => sum + (item.quantityRequested || 0), 0);
+      const totalValue = items.reduce((sum, item) => sum + (item.estimatedValue || 0), 0);
+      
+      await db.execute(
+        "UPDATE stock_out_requests SET total_items = ?, total_value = ? WHERE id = ?",
+        [totalItems, totalValue, id]
+      );
     }
 
     res.json({

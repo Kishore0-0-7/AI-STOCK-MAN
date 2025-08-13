@@ -1312,11 +1312,23 @@ export const stockOutAPI = {
     id: string,
     updates: {
       status?: string;
+      requestedBy?: string;
+      department?: string;
+      destination?: string;
+      priority?: "low" | "medium" | "high" | "urgent";
+      requiredDate?: string;
+      notes?: string;
       approvedBy?: string;
       processedBy?: string;
-      notes?: string;
+      totalValue?: number;
       items?: {
         id?: string;
+        itemCode?: string;
+        itemName?: string;
+        category?: string;
+        quantityRequested?: number;
+        unit?: string;
+        estimatedValue?: number;
         quantityAllocated?: number;
         quantityDispatched?: number;
         status?: string;
