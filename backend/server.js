@@ -7,11 +7,8 @@ const dashboardController = require("./controllers/dashboard");
 const productsController = require("./controllers/products");
 const suppliersController = require("./controllers/suppliers");
 const alertsController = require("./controllers/alerts");
-const customersController = require("./controllers/customers");
-const billsController = require("./controllers/bills");
 const purchaseOrdersController = require("./controllers/purchaseOrders");
 const reportsController = require("./controllers/reports");
-const customerOrdersController = require("./controllers/customerOrders");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -98,21 +95,7 @@ app.get(
 app.put("/api/alerts/threshold", alertsController.updateThreshold);
 app.post("/api/alerts/:productId/acknowledge", alertsController.acknowledge);
 
-// Customers routes
-app.get("/api/customers", customersController.getAll);
-app.get("/api/customers/stats", customersController.getStats);
-app.get("/api/customers/:id", customersController.getById);
-app.post("/api/customers", customersController.create);
-app.put("/api/customers/:id", customersController.update);
-app.delete("/api/customers/:id", customersController.delete);
 
-// Bills routes
-app.get("/api/bills", billsController.getAll);
-app.get("/api/bills/stats", billsController.getStats);
-app.get("/api/bills/:id", billsController.getById);
-app.post("/api/bills", billsController.create);
-app.put("/api/bills/:id/status", billsController.updateStatus);
-app.delete("/api/bills/:id", billsController.delete);
 
 // Purchase Orders routes
 app.get("/api/purchase-orders", purchaseOrdersController.getAll);
@@ -128,18 +111,6 @@ app.put(
   purchaseOrdersController.receiveItems
 );
 app.delete("/api/purchase-orders/:id", purchaseOrdersController.delete);
-
-// Customer Orders routes
-app.get("/api/customer-orders", customerOrdersController.getAll);
-app.get("/api/customer-orders/stats", customerOrdersController.getStats);
-app.get("/api/customer-orders/:id", customerOrdersController.getById);
-app.post("/api/customer-orders", customerOrdersController.create);
-app.put("/api/customer-orders/:id", customerOrdersController.update);
-app.put(
-  "/api/customer-orders/:id/status",
-  customerOrdersController.updateStatus
-);
-app.delete("/api/customer-orders/:id", customerOrdersController.delete);
 
 // Reports routes
 app.get("/api/reports/sales/overview", reportsController.getSalesOverview);
