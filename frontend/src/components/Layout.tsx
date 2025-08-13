@@ -18,6 +18,7 @@ import {
   Sun,
   Truck,
   Users,
+  ShieldAlert,
 } from "lucide-react";
 
 export function Layout() {
@@ -42,6 +43,7 @@ export function Layout() {
   const navigationItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Products", href: "/products", icon: Package },
+    { name: "QC Dashboard", href: "/qc-dashboard", icon: ShieldAlert },
     { name: "Suppliers", href: "/suppliers", icon: Truck },
     // { name: "Customers", href: "/customers", icon: Users },
     // { name: "Billing", href: "/billing", icon: ShoppingCart },

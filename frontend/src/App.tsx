@@ -13,6 +13,7 @@ import LowStockAlerts from "./pages/LowStockAlerts";
 import Settings from "./pages/Settings";
 import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
+import QcDashboard from "./pages/QcDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="products" element={<Products />} />
+            <Route path="qc-dashboard" element={<QcDashboard />} />
             {/* <Route path="billing" element={<Billing />} /> */}
             <Route path="purchase-orders" element={<PurchaseOrders />} />
             {/* <Route path="customer-orders" element={<CustomerOrders />} /> */}
