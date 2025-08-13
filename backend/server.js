@@ -19,10 +19,13 @@ const inboundRoutes = require("./routes/inbound");
 const outboundRoutes = require("./routes/outbound");
 const storageUtilizationRoutes = require("./routes/storageUtilization");
 const stockOutRoutes = require("./routes/stockOut");
+const authRoutes = require("./routes/auth");
+const employeeRoutes = require("./routes/employees");
 // TODO: Add other route imports here
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+// Configuration
+const PORT = process.env.PORT || 3001;
 
 // Security middleware
 app.use(helmet());
@@ -105,6 +108,8 @@ app.use(
   storageUtilizationRoutes
 );
 app.use(`${API_PREFIX}/${API_VERSION}/stock-out`, stockOutRoutes);
+app.use(`${API_PREFIX}/${API_VERSION}/auth`, authRoutes);
+app.use(`${API_PREFIX}/${API_VERSION}/employees`, employeeRoutes);
 // TODO: Add other routes here
 // app.use(`${API_PREFIX}/${API_VERSION}/purchase-orders`, purchaseOrderRoutes);
 // app.use(`${API_PREFIX}/${API_VERSION}/customer-orders`, customerOrderRoutes);
