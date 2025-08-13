@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as XLSX from "xlsx";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +53,7 @@ import { useToast } from "@/hooks/use-toast";
 import { productsAPI, suppliersAPI } from "@/services/api";
 
 interface Product {
-  id: string | number; // Support both string and number for flexibility
+  id: string;
   name: string;
   category: string;
   current_stock?: number; // Frontend form field
@@ -60,18 +61,12 @@ interface Product {
   low_stock_threshold?: number;
   minStock?: number; // Backend response field
   price: number;
-  supplier_id?: string | number;
+  supplier_id?: string;
   supplier?: {
     // Backend nested supplier object
-    id: string | number;
+    id: string;
     name: string;
     email?: string;
-    phone?: string;
-    address?: string;
-    contact_person?: string;
-    payment_terms?: string;
-    status?: string;
-    notes?: string;
   };
   barcode?: string;
   sku?: string; // Backend field
@@ -87,15 +82,9 @@ interface Product {
 interface Supplier {
   id: string;
   name: string;
-  contact_person?: string;
+  contact_name?: string;
   phone?: string;
   email?: string;
-  address?: string;
-  status?: "active" | "inactive";
-  payment_terms?: string;
-  notes?: string;
-  created_at?: string;
-  updated_at?: string;
 }
 
 interface ProductWithSupplier extends Product {
@@ -113,80 +102,49 @@ function exportProductsToCSV(products: ProductWithSupplier[]) {
     "Price",
     "Cost",
     "Low Stock Threshold",
-    "Supplier ID",
-    "Supplier Name",
-    "Supplier Email",
-    "Supplier Phone",
-    "Supplier Address",
-    "Supplier Contact Person",
-    "Supplier Payment Terms",
-    "Supplier Status",
+    "Supplier",
     "Stock Status",
-    "Description",
     "Created Date",
   ];
 
   const rows = products.map((p) => [
     p.id,
-    p.sku || `SKU-${p.id}`,
+    p.sku || "",
     `"${p.name}"`,
     `"${p.category}"`,
     p.stock || p.current_stock || 0,
     p.price || 0,
     p.cost || 0,
-    p.minStock || p.low_stock_threshold || 10,
-    p.supplier_id || "",
+    p.minStock || p.low_stock_threshold || 0,
     `"${p.supplier?.name || p.supplier_name || "N/A"}"`,
-    `"${p.supplier?.email || ""}"`,
-    `"${p.supplier?.phone || ""}"`,
-    `"${p.supplier?.address || ""}"`,
-    `"${p.supplier?.contact_person || ""}"`,
-    `"${p.supplier?.payment_terms || ""}"`,
-    `"${p.supplier?.status || ""}"`,
     (p.stock || p.current_stock || 0) <=
-    (p.minStock || p.low_stock_threshold || 10)
+    (p.minStock || p.low_stock_threshold || 0)
       ? "Low Stock"
       : "In Stock",
-    `"${p.description || ""}"`,
     p.createdAt || p.created_at || "",
   ]);
 
   const csvContent = [headers, ...rows].map((e) => e.join(",")).join("\n");
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  downloadFile(
-    blob,
-    `products-with-suppliers-${new Date().toISOString().split("T")[0]}.csv`
-  );
+  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.csv`);
 }
 
 function exportProductsToJSON(products: ProductWithSupplier[]) {
   const exportData = products.map((p) => ({
     id: p.id,
-    sku: p.sku || `SKU-${p.id}`,
+    sku: p.sku,
     name: p.name,
     category: p.category,
     stock: p.stock || p.current_stock || 0,
     price: p.price || 0,
     cost: p.cost || 0,
-    minStock: p.minStock || p.low_stock_threshold || 10,
-    supplierId: p.supplier_id,
-    supplier: {
-      id: p.supplier?.id,
-      name: p.supplier?.name || p.supplier_name,
-      email: p.supplier?.email,
-      phone: p.supplier?.phone,
-      address: p.supplier?.address,
-      contact_person: p.supplier?.contact_person,
-      payment_terms: p.supplier?.payment_terms,
-      status: p.supplier?.status,
-      notes: p.supplier?.notes,
-    },
+    minStock: p.minStock || p.low_stock_threshold || 0,
+    supplier: p.supplier?.name || p.supplier_name,
     status:
       (p.stock || p.current_stock || 0) <=
-      (p.minStock || p.low_stock_threshold || 10)
+      (p.minStock || p.low_stock_threshold || 0)
         ? "Low Stock"
         : "In Stock",
-    description: p.description || "",
     createdAt: p.createdAt || p.created_at,
   }));
 
@@ -194,10 +152,7 @@ function exportProductsToJSON(products: ProductWithSupplier[]) {
   const blob = new Blob([jsonContent], {
     type: "application/json;charset=utf-8;",
   });
-  downloadFile(
-    blob,
-    `products-with-suppliers-${new Date().toISOString().split("T")[0]}.json`
-  );
+  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.json`);
 }
 
 function exportProductsToExcel(products: ProductWithSupplier[]) {
@@ -210,39 +165,23 @@ function exportProductsToExcel(products: ProductWithSupplier[]) {
     "Price",
     "Cost",
     "Min Stock",
-    "Supplier ID",
-    "Supplier Name",
-    "Supplier Email",
-    "Supplier Phone",
-    "Supplier Address",
-    "Supplier Contact Person",
-    "Supplier Payment Terms",
-    "Supplier Status",
+    "Supplier",
     "Status",
-    "Description",
   ];
   const rows = products.map((p) => [
     p.id,
-    p.sku || `SKU-${p.id}`,
+    p.sku || "",
     p.name,
     p.category,
     p.stock || p.current_stock || 0,
     p.price || 0,
     p.cost || 0,
-    p.minStock || p.low_stock_threshold || 10,
-    p.supplier_id || "",
+    p.minStock || p.low_stock_threshold || 0,
     p.supplier?.name || p.supplier_name || "N/A",
-    p.supplier?.email || "",
-    p.supplier?.phone || "",
-    p.supplier?.address || "",
-    p.supplier?.contact_person || "",
-    p.supplier?.payment_terms || "",
-    p.supplier?.status || "",
     (p.stock || p.current_stock || 0) <=
-    (p.minStock || p.low_stock_threshold || 10)
+    (p.minStock || p.low_stock_threshold || 0)
       ? "Low Stock"
       : "In Stock",
-    p.description || "",
   ]);
 
   // Simple Excel format (tab-separated values)
@@ -252,10 +191,7 @@ function exportProductsToExcel(products: ProductWithSupplier[]) {
   const blob = new Blob([excelContent], {
     type: "application/vnd.ms-excel;charset=utf-8;",
   });
-  downloadFile(
-    blob,
-    `products-with-suppliers-${new Date().toISOString().split("T")[0]}.xls`
-  );
+  downloadFile(blob, `products-${new Date().toISOString().split("T")[0]}.xls`);
 }
 
 function downloadFile(blob: Blob, filename: string) {
@@ -382,411 +318,198 @@ async function importProductsFromCSV(
 ) {
   const fileExtension = file.name.split(".").pop()?.toLowerCase();
 
-  if (!["csv", "json", "xls", "xlsx", "txt"].includes(fileExtension || "")) {
+  if (!["csv", "json", "xls", "xlsx"].includes(fileExtension || "")) {
     onError("Unsupported file format. Please use CSV, Excel, or JSON files.");
     return;
   }
 
   const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const text = e.target?.result as string;
-      let products: any[] = [];
 
-      if (fileExtension === "json") {
-        // Handle JSON import
-        const jsonData = JSON.parse(text);
-        products = Array.isArray(jsonData) ? jsonData : [jsonData];
 
-        // Map JSON fields to expected format
-        products = products.map((p) => ({
-          name: p.name,
-          sku:
-            p.sku ||
-            `SKU-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          category: p.category,
-          price: parseFloat(p.price) || 0,
-          cost: parseFloat(p.cost) || parseFloat(p.price) * 0.7 || 0,
-          stock: parseInt(p.stock) || parseInt(p.current_stock) || 0,
-          minStock:
-            parseInt(p.minStock) ||
-            parseInt(p.low_stock_threshold) ||
-            parseInt(p.min_stock) ||
-            10,
-          supplierId: p.supplierId || p.supplier_id || null,
-          description: p.description || `${p.name} - ${p.category}`,
-        }));
-      } else {
-        // Handle CSV/Excel import (both comma and tab separated)
-        const delimiter = text.includes("\t") ? "\t" : ",";
-        const lines = text.split("\n").filter((line) => line.trim());
+reader.onload = async (e) => {
+  try {
+    const fileData = e.target?.result;
+    let products: any[] = [];
 
-        if (lines.length < 2) {
-          onError("File must contain at least a header row and one data row.");
-          return;
-        }
+    const normalizeHeader = (h: string) => h.trim().replace(/"/g, "").toLowerCase();
 
-        const headers = lines[0]
-          .split(delimiter)
-          .map((h) =>
-            h.trim().replace(/"/g, "").toLowerCase().replace(/\s+/g, "_")
-          );
+    if (fileExtension === "json") {
+      // JSON import
+      const jsonData = JSON.parse(fileData as string);
+      products = Array.isArray(jsonData) ? jsonData : [jsonData];
 
-        console.log("Detected headers:", headers);
+      console.log('----------------------------------------');
+      console.log('Importing data from JSON file:');
+      console.log('Number of products:', products.length);
+      console.log('Sample of imported data:', products.slice(0, 2));
+      console.log('----------------------------------------');
 
-        products = lines
-          .slice(1)
-          .filter((line) => line.trim())
-          .map((line, lineIndex) => {
-            const values = [];
-            let currentValue = "";
-            let inQuotes = false;
+    } else if (["xls", "xlsx"].includes(fileExtension)) {
+      // Excel import using SheetJS
+      const workbook = XLSX.read(fileData, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
 
-            // Parse CSV with proper quote handling
-            for (let i = 0; i < line.length; i++) {
-              const char = line[i];
-              if (char === '"') {
-                inQuotes = !inQuotes;
-              } else if (char === delimiter && !inQuotes) {
-                values.push(currentValue.trim());
-                currentValue = "";
-              } else {
-                currentValue += char;
-              }
-            }
-            values.push(currentValue.trim()); // Don't forget the last value
+      // Read as arrays first to handle messy headers
+      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+      const headers = rows[0].map(normalizeHeader);
+      const dataRows = rows.slice(1);
 
-            const product: any = {};
-            let hasRequiredFields = false;
+      console.log('----------------------------------------');
+      console.log(`Importing data from ${fileExtension.toUpperCase()} file:`);
+      console.log('Detected headers:', headers);
+      console.log('Total rows to process:', dataRows.length);
+      console.log('----------------------------------------');
 
-            headers.forEach((header, index) => {
-              const value = (values[index] || "").replace(/"/g, "").trim();
-
-              // Map various possible header names to our expected fields
-              switch (header) {
-                case "name":
-                case "product_name":
-                case "product name":
-                  product.name = value;
-                  hasRequiredFields = hasRequiredFields || !!value;
-                  break;
-                case "category":
-                  product.category = value;
-                  hasRequiredFields = hasRequiredFields || !!value;
-                  break;
-                case "price":
-                  product.price = parseFloat(value) || 0;
-                  hasRequiredFields =
-                    hasRequiredFields || parseFloat(value) > 0;
-                  break;
-                case "cost":
-                  product.cost = parseFloat(value) || 0;
-                  break;
-                case "current_stock":
-                case "stock":
-                case "stock_quantity":
-                case "quantity":
-                  product.stock = parseInt(value) || 0;
-                  break;
-                case "low_stock_threshold":
-                case "min_stock":
-                case "minstock":
-                case "minimum_stock":
-                case "min_stock_level":
-                  product.minStock = parseInt(value) || 10;
-                  break;
-                case "sku":
-                case "barcode":
-                case "product_code":
-                  product.sku = value;
-                  break;
-                case "supplier_id":
-                case "supplierid":
-                  product.supplierId = value || null;
-                  break;
-                case "supplier":
-                case "supplier_name":
-                case "supplier name":
-                case "vendor":
-                case "vendor_name":
-                case "vendor name":
-                  product.supplier_name = value;
-                  break;
-                case "supplier_email":
-                case "supplier email":
-                case "vendor_email":
-                case "vendor email":
-                  product.supplier_email = value;
-                  break;
-                case "supplier_phone":
-                case "supplier phone":
-                case "supplier_contact":
-                case "vendor_phone":
-                case "vendor phone":
-                  product.supplier_phone = value;
-                  break;
-                case "supplier_address":
-                case "supplier address":
-                case "vendor_address":
-                case "vendor address":
-                  product.supplier_address = value;
-                  break;
-                case "supplier_contact_person":
-                case "supplier contact person":
-                case "contact_person":
-                case "contact person":
-                case "vendor_contact_person":
-                case "vendor contact person":
-                  product.supplier_contact_person = value;
-                  break;
-                case "supplier_payment_terms":
-                case "supplier payment terms":
-                case "payment_terms":
-                case "payment terms":
-                case "vendor_payment_terms":
-                case "vendor payment terms":
-                  product.supplier_payment_terms = value;
-                  break;
-                case "supplier_status":
-                case "supplier status":
-                case "vendor_status":
-                case "vendor status":
-                  product.supplier_status = value || "active";
-                  break;
-                case "description":
-                  product.description = value;
-                  break;
-              }
-            });
-
-            // Generate SKU if not provided
-            if (!product.sku) {
-              product.sku = `SKU-${Date.now()}-${Math.random()
-                .toString(36)
-                .substr(2, 5)}`;
-            }
-
-            // Set default cost if not provided (30% margin)
-            if (!product.cost && product.price) {
-              product.cost = product.price * 0.7;
-            }
-
-            // Set default description if not provided
-            if (!product.description && product.name && product.category) {
-              product.description = `${product.name} - ${product.category}`;
-            }
-
-            // Set default minStock if not provided
-            if (!product.minStock) {
-              product.minStock = 10;
-            }
-
-            // Only return products that have the required fields
-            return hasRequiredFields ? product : null;
-          })
-          .filter((p) => p !== null);
-      }
-
-      // Validate products have required fields
-      const validProducts = products.filter(
-        (p) => p.name && p.category && p.price != null && p.price > 0
-      );
-
-      if (validProducts.length === 0) {
-        onError(
-          "No valid products found. Make sure your file has Name, Category, and Price columns with valid data."
-        );
-        return;
-      }
-
-      console.log(
-        `Processing ${validProducts.length} valid products for import:`,
-        validProducts.slice(0, 2)
-      );
-
-      // Process suppliers first - create unique suppliers from the import data
-      const suppliersToCreate = new Map();
-      const suppliersMap = new Map();
-
-      // Get existing suppliers to avoid duplicates
-      try {
-        const existingSuppliers = await suppliersAPI.getAll();
-        const supplierData =
-          (existingSuppliers as any)?.suppliers || existingSuppliers || [];
-
-        // Map existing suppliers by name (case-insensitive and trimmed)
-        supplierData.forEach((supplier: any) => {
-          const cleanName = supplier.name.toLowerCase().trim();
-          suppliersMap.set(cleanName, supplier);
-          console.log(
-            `Existing supplier mapped: "${cleanName}" -> ID ${supplier.id}`
-          );
+      products = dataRows.map((row) => {
+        const product: any = {};
+        headers.forEach((h, index) => {
+          const val = (row[index] || "").toString().trim();
+          switch (h) {
+            case "name":
+            case "product name":
+              product.name = val;
+              break;
+            case "category":
+              product.category = val;
+              break;
+            case "price":
+              product.price = parseFloat(val) || 0;
+              break;
+            case "cost":
+              product.cost = parseFloat(val) || 0;
+              break;
+            case "current stock":
+            case "stock":
+            case "stock quantity":
+              product.stock = parseInt(val) || 0;
+              break;
+            case "low stock threshold":
+            case "min stock":
+            case "minstock":
+            case "minimum stock":
+              product.minStock = parseInt(val) || 10;
+              break;
+            case "sku":
+            case "barcode":
+              product.sku = val;
+              break;
+            case "supplier":
+            case "supplier_name":
+            case "supplier name":
+              product.supplier_name = val;
+              break;
+            case "status":
+              product.status = val;
+              break;
+          }
         });
-
-        console.log(
-          `Found ${supplierData.length} existing suppliers in database`
-        );
-      } catch (error) {
-        console.warn("Could not fetch existing suppliers:", error);
-      }
-
-      // Extract unique suppliers from products
-      validProducts.forEach((product) => {
-        if (product.supplier_name && product.supplier_name.trim()) {
-          const supplierName = product.supplier_name.trim();
-          const supplierKey = supplierName.toLowerCase();
-
-          // Skip if supplier already exists or already queued for creation
-          if (
-            !suppliersMap.has(supplierKey) &&
-            !suppliersToCreate.has(supplierKey)
-          ) {
-            const newSupplier = {
-              name: supplierName,
-              email: product.supplier_email || "",
-              phone: product.supplier_phone || "",
-              address: product.supplier_address || "",
-              contact_person: product.supplier_contact_person || "",
-              payment_terms: product.supplier_payment_terms || "Net 30",
-              status: product.supplier_status || "active",
-              notes: `Auto-created during product import on ${new Date().toLocaleDateString()}`,
-            };
-
-            suppliersToCreate.set(supplierKey, newSupplier);
-            console.log(`Queued new supplier for creation: "${supplierName}"`);
-          }
-        }
+        return product;
       });
 
-      // Create new suppliers if any
-      if (suppliersToCreate.size > 0) {
-        console.log(`Creating ${suppliersToCreate.size} new suppliers...`);
+    } else {
+      // CSV / TSV import
+      const text = fileData as string;
+      const delimiter = text.includes("\t") ? "\t" : ",";
+      const lines = text.split("\n").filter(l => l.trim());
+      const headers = lines[0].split(delimiter).map(normalizeHeader);
 
-        for (const [key, supplierData] of suppliersToCreate.entries()) {
-          try {
-            const createdSupplier = await suppliersAPI.create(supplierData);
-            suppliersMap.set(key, createdSupplier);
-            console.log(
-              `✅ Created supplier: "${supplierData.name}" with ID ${createdSupplier.id}`
-            );
-          } catch (error) {
-            console.error(
-              `❌ Failed to create supplier "${supplierData.name}":`,
-              error
-            );
+      console.log('----------------------------------------');
+      console.log(`Importing data from ${fileExtension.toUpperCase()} file:`);
+      console.log('Detected headers:', headers);
+      console.log('Total rows to process:', lines.length - 1);
+      console.log('----------------------------------------');
+
+      products = lines.slice(1).map((line) => {
+        const values = line.split(delimiter).map(v => v.trim().replace(/"/g, ""));
+        const product: any = {};
+
+        headers.forEach((h, index) => {
+          const value = values[index] || "";
+          switch (h) {
+            case "name":
+            case "product name":
+              product.name = value;
+              break;
+            case "category":
+              product.category = value;
+              break;
+            case "price":
+              product.price = parseFloat(value) || 0;
+              break;
+            case "cost":
+              product.cost = parseFloat(value) || 0;
+              break;
+            case "current stock":
+            case "stock":
+            case "stock quantity":
+              product.stock = parseInt(value) || 0;
+              break;
+            case "low stock threshold":
+            case "min stock":
+            case "minstock":
+            case "minimum stock":
+              product.minStock = parseInt(value) || 10;
+              break;
+            case "sku":
+            case "barcode":
+              product.sku = value;
+              break;
+            case "supplier":
+            case "supplier_name":
+            case "supplier name":
+              product.supplier_name = value;
+              break;
+            case "status":
+              product.status = value;
+              break;
           }
-        }
-
-        console.log(
-          `Supplier creation completed. Total suppliers available: ${suppliersMap.size}`
-        );
-      } else {
-        console.log("No new suppliers to create - all suppliers already exist");
-      }
-
-      // Now update products with correct supplier IDs
-      const productsWithSuppliers = validProducts.map((product) => {
-        let supplierFound = false;
-
-        if (product.supplier_name && product.supplier_name.trim()) {
-          const supplierKey = product.supplier_name.trim().toLowerCase();
-          const supplier = suppliersMap.get(supplierKey);
-
-          if (supplier) {
-            product.supplierId = supplier.id;
-            supplierFound = true;
-            console.log(
-              `✅ Linked product "${product.name}" to supplier "${supplier.name}" (ID: ${supplier.id})`
-            );
-          } else {
-            console.warn(
-              `⚠️  No supplier found for product "${product.name}" with supplier name "${product.supplier_name}"`
-            );
-          }
-        }
-
-        // Remove supplier fields that aren't part of product schema
-        const {
-          supplier_name,
-          supplier_email,
-          supplier_phone,
-          supplier_address,
-          supplier_contact_person,
-          supplier_payment_terms,
-          supplier_status,
-          ...cleanProduct
-        } = product;
-
-        return {
-          ...cleanProduct,
-          // Keep supplier info for debugging
-          _supplierMapped: supplierFound,
-          _originalSupplierName: product.supplier_name,
-        };
+        });
+        return product;
       });
+    }
 
-      // Use the bulk create API
-      console.log(
-        `Sending ${productsWithSuppliers.length} products to backend for creation...`
-      );
+    // Validate
+    const validProducts = products.filter(
+      (p) => p.name && p.category && p.price != null
+    );
 
-      try {
-        const response = await productsAPI.bulkCreate(productsWithSuppliers);
+    if (validProducts.length === 0) {
+      onError("No valid products found. Make sure your file has Name, Category, and Price columns.");
+      return;
+    }
 
-        if (response && response.results) {
-          const { success, failed, errors } = response.results;
-
-          console.log(
-            `Import Results: ${success} successful, ${failed} failed`
-          );
-
-          if (success > 0) {
-            const summaryMessage =
-              suppliersToCreate.size > 0
-                ? `Import completed! Created ${
-                    suppliersToCreate.size
-                  } suppliers and imported ${success} products${
-                    failed > 0 ? `, ${failed} products failed` : ""
-                  }.`
-                : `Import completed! ${success} products imported successfully${
-                    failed > 0 ? `, ${failed} failed` : ""
-                  }.`;
-
-            console.log(summaryMessage);
-
-            if (errors && errors.length > 0) {
-              console.log("Import errors:", errors);
-            }
-
-            onSuccess();
-          } else {
-            const errorMessage =
-              failed > 0 && errors && errors.length > 0
-                ? `Failed to import any products. Errors: ${errors
-                    .map((e) => e.error)
-                    .join(", ")}`
-                : "Failed to import any products. Please check your file format and data.";
-
-            onError(errorMessage);
+    // Send to API
+    try {
+      const response = await productsAPI.bulkCreate(validProducts);
+      if (response.results) {
+        const { success, failed, errors } = response.results;
+        if (success > 0) {
+          onSuccess();
+          const message =
+            failed > 0
+              ? `${success} products imported successfully, ${failed} failed.`
+              : `All ${success} products imported successfully!`;
+          console.log(message);
+          if (errors && errors.length > 0) {
+            console.log("Import errors:", errors);
           }
         } else {
-          onError("Invalid response from server. Please try again.");
+          onError("Failed to import any products. Please check your file format and data.");
         }
-      } catch (apiError: any) {
-        console.error("API Error:", apiError);
-        onError(
-          `Failed to import products: ${
-            apiError.message || "Unknown API error"
-          }`
-        );
       }
-    } catch (error) {
-      console.error("Import error:", error);
-      onError(
-        "Failed to parse file. Please check the file format and try again."
-      );
+    } catch (apiError: any) {
+      console.error("API Error:", apiError);
+      onError(`Failed to import products: ${apiError.message || "Unknown API error"}`);
     }
-  };
+
+  } catch (error) {
+    console.error("Import error:", error);
+    onError("Failed to parse file. Please check the file format and try again.");
+  }
+};
+
+
 
   reader.readAsText(file);
 }
@@ -797,7 +520,9 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const itemsPerPage = 15;
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -853,23 +578,6 @@ export default function Products() {
             product.supplier?.name ||
             product.supplier_name ||
             "N/A",
-          // Preserve the complete supplier object from backend or use the one from suppliers list
-          supplier:
-            product.supplier && product.supplier.name
-              ? product.supplier
-              : supplier
-              ? {
-                  id: supplier.id,
-                  name: supplier.name,
-                  email: supplier.email,
-                  phone: supplier.phone,
-                  address: supplier.address,
-                  contact_person: supplier.contact_person,
-                  payment_terms: supplier.payment_terms,
-                  status: supplier.status,
-                  notes: supplier.notes,
-                }
-              : null,
         };
 
         // Debug logging for first few products
@@ -880,10 +588,7 @@ export default function Products() {
             mappedCurrentStock: mappedProduct.current_stock,
             originalSupplier: product.supplier,
             supplierFromList: supplier,
-            mappedSupplier: mappedProduct.supplier,
             mappedSupplierName: mappedProduct.supplier_name,
-            supplierId: product.supplier_id,
-            rawProduct: product,
           });
         }
 
@@ -921,32 +626,15 @@ export default function Products() {
 
     try {
       if (editProduct) {
-        // Map frontend form fields to backend expected fields for update
-        const updateData = {
-          sku: form.barcode,
-          name: form.name,
-          category: form.category,
-          price: form.price,
-          cost: form.price && form.price > 0 ? form.price * 0.7 : undefined, // Calculate cost if price provided
-          stock: form.current_stock,
-          minStock: form.low_stock_threshold,
-          supplierId: form.supplier_id || null,
-          description:
-            form.name && form.category
-              ? `${form.name} - ${form.category}`
-              : undefined,
-        };
-
-        await productsAPI.update(String(editProduct.id), updateData as any);
+        await productsAPI.update(editProduct.id, form);
         toast({
           title: "Success",
           description: "Product updated successfully",
         });
         setIsEditDialogOpen(false);
       } else {
-        // Map frontend form fields to backend expected fields
         const productData = {
-          sku: form.barcode || `SKU-${Date.now()}`, // Generate SKU if barcode not provided
+          sku: form.barcode || `SKU-${Date.now()}`,
           name: form.name,
           category: form.category,
           price: form.price,
@@ -990,7 +678,7 @@ export default function Products() {
     if (!deleteProduct) return;
 
     try {
-      await productsAPI.delete(String(deleteProduct.id));
+      await productsAPI.delete(deleteProduct.id);
       toast({
         title: "Success",
         description: "Product deleted successfully",
@@ -1038,6 +726,17 @@ export default function Products() {
       selectedCategory === "all" || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory]);
 
   const categories = [...new Set(products.map((p) => p.category))];
   const lowStockProducts = products.filter(
@@ -1091,7 +790,7 @@ export default function Products() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
+                <Download className="h-4 w-4" />
                 Export
                 <ChevronDown className="h-4 w-4" />
               </Button>
@@ -1131,7 +830,7 @@ export default function Products() {
           >
             <DialogTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
-                <Download className="h-4 w-4" />
+                <Upload className="h-4 w-4" />
                 Import
               </Button>
             </DialogTrigger>
@@ -1356,7 +1055,7 @@ export default function Products() {
                   <div>
                     <p className="text-muted-foreground">Supplier</p>
                     <p className="font-medium">
-                      {product.supplier?.name || product.supplier_name || "N/A"}
+                      {product.supplier_name || "N/A"}
                     </p>
                   </div>
                 </div>
@@ -1438,7 +1137,7 @@ export default function Products() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredProducts.map((product) => (
+                  paginatedProducts.map((product) => (
                     <TableRow
                       key={product.id}
                       className="hover:bg-muted/30 transition-colors border-b last:border-b-0"
@@ -1476,9 +1175,7 @@ export default function Products() {
                         ₹{product.price.toFixed(2)}
                       </TableCell>
                       <TableCell className="truncate px-6 py-4">
-                        {product.supplier?.name ||
-                          product.supplier_name ||
-                          "No Supplier"}
+                        {product.supplier_name}
                       </TableCell>
                       <TableCell className="text-center px-6 py-4">
                         <Badge
@@ -1526,6 +1223,72 @@ export default function Products() {
               </TableBody>
             </Table>
           </div>
+          {/* Pagination Controls */}
+          {filteredProducts.length > itemsPerPage && (
+            <div className="flex items-center justify-between px-6 py-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of{" "}
+                {filteredProducts.length} entries
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8"
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {[...Array(totalPages)].map((_, index) => {
+                    const pageNumber = index + 1;
+                    // Show first page, last page, current page, and pages around current
+                    if (
+                      pageNumber === 1 ||
+                      pageNumber === totalPages ||
+                      (pageNumber >= currentPage - 2 && pageNumber <= currentPage + 2)
+                    ) {
+                      return (
+                        <Button
+                          key={pageNumber}
+                          variant={currentPage === pageNumber ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(pageNumber)}
+                          className={`h-8 w-8 p-0 ${
+                            currentPage === pageNumber
+                              ? "bg-primary text-primary-foreground"
+                              : ""
+                          }`}
+                        >
+                          {pageNumber}
+                        </Button>
+                      );
+                    } else if (
+                      pageNumber === currentPage - 3 ||
+                      pageNumber === currentPage + 3
+                    ) {
+                      return (
+                        <span key={pageNumber} className="px-1">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </Card>{" "}
       {/* Add/Edit Product Dialog */}
@@ -1782,21 +1545,18 @@ export default function Products() {
                       importFile,
                       () => {
                         toast({
-                          title: "Import Successful! 🎉",
-                          description:
-                            "Products and suppliers have been imported and linked automatically.",
-                          duration: 5000,
+                          title: "Success",
+                          description: "Products imported successfully",
                         });
                         setIsImportDialogOpen(false);
                         setImportFile(null);
-                        fetchData(); // Refresh the data to show new products with suppliers
+                        fetchData();
                       },
                       (error) => {
                         toast({
-                          title: "Import Failed ❌",
+                          title: "Import Error",
                           description: error,
                           variant: "destructive",
-                          duration: 8000,
                         });
                       }
                     );
