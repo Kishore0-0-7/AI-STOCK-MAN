@@ -1,7 +1,7 @@
 // API service for all backend communications
 const getApiBaseUrl = () => {
   // Check if running in development
-  if (import.meta.env.DEV || window.location.hostname === 'localhost') {
+  if (import.meta.env.DEV || window.location.hostname === "localhost") {
     return "http://localhost:5000/api/v1";
   }
   return "https://api.artechnology.pro/api/v1";
@@ -9,7 +9,7 @@ const getApiBaseUrl = () => {
 
 const getHealthCheckUrl = () => {
   // Check if running in development
-  if (import.meta.env.DEV || window.location.hostname === 'localhost') {
+  if (import.meta.env.DEV || window.location.hostname === "localhost") {
     return "http://localhost:5000/health";
   }
   return "https://api.artechnology.pro/health";
@@ -561,9 +561,9 @@ export const alertsAPI = {
 
 // Purchase Orders API
 export const purchaseOrdersAPI = {
-  getAll: (params?: { 
-    page?: number; 
-    limit?: number; 
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
     search?: string;
     status?: string;
     priority?: string;
@@ -592,7 +592,14 @@ export const purchaseOrdersAPI = {
         order_date: string;
         expected_delivery_date?: string;
         actual_delivery_date?: string;
-        status: "draft" | "pending" | "approved" | "shipped" | "received" | "completed" | "cancelled";
+        status:
+          | "draft"
+          | "pending"
+          | "approved"
+          | "shipped"
+          | "received"
+          | "completed"
+          | "cancelled";
         priority: "low" | "medium" | "high" | "urgent";
         notes?: string;
         created_by?: string;
@@ -628,46 +635,54 @@ export const purchaseOrdersAPI = {
     }>(`/purchase-orders${query ? `?${query}` : ""}`);
   },
 
-  getById: (id: string) => apiCall<{
-    id: string;
-    order_number: string;
-    supplier_id: string;
-    supplier_name: string;
-    supplier_email?: string;
-    supplier_phone?: string;
-    supplier_address?: string;
-    order_date: string;
-    expected_delivery_date?: string;
-    actual_delivery_date?: string;
-    status: "draft" | "pending" | "approved" | "shipped" | "received" | "completed" | "cancelled";
-    priority: "low" | "medium" | "high" | "urgent";
-    total_amount: number;
-    tax_amount: number;
-    discount_amount: number;
-    final_amount: number;
-    payment_terms?: string;
-    delivery_address?: string;
-    notes?: string;
-    created_by?: string;
-    approved_by?: string;
-    approved_at?: string;
-    created_at: string;
-    updated_at: string;
-    items: Array<{
+  getById: (id: string) =>
+    apiCall<{
       id: string;
-      product_id: string;
-      product_name: string;
-      sku?: string;
-      unit?: string;
-      quantity: number;
-      unit_price: number;
-      total_price: number;
-      received_quantity: number;
-      quality_status: "pending" | "approved" | "rejected" | "hold";
-      delivery_date?: string;
+      order_number: string;
+      supplier_id: string;
+      supplier_name: string;
+      supplier_email?: string;
+      supplier_phone?: string;
+      supplier_address?: string;
+      order_date: string;
+      expected_delivery_date?: string;
+      actual_delivery_date?: string;
+      status:
+        | "draft"
+        | "pending"
+        | "approved"
+        | "shipped"
+        | "received"
+        | "completed"
+        | "cancelled";
+      priority: "low" | "medium" | "high" | "urgent";
+      total_amount: number;
+      tax_amount: number;
+      discount_amount: number;
+      final_amount: number;
+      payment_terms?: string;
+      delivery_address?: string;
       notes?: string;
-    }>;
-  }>(`/purchase-orders/${id}`),
+      created_by?: string;
+      approved_by?: string;
+      approved_at?: string;
+      created_at: string;
+      updated_at: string;
+      items: Array<{
+        id: string;
+        product_id: string;
+        product_name: string;
+        sku?: string;
+        unit?: string;
+        quantity: number;
+        unit_price: number;
+        total_price: number;
+        received_quantity: number;
+        quality_status: "pending" | "approved" | "rejected" | "hold";
+        delivery_date?: string;
+        notes?: string;
+      }>;
+    }>(`/purchase-orders/${id}`),
 
   create: (order: {
     supplier_id: string;
@@ -694,11 +709,21 @@ export const purchaseOrdersAPI = {
       body: JSON.stringify(order),
     }),
 
-  updateStatus: (id: string, data: {
-    status: "draft" | "pending" | "approved" | "shipped" | "received" | "completed" | "cancelled";
-    approved_by?: string;
-    notes?: string;
-  }) =>
+  updateStatus: (
+    id: string,
+    data: {
+      status:
+        | "draft"
+        | "pending"
+        | "approved"
+        | "shipped"
+        | "received"
+        | "completed"
+        | "cancelled";
+      approved_by?: string;
+      notes?: string;
+    }
+  ) =>
     apiCall<{
       message: string;
       order: any;
@@ -853,63 +878,81 @@ export const reportsAPI = {
 
 // QC API
 export const qcAPI = {
-  getMetrics: () => apiCall<{
-    rejectionRate: number;
-    totalInspections: number;
-    scrapQuantity: number;
-    scrapValue: number;
-  }>("/qc/metrics"),
+  getMetrics: () =>
+    apiCall<{
+      rejectionRate: number;
+      totalInspections: number;
+      scrapQuantity: number;
+      scrapValue: number;
+    }>("/qc/metrics"),
 
-  getDefects: () => apiCall<Array<{
-    type: string;
-    count: number;
-  }>>("/qc/defects"),
+  getDefects: () =>
+    apiCall<
+      Array<{
+        type: string;
+        count: number;
+      }>
+    >("/qc/defects"),
 
   getRejectionTrend: (params?: { days?: number }) => {
     const queryParams = new URLSearchParams();
     if (params?.days) queryParams.append("days", params.days.toString());
-    return apiCall<Array<{
-      date: string;
-      rejectionRate: number;
-    }>>(`/qc/rejection-trend${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+    return apiCall<
+      Array<{
+        date: string;
+        rejectionRate: number;
+      }>
+    >(
+      `/qc/rejection-trend${
+        queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`
+    );
   },
 
-  getHoldItems: (params?: { 
-    limit?: number; 
-    status?: string;
-  }) => {
+  getHoldItems: (params?: { limit?: number; status?: string }) => {
     const queryParams = new URLSearchParams();
     if (params?.limit) queryParams.append("limit", params.limit.toString());
     if (params?.status) queryParams.append("status", params.status);
-    return apiCall<Array<{
-      id: string;
-      itemCode: string;
-      description: string;
-      quantity: number;
-      status: string;
-      date: string;
-      order_number?: string;
-      supplier_name?: string;
-    }>>(`/qc/hold-items${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+    return apiCall<
+      Array<{
+        id: string;
+        itemCode: string;
+        description: string;
+        quantity: number;
+        status: string;
+        date: string;
+        order_number?: string;
+        supplier_name?: string;
+      }>
+    >(
+      `/qc/hold-items${
+        queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`
+    );
   },
 
-  updateItemStatus: (id: string, data: {
-    quality_status: string;
-    notes?: string;
-  }) => apiCall<{ success: boolean; message: string }>(`/qc/items/${id}/status`, {
-    method: "PUT",
-    body: JSON.stringify(data),
-  }),
+  updateItemStatus: (
+    id: string,
+    data: {
+      quality_status: string;
+      notes?: string;
+    }
+  ) =>
+    apiCall<{ success: boolean; message: string }>(`/qc/items/${id}/status`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 
-  getStats: () => apiCall<{
-    totalItems: number;
-    approvedItems: number;
-    rejectedItems: number;
-    holdItems: number;
-    pendingItems: number;
-    averageScrapValue: number;
-    approvalRate: number;
-  }>("/qc/stats"),
+  getStats: () =>
+    apiCall<{
+      totalItems: number;
+      approvedItems: number;
+      rejectedItems: number;
+      holdItems: number;
+      pendingItems: number;
+      averageScrapValue: number;
+      approvalRate: number;
+    }>("/qc/stats"),
 };
 
 // Stock Summary API
@@ -919,19 +962,20 @@ export const stockSummaryAPI = {
     limit?: number;
     search?: string;
     category?: string;
-    stockFilter?: 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';
-    sortBy?: 'name' | 'stock' | 'value' | 'turnover' | 'lastMovement';
-    sortOrder?: 'asc' | 'desc';
+    stockFilter?: "all" | "in_stock" | "low_stock" | "out_of_stock";
+    sortBy?: "name" | "stock" | "value" | "turnover" | "lastMovement";
+    sortOrder?: "asc" | "desc";
   }) => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.limit) queryParams.append("limit", params.limit.toString());
     if (params?.search) queryParams.append("search", params.search);
     if (params?.category) queryParams.append("category", params.category);
-    if (params?.stockFilter) queryParams.append("stockFilter", params.stockFilter);
+    if (params?.stockFilter)
+      queryParams.append("stockFilter", params.stockFilter);
     if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
     if (params?.sortOrder) queryParams.append("sortOrder", params.sortOrder);
-    
+
     return apiCall<{
       items: Array<{
         id: string;
@@ -967,18 +1011,22 @@ export const stockSummaryAPI = {
         avgTurnover: number;
       };
       categories: string[];
-    }>(`/stock-summary${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+    }>(
+      `/stock-summary${
+        queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`
+    );
   },
 
   getProductMovements: (productId: string, params?: { limit?: number }) => {
     const queryParams = new URLSearchParams();
     if (params?.limit) queryParams.append("limit", params.limit.toString());
-    
+
     return apiCall<{
       movements: Array<{
         id: string;
         date: string;
-        type: 'Purchase' | 'Sale' | 'Adjustment' | 'Other';
+        type: "Purchase" | "Sale" | "Adjustment" | "Other";
         quantity: number;
         balance: number;
         reference?: string;
@@ -986,13 +1034,17 @@ export const stockSummaryAPI = {
         notes?: string;
         createdBy?: string;
       }>;
-    }>(`/stock-summary/movements/${productId}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+    }>(
+      `/stock-summary/movements/${productId}${
+        queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`
+    );
   },
 
   getMovementTrends: (params?: { days?: number }) => {
     const queryParams = new URLSearchParams();
     if (params?.days) queryParams.append("days", params.days.toString());
-    
+
     return apiCall<{
       trends: Array<{
         date: string;
@@ -1000,7 +1052,11 @@ export const stockSummaryAPI = {
         stockOut: number;
         net: number;
       }>;
-    }>(`/stock-summary/trends${queryParams.toString() ? `?${queryParams.toString()}` : ""}`);
+    }>(
+      `/stock-summary/trends${
+        queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`
+    );
   },
 
   getCategoryDistribution: () => {

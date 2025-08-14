@@ -45,44 +45,12 @@ if (process.env.NODE_ENV === "production") {
   app.use(limiter);
 }
 
-// CORS configuration
-const getCorsOrigins = () => {
-  if (process.env.NODE_ENV === 'production') {
-    // In production, use specific allowed origins
-    const corsOrigin = process.env.CORS_ORIGIN || "https://hackathon.artechnology.pro";
-    return corsOrigin.split(',').map(origin => origin.trim());
-  } else {
-    // In development, allow common development ports
-    return [
-      "http://localhost:5173",
-      "http://localhost:8080", 
-      "http://localhost:3000",
-      "http://localhost:4173",
-      "http://127.0.0.1:5173",
-      "http://127.0.0.1:8080",
-      "http://127.0.0.1:3000",
-      "https://hackathon.artechnology.pro"
-    ];
-  }
-};
-
-const allowedOrigins = getCorsOrigins();
-
-console.log('🔒 CORS allowed origins:', allowedOrigins);
+// CORS configuration - Allow all origins
+console.log("� CORS: Allowing all origins");
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps, Postman, or curl requests)
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
-        callback(null, true);
-      } else {
-        console.warn('🚫 CORS blocked origin:', origin);
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: "*",
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [
@@ -102,7 +70,7 @@ app.use(
 
 // Handle preflight requests explicitly
 app.options("*", (req, res) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Methods",
     "GET,PUT,POST,DELETE,PATCH,OPTIONS"
@@ -117,28 +85,6 @@ app.options("*", (req, res) => {
 
 // Compression middleware
 app.use(compression());
-
-// Additional CORS headers middleware
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = getCorsOrigins();
-
-  if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
-    res.header("Access-Control-Allow-Origin", origin || "*");
-  }
-
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET,PUT,POST,DELETE,PATCH,OPTIONS"
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, Content-Length, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
-  );
-
-  next();
-});
 
 // Logging middleware
 if (process.env.NODE_ENV !== "production") {

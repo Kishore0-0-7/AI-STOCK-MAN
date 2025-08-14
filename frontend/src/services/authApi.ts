@@ -1,7 +1,7 @@
 // Authentication API service
 const getApiBaseUrl = () => {
   // Check if running in development
-  if (import.meta.env.DEV || window.location.hostname === 'localhost') {
+  if (import.meta.env.DEV || window.location.hostname === "localhost") {
     return "http://localhost:5000/api/v1";
   }
   return "https://api.artechnology.pro/api/v1";
