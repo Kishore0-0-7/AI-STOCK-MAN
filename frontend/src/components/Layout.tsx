@@ -52,7 +52,7 @@ export function Layout() {
   // Helper function to get API base URL
   const getApiBaseUrl = () => {
     if (import.meta.env.DEV || window.location.hostname === "localhost") {
-      return "http://localhost:5000/api/v1";
+      return "https://api.artechnology.pro/api/v1";
     }
     return "https://api.artechnology.pro/api/v1";
   };

@@ -67,6 +67,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 const EmployeeManagement: React.FC = () => {
@@ -81,6 +82,7 @@ const EmployeeManagement: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const { user, hasPermission } = useAuth();
+  const isMobile = useIsMobile();
 
   // Form state
   const [formData, setFormData] = useState<Employee>({
@@ -326,14 +328,14 @@ const EmployeeManagement: React.FC = () => {
 
   return (
     <ProtectedRoute requiredPermissions={[Permission.VIEW_EMPLOYEES]}>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
               Employee Management
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
               Manage warehouse staff accounts and permissions
             </p>
           </div>
@@ -343,7 +345,7 @@ const EmployeeManagement: React.FC = () => {
                 resetForm();
                 setIsCreateDialogOpen(true);
               }}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             >
               <UserPlus className="mr-2 h-4 w-4" />
               Add Employee
@@ -359,7 +361,7 @@ const EmployeeManagement: React.FC = () => {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search employees by name, email, or department..."
+                    placeholder={isMobile ? "Search employees..." : "Search employees by name, email, or department..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -384,7 +386,7 @@ const EmployeeManagement: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Employee Table */}
+        {/* Employee List/Table */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -401,34 +403,21 @@ const EmployeeManagement: React.FC = () => {
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last Login</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <>
+                {/* Mobile Card View */}
+                {isMobile ? (
+                  <div className="space-y-4">
                     {filteredEmployees.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className="text-center py-8 text-muted-foreground"
-                        >
-                          No employees found
-                        </TableCell>
-                      </TableRow>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No employees found</p>
+                      </div>
                     ) : (
                       filteredEmployees.map((employee) => (
-                        <TableRow key={employee.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-10 w-10">
+                        <Card key={employee.id} className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <Avatar className="h-12 w-12">
                                 <AvatarImage src={employee.avatar} />
                                 <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
                                   {employee.fullName
@@ -437,80 +426,33 @@ const EmployeeManagement: React.FC = () => {
                                     .join("")}
                                 </AvatarFallback>
                               </Avatar>
-                              <div>
-                                <div className="font-medium text-gray-900">
-                                  {employee.fullName}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold text-sm truncate">
+                                    {employee.fullName}
+                                  </h3>
                                   {employee.id === user?.id && (
-                                    <Badge
-                                      variant="outline"
-                                      className="ml-2 text-xs"
-                                    >
+                                    <Badge variant="outline" className="text-xs px-1 py-0">
                                       You
                                     </Badge>
                                   )}
                                 </div>
-                                <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                                   <Mail className="h-3 w-3" />
-                                  {employee.email}
+                                  <span className="truncate">{employee.email}</span>
                                 </div>
                                 {employee.phone && (
-                                  <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                     <Phone className="h-3 w-3" />
                                     {employee.phone}
                                   </div>
                                 )}
                               </div>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              className={`${getRoleColor(
-                                employee.role
-                              )} border`}
-                            >
-                              <Shield className="mr-1 h-3 w-3" />
-                              {formatRoleName(employee.role)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1 text-sm">
-                              <Building className="h-3 w-3 text-muted-foreground" />
-                              {employee.department}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                employee.status === "active"
-                                  ? "default"
-                                  : "secondary"
-                              }
-                            >
-                              {employee.status === "active" ? (
-                                <CheckCircle className="mr-1 h-3 w-3" />
-                              ) : (
-                                <XCircle className="mr-1 h-3 w-3" />
-                              )}
-                              {employee.status === "active"
-                                ? "Active"
-                                : "Inactive"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-muted-foreground flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {employee.lastLogin
-                                ? new Date(
-                                    employee.lastLogin
-                                  ).toLocaleDateString()
-                                : "Never"}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
                             {hasPermission(Permission.MANAGE_EMPLOYEES) && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                                     <MoreHorizontal className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -549,20 +491,211 @@ const EmployeeManagement: React.FC = () => {
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             )}
-                          </TableCell>
-                        </TableRow>
+                          </div>
+                          
+                          {/* Mobile Card Details */}
+                          <div className="mt-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Badge className={`${getRoleColor(employee.role)} border text-xs`}>
+                                <Shield className="mr-1 h-3 w-3" />
+                                {formatRoleName(employee.role)}
+                              </Badge>
+                              <Badge
+                                variant={employee.status === "active" ? "default" : "secondary"}
+                                className="text-xs"
+                              >
+                                {employee.status === "active" ? (
+                                  <CheckCircle className="mr-1 h-3 w-3" />
+                                ) : (
+                                  <XCircle className="mr-1 h-3 w-3" />
+                                )}
+                                {employee.status === "active" ? "Active" : "Inactive"}
+                              </Badge>
+                            </div>
+                            
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Building className="h-3 w-3" />
+                                {employee.department}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {employee.lastLogin
+                                  ? new Date(employee.lastLogin).toLocaleDateString()
+                                  : "Never"}
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
                       ))
                     )}
-                  </TableBody>
-                </Table>
-              </div>
+                  </div>
+                ) : (
+                  /* Desktop Table View */
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Last Login</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredEmployees.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={6}
+                              className="text-center py-8 text-muted-foreground"
+                            >
+                              No employees found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredEmployees.map((employee) => (
+                            <TableRow key={employee.id}>
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-10 w-10">
+                                    <AvatarImage src={employee.avatar} />
+                                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                                      {employee.fullName
+                                        .split(" ")
+                                        .map((n) => n[0])
+                                        .join("")}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <div className="font-medium text-gray-900">
+                                      {employee.fullName}
+                                      {employee.id === user?.id && (
+                                        <Badge
+                                          variant="outline"
+                                          className="ml-2 text-xs"
+                                        >
+                                          You
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                      <Mail className="h-3 w-3" />
+                                      {employee.email}
+                                    </div>
+                                    {employee.phone && (
+                                      <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                        <Phone className="h-3 w-3" />
+                                        {employee.phone}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  className={`${getRoleColor(
+                                    employee.role
+                                  )} border`}
+                                >
+                                  <Shield className="mr-1 h-3 w-3" />
+                                  {formatRoleName(employee.role)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1 text-sm">
+                                  <Building className="h-3 w-3 text-muted-foreground" />
+                                  {employee.department}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    employee.status === "active"
+                                      ? "default"
+                                      : "secondary"
+                                  }
+                                >
+                                  {employee.status === "active" ? (
+                                    <CheckCircle className="mr-1 h-3 w-3" />
+                                  ) : (
+                                    <XCircle className="mr-1 h-3 w-3" />
+                                  )}
+                                  {employee.status === "active"
+                                    ? "Active"
+                                    : "Inactive"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {employee.lastLogin
+                                    ? new Date(
+                                        employee.lastLogin
+                                      ).toLocaleDateString()
+                                    : "Never"}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {hasPermission(Permission.MANAGE_EMPLOYEES) && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        onClick={() => openEditDialog(employee)}
+                                      >
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Edit
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => handleToggleStatus(employee)}
+                                        disabled={employee.id === user?.id}
+                                      >
+                                        {employee.status === "active" ? (
+                                          <>
+                                            <XCircle className="mr-2 h-4 w-4" />
+                                            Deactivate
+                                          </>
+                                        ) : (
+                                          <>
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                            Activate
+                                          </>
+                                        )}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => handleDelete(employee)}
+                                        className="text-red-600"
+                                        disabled={employee.id === user?.id}
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
 
         {/* Create Employee Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md mx-4 sm:mx-auto max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Employee</DialogTitle>
               <DialogDescription>
@@ -708,7 +841,7 @@ const EmployeeManagement: React.FC = () => {
 
         {/* Edit Employee Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md mx-4 sm:mx-auto max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Employee</DialogTitle>
               <DialogDescription>

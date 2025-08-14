@@ -2,7 +2,7 @@
 const getApiBaseUrl = () => {
   // Check if running in development
   if (import.meta.env.DEV || window.location.hostname === "localhost") {
-    return "http://localhost:5000/api/v1";
+    return "https://api.artechnology.pro/api/v1";
   }
   return "https://api.artechnology.pro/api/v1";
 };
@@ -10,7 +10,7 @@ const getApiBaseUrl = () => {
 const getHealthCheckUrl = () => {
   // Check if running in development
   if (import.meta.env.DEV || window.location.hostname === "localhost") {
-    return "http://localhost:5000/health";
+    return "https://api.artechnology.pro/health";
   }
   return "https://api.artechnology.pro/health";
 };
