@@ -46,25 +46,41 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // CORS configuration
-const allowedOrigins = [
-  "http://localhost:5173", // Local development
-  "http://localhost:8080", // Alternative frontend port
-  "http://localhost:3000", // Local development alternative
-  "https://hackathon.artechnology.pro", // Production frontend
-  "https://api.artechnology.pro", // API domain
-  "*", // Allow all for development
-];
+const getCorsOrigins = () => {
+  if (process.env.NODE_ENV === 'production') {
+    // In production, use specific allowed origins
+    const corsOrigin = process.env.CORS_ORIGIN || "https://hackathon.artechnology.pro";
+    return corsOrigin.split(',').map(origin => origin.trim());
+  } else {
+    // In development, allow common development ports
+    return [
+      "http://localhost:5173",
+      "http://localhost:8080", 
+      "http://localhost:3000",
+      "http://localhost:4173",
+      "http://127.0.0.1:5173",
+      "http://127.0.0.1:8080",
+      "http://127.0.0.1:3000",
+      "https://hackathon.artechnology.pro"
+    ];
+  }
+};
+
+const allowedOrigins = getCorsOrigins();
+
+console.log('🔒 CORS allowed origins:', allowedOrigins);
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
+      // Allow requests with no origin (like mobile apps, Postman, or curl requests)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        console.warn('🚫 CORS blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
       }
     },
     credentials: true,
@@ -105,15 +121,9 @@ app.use(compression());
 // Additional CORS headers middleware
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const allowedOrigins = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:8080",
-    "https://hackathon.artechnology.pro",
-    "https://api.artechnology.pro",
-  ];
+  const allowedOrigins = getCorsOrigins();
 
-  if (!origin || allowedOrigins.includes(origin)) {
+  if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
     res.header("Access-Control-Allow-Origin", origin || "*");
   }
 
